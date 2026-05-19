@@ -13,4 +13,20 @@ services:
         start_period: 30s
       restart: always
   
-  mlflow
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.12.0
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    command:
+      - mlflow db upgrade "${MYSQLURL_REMOTE}" &&
+        mlflow server
+        --backend-store-uri "${MYSQLURL_REMOTE}"
+        --default-artifact-root "${MLFLOW_ARTIFACT_ROOT}"
+        --host 0.0.0.0
+        --allowed-hosts "*"
+        --port 5000
