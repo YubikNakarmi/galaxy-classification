@@ -1,0 +1,5 @@
+FROM python:3.12-slim
+WORKDIR /api
+COPY . .
+
+RUN pip install --no-cache-dir fastapi uvicorn azure-storage-blob mlflow redis pymysql
