@@ -1,0 +1,5 @@
+[core]
+    remote = myremote
+['remote "myremote"']
+    url = azure://dvc-storage
+    account_name = galaxyclassification
