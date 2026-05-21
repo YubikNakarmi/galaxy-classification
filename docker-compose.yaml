@@ -2,9 +2,11 @@
 
 services:
   redis:
-      image: redis:7.2-bookworm
-      expose:
-        - 6379
+      command: redis-server --appendonly yes
+      ports:
+      - "6379:6379"
+      volumes:
+        - redisdata:/data
       healthcheck:
         test: ["CMD", "redis-cli", "ping"]
         interval: 10s
@@ -30,3 +32,4 @@ services:
         --host 0.0.0.0
         --allowed-hosts "*"
         --port 5000
+    
