@@ -1,0 +1,20 @@
+site_name: Galaxy Classification
+site_url: https://GalaxyClaassifier/
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - toc.integrate
+nav:
+  - Home: index.md
+  - Data: data.md
+  - Preprocessing:
+      - Label Preprocessing: label_preprocessing.md
+      - Image Preprocessing: image_preprocessing.md
+  - Models:
+      - Baseline Models: baseline_models.md
+      - Advanced Models: advanced_models.md
+  - Results: results.md
