@@ -1,125 +1,184 @@
-site_name: Galaxy CNN Classifier
-site_description: CNN-based galaxy classification project with training, evaluation, and MLOps pipeline
-site_author: Yubik Nakarmi
-
+site_name: CosmosClassifier
+site_description: End-to-end ML/MLOps pipeline for astronomical image classification
+site_author: Your Name
+site_url: https://YubikNakarmi.github.io/cosmos-classifier
 repo_url: https://github.com/YubikNakarmi/galaxy-classification
-repo_name: GitHub
+repo_name: Galaxy Classification
+edit_uri: edit/main/docs/
 
 theme:
   name: material
   palette:
-    - scheme: default
-      primary: indigo
-      accent: blue
-      toggle:
-        icon: material/brightness-7
-        name: Switch to dark mode
     - scheme: slate
-      primary: indigo
-      accent: blue
+      primary: deep purple
+      accent: indigo
       toggle:
-        icon: material/brightness-4
+        icon: material/weather-sunny
         name: Switch to light mode
-
+    - scheme: default
+      primary: deep purple
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  font:
+    text: Interc:\Users\ZENBOOK\Downloads\cosmos-docs
+    code: JetBrains Mono
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
   features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.expand
+    - navigation.indexes
     - navigation.top
+    - toc.follow
+    - toc.integrate
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
-
-  icon:
-    repo: fontawesome/brands/github
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - header.autohide
 
 plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            show_source: true
-            show_root_heading: true
-            heading_level: 2
-
-  - mkdocs-jupyter:
-      include_source: true
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - minify:
+      minify_html: true
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
 
 markdown_extensions:
+  - abbr
   - admonition
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.highlight
-  - pymdownx.inlinehilite
-  - pymdownx.tasklist
-  - pymdownx.arithmatex:
-      generic: true
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
   - toc:
       permalink: true
+      title: On this page
+  - tables
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/YubikNakarmi/galaxy-classification
+    - icon: fontawesome/brands/linkedin
+      link: https://linkedin.com/in/yubiknakarmi
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+  generator: false
 
 extra_css:
-  - assets/css/extra.css
+  - assets/extra.css
+
+extra_javascript:
+  - assets/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
 
 nav:
   - Home: index.md
 
-  - Getting Started:
-      - Installation: getting-started/installation.md
-      - Quickstart: getting-started/quickstart.md
-      - Project Structure: getting-started/project-structure.md
-      - Configuration: getting-started/configuration.md
+  - Getting started:
+    - getting-started/index.md
+    - Prerequisites: getting-started/prerequisites.md
+    - Quick start: getting-started/quickstart.md
+    - Configuration: getting-started/configuration.md
+    - Running locally: getting-started/running-locally.md
 
-  - Dataset:
-      - Overview: dataset/overview.md
-      - Galaxy Zoo 2: dataset/galaxy-zoo-2.md
-      - Preprocessing: dataset/preprocessing.md
-      - Augmentations: dataset/augmentations.md
-      - Splitting Strategy: dataset/splitting-strategy.md
+  - Architecture:
+    - architecture/index.md
+    - System overview: architecture/overview.md
+    - Async classification flow: architecture/async-flow.md
+    - Database schema: architecture/database.md
+    - Service topology: architecture/services.md
 
-  - Models:
-      - Overview: models/overview.md
-      - Baseline CNN: models/baseline-cnn.md
-      - ResNet: models/resnet.md
-      - EfficientNet: models/efficientnet.md
-      - Vision Transformer: models/vision-transformer.md
+  - Data:
+    - data/index.md
+    - Galaxy Zoo dataset: data/galaxy-zoo.md
+    - Label processing: data/label-processing.md
+    - Data preprocessing: data/preprocessing.md
+    - Data augmentation: data/augmentation.md
+    - Class imbalance handling: data/class-imbalance.md  
 
-  - Training:
-      - Pipeline: training/training-pipeline.md
-      - Hyperparameters: training/hyperparameters.md
-      - Optimization: training/optimization.md
-      - Schedulers: training/schedulers.md
-      - Distributed Training: training/distributed-training.md
+  - ML:
+    - ml/index.md
+    - Model (EfficientNetB3): ml/model.md
+    - Training loop: ml/training.md
+    - Evaluation & metrics: ml/evaluation.md
+    - Grad-CAM explainability: ml/gradcam.md
 
-  - Experiments:
-      - Tracking: experiments/experiment-tracking.md
-      - Ablation Studies: experiments/ablation-studies.md
-      - Benchmarks: experiments/benchmark-results.md
-
-  - Evaluation:
-      - Metrics: evaluation/metrics.md
-      - Confusion Matrix: evaluation/confusion-matrix.md
-      - Error Analysis: evaluation/error-analysis.md
+  - API reference:
+    - api/index.md
+    - Authentication: api/auth.md
+    - Classification: api/classify.md
+    - History: api/history.md
+    - WebSocket: api/websocket.md
 
   - MLOps:
-      - DVC: mlops/dvc.md
-      - MLflow: mlops/mlflow.md
-      - Docker: mlops/docker.md
-      - CI/CD: mlops/ci-cd.md
-      - Deployment: mlops/deployment.md
+    - mlops/index.md
+    - DVC data versioning: mlops/dvc.md
+    - MLflow experiment tracking: mlops/mlflow.md
+    - Model registry & promotion: mlops/registry.md
+    - BentoML inference service: mlops/bentoml.md
+    - Drift monitoring (Evidently): mlops/drift.md
 
-  - API:
-      - Inference API: api/inference-api.md
-      - CLI: api/cli.md
-      - Schemas: api/schemas.md
+  - Infrastructure:
+    - infra/index.md
+    - Docker Compose: infra/docker-compose.md
+    - CI/CD (GitHub Actions): infra/cicd.md
+    - Prometheus & Grafana: infra/observability.md
 
-  - Research:
-      - Literature Review: research/literature-review.md
-      - Future Work: research/future-work.md
+  - Deployment:
+    - deployment/index.md
+    - Azure VM: deployment/azure.md
+    - Environment variables: deployment/env-vars.md
 
-  - Tutorials:
-      - Fine-tuning: tutorials/fine-tuning.md
-      - Training Custom Model: tutorials/training-custom-model.md
+  - Development:
+    - development/index.md
+    - Adding a new class: development/new-class.md
+    - Writing tests: development/testing.md
+    - Alembic migrations: development/migrations.md
+    - Contributing: development/contributing.md
 
-  - Reference:
-      - Glossary: reference/glossary.md
-      - Module Reference: reference/module-reference.md
+  - Changelog: changelog.md

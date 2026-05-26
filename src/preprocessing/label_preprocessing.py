@@ -124,10 +124,21 @@ class Label_Processing_Classic(Label_Processing):
         self.df = debiased_df.copy()
         return debiased_df
 
-    def stats(self, labeled_df: pd.DataFrame) -> None:
-        ''' print bar plot'''
+    def stats(self,original_df:pd.DataFrame, labeled_df: pd.DataFrame) -> None:
+        counts = labeled_df["label"].value_counts().sort_index()
+        total   = len(original_df)
+        labeled = len(labeled_df)
+        dropped = total - labeled
+        percentage_dropped = (dropped / total) * 100
+        logging.info(f"Total samples: {total}")
+        logging.info(f"Labeled samples: {labeled}")
+        logging.info(f"Dropped samples: {dropped}")
+        logging.info(f"Percentage dropped: {percentage_dropped:.2f}%")
 
+        for cls, count in counts.items():
+            logging.info(f"{self.CLASS_NAMES.get(cls, 'Unknown')}: {count}")
 
+    def plot(self, labeled_df: pd.DataFrame) -> None:
         counts = labeled_df["label"].value_counts().sort_index()
         plt.figure(figsize=(8, 4))
         plt.bar([self.CLASS_NAMES[i] for i in counts.index], counts.values, color='steelblue')
@@ -137,6 +148,9 @@ class Label_Processing_Classic(Label_Processing):
         plt.xticks(rotation=30, ha='right')
         plt.tight_layout()
         plt.show()
-            
+                
 
 
+class Label_Processing_Hubble(Label_Processing):
+    ''' Label processing for galaxy using the Hubble Tuning Fork classification'''    
+    pass
