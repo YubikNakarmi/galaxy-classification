@@ -1,0 +1,10 @@
+/* CosmosClassifier — MkDocs Material extra styles */
+:root {
+  --md-primary-fg-color: #6200ea;
+  --md-accent-fg-color:  #3d5afe;
+}
+
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 6px;
+}

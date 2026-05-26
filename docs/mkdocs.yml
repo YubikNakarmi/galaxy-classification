@@ -1,13 +1,14 @@
-site_name: CosmosClassifier
+site_name: Galaxy Classification
 site_description: End-to-end ML/MLOps pipeline for astronomical image classification
-site_author: Your Name
-site_url: https://YubikNakarmi.github.io/cosmos-classifier
+site_author: Yubik Nakarmi
+site_url: https://yubiknakarmi.github.io/galaxy-classification
 repo_url: https://github.com/YubikNakarmi/galaxy-classification
 repo_name: Galaxy Classification
 edit_uri: edit/main/docs/
 
 theme:
   name: material
+  language: en
   palette:
     - scheme: slate
       primary: deep purple
@@ -21,9 +22,12 @@ theme:
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
+ 
+   
   font:
-    text: Interc:\Users\ZENBOOK\Downloads\cosmos-docs
+    text: Inter
     code: JetBrains Mono
+
   logo: assets/logo.svg
   favicon: assets/favicon.png
   features:
@@ -46,6 +50,9 @@ theme:
     - content.tabs.link
     - content.tooltips
     - header.autohide
+    - content.action.edit
+    - content.action.view
+    - navigation.footer
 
 plugins:
   - search:
@@ -55,6 +62,8 @@ plugins:
   - git-revision-date-localized:
       enable_creation_date: true
       type: timeago
+      enable_git_follow: false
+  - awesome-pages
 
 markdown_extensions:
   - abbr
@@ -95,6 +104,7 @@ markdown_extensions:
   - pymdownx.tasklist:
       custom_checkbox: true
   - pymdownx.tilde
+  - pymdownx.emoji
 
 extra:
   version:
@@ -120,65 +130,65 @@ nav:
   - Home: index.md
 
   - Getting started:
-    - getting-started/index.md
-    - Prerequisites: getting-started/prerequisites.md
-    - Quick start: getting-started/quickstart.md
-    - Configuration: getting-started/configuration.md
-    - Running locally: getting-started/running-locally.md
+      - Overview: getting-started/index.md
+      - Prerequisites: getting-started/prerequisites.md
+      - Quick start: getting-started/quickstart.md
+      - Configuration: getting-started/configuration.md
+      - Running locally: getting-started/running-locally.md
 
   - Architecture:
-    - architecture/index.md
-    - System overview: architecture/overview.md
-    - Async classification flow: architecture/async-flow.md
-    - Database schema: architecture/database.md
-    - Service topology: architecture/services.md
+      - Overview: architecture/index.md
+      - System overview: architecture/overview.md
+      - Async classification flow: architecture/async-flow.md
+      - Database schema: architecture/database.md
+      - Service topology: architecture/services.md
 
   - Data:
-    - data/index.md
-    - Galaxy Zoo dataset: data/galaxy-zoo.md
-    - Label processing: data/label-processing.md
-    - Data preprocessing: data/preprocessing.md
-    - Data augmentation: data/augmentation.md
-    - Class imbalance handling: data/class-imbalance.md  
+      - Overview: data/index.md
+      - Galaxy Zoo dataset: data/galaxy-zoo.md
+      - Label processing: data/label-processing.md
+      - Data preprocessing: data/preprocessing.md
+      - Data augmentation: data/augmentation.md
+      - Class imbalance handling: data/class-imbalance.md
 
   - ML:
-    - ml/index.md
-    - Model (EfficientNetB3): ml/model.md
-    - Training loop: ml/training.md
-    - Evaluation & metrics: ml/evaluation.md
-    - Grad-CAM explainability: ml/gradcam.md
+      - Overview: ml/index.md
+      - Model (EfficientNetB3): ml/model.md
+      - Training loop: ml/training.md
+      - Evaluation & metrics: ml/evaluation.md
+      - Grad-CAM explainability: ml/gradcam.md
 
   - API reference:
-    - api/index.md
-    - Authentication: api/auth.md
-    - Classification: api/classify.md
-    - History: api/history.md
-    - WebSocket: api/websocket.md
+      - Overview: api/index.md
+      - Authentication: api/auth.md
+      - Classification: api/classify.md
+      - History: api/history.md
+      - WebSocket: api/websocket.md
 
   - MLOps:
-    - mlops/index.md
-    - DVC data versioning: mlops/dvc.md
-    - MLflow experiment tracking: mlops/mlflow.md
-    - Model registry & promotion: mlops/registry.md
-    - BentoML inference service: mlops/bentoml.md
-    - Drift monitoring (Evidently): mlops/drift.md
+      - Overview: mlops/index.md
+      - DVC data versioning: mlops/dvc.md
+      - MLflow experiment tracking: mlops/mlflow.md
+      - Model registry & promotion: mlops/registry.md
+      - BentoML inference service: mlops/bentoml.md
+      - Drift monitoring (Evidently): mlops/drift.md
 
   - Infrastructure:
-    - infra/index.md
-    - Docker Compose: infra/docker-compose.md
-    - CI/CD (GitHub Actions): infra/cicd.md
-    - Prometheus & Grafana: infra/observability.md
+      - Overview: infra/index.md
+      - Docker Compose: infra/docker-compose.md
+      - CI/CD (GitHub Actions): infra/cicd.md
+      - Prometheus & Grafana: infra/observability.md
 
   - Deployment:
-    - deployment/index.md
-    - Azure VM: deployment/azure.md
-    - Environment variables: deployment/env-vars.md
+      - Overview: deployment/index.md
+      - Azure VM: deployment/azure.md
+      - Environment variables: deployment/env-vars.md
 
   - Development:
-    - development/index.md
-    - Adding a new class: development/new-class.md
-    - Writing tests: development/testing.md
-    - Alembic migrations: development/migrations.md
-    - Contributing: development/contributing.md
+      - Overview: development/index.md
+      - Adding a new class: development/new-class.md
+      - Writing tests: development/testing.md
+      - Alembic migrations: development/migrations.md
+      - Contributing: development/contributing.md
 
   - Changelog: changelog.md
