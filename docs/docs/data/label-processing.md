@@ -45,3 +45,9 @@ $$
 
 ### Class Distribution
 ![Figure 1: Class distribution for Method 1](../assets/class_distribution_1.png){align="center" width="60%"}
+/// caption
+The class distribution is highly imbalanced, with Class 4 (Spiral) being the most populous and Class 2 (Cigar-shaped smooth) being the least populous. This imbalance may affect model training and evaluation, necessitating techniques such as class weighting or resampling to mitigate bias towards the majority class.
+///
+
+## Method 2: Using Hubble's Classification
+### Overview

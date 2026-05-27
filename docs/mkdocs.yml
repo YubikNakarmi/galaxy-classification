@@ -146,7 +146,6 @@ nav:
 
   - Data:
       - Overview: data/index.md
-      - Galaxy Zoo dataset: data/galaxy-zoo.md
       - Label processing: data/label-processing.md
       - Data preprocessing: data/preprocessing.md
       - Data augmentation: data/augmentation.md
