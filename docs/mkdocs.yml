@@ -105,6 +105,7 @@ markdown_extensions:
       custom_checkbox: true
   - pymdownx.tilde
   - pymdownx.emoji
+  - pymdownx.blocks.caption
 
 extra:
   version:
