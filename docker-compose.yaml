@@ -44,4 +44,13 @@ services:
         --host 0.0.0.0
         --allowed-hosts "*"
         --port 5000
+  
+  azureite:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: azureite
+    ports:
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+    command: "azurite --blobHost 0.0.0.0 --blobPort 10000"
     
