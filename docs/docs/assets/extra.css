@@ -8,3 +8,8 @@
 .md-typeset details {
   border-radius: 6px;
 }
+
+.md-social__link svg {
+    width: 2rem;
+    height: 2rem;
+}

@@ -150,7 +150,6 @@ class Label_Processing_Classic(Label_Processing):
         plt.show()
                 
 
-
 class Label_Processing_Hubble(Label_Processing):
     ''' Label processing for galaxy using the Hubble Tuning Fork classification'''    
     pass

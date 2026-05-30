@@ -1,9 +1,9 @@
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from torchvision.datasets import ImageFolder
-import pandas as pd
 import loguru as logging
 import torch
+import pandas as pd
 import os
 from PIL import Image
 
@@ -12,14 +12,14 @@ class GalaxyDataset(Dataset):
     ''' Custom dataset for galaxy classification weith weighted samplers. 
     Assume the mappping and label datasets are already merged'''
 
-    CLASS_NAMES = {
+    CLASS_NAMES = { #defaults preset can be edited with constructor 
     0: "completely_round_smooth",
     1: "in_between_smooth",
     2: "cigar_shaped_smooth",
     3: "edge_on",
     4: "spiral"}
 
-    def __init__(self, img_dir,labels_df, transform=None,class_names=CLASS_NAMES):
+    def __init__(self, img_dir,labels_df:pd.DataFrame, transform=None,class_names:dict=CLASS_NAMES):
 
         self.img_dir = img_dir
         self.labels =  labels_df
@@ -27,7 +27,7 @@ class GalaxyDataset(Dataset):
         self.CLASS_NAMES = class_names
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.labels)
 
     def __getitem__(self, idx):
 
