@@ -4,9 +4,24 @@ on:
   push:
     branches:
       - main
-  merge:
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+
+  pull_request:
     branches:
       - main
+  
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs: 
   deploy:
     runs-on: ubuntu-latest
@@ -17,7 +32,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.8'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -25,10 +40,17 @@ jobs:
 
       - name: Build documentation
         run: |
-          mkdocs build --site-dir site
+          mkdocs build --strict
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          path: site
+    
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
