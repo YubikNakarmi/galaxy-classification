@@ -1,5 +1,7 @@
 name: Deploy Documentation
 
+
+
 on: 
   push:
     branches:
@@ -12,6 +14,8 @@ on:
     branches:
       - main
   
+  workflow_dispatch: # Manual trigger for tests
+
 
 permissions:
   contents: read
