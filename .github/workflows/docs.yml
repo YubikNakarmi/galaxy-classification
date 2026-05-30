@@ -48,7 +48,7 @@ jobs:
           path: site
     
   deploy-pages:
-    needs: build
+    needs: deploy
     runs-on: ubuntu-latest
 
     steps:
