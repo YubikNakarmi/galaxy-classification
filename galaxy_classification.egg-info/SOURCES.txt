@@ -1,0 +1,7 @@
+README.md
+setup.py
+galaxy_classification.egg-info/PKG-INFO
+galaxy_classification.egg-info/SOURCES.txt
+galaxy_classification.egg-info/dependency_links.txt
+galaxy_classification.egg-info/top_level.txt
+src/__init__.py

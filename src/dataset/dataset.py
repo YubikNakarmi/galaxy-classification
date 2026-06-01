@@ -47,6 +47,9 @@ class GalaxyDataset(Dataset):
         class_weights = 1.0 / class_counts
         sample_weights = class_weights[self.labels["label"]]
 
+        logging.info(f"Class counts: {class_counts}")
+        logging.info(f"Class weights: {class_weights}")
+
         return WeightedRandomSampler(
             weights     = sample_weights,
             num_samples = len(sample_weights),
