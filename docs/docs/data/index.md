@@ -12,3 +12,5 @@ Figure 1: Galaxy Zoo 2 decision tree [Willett et al., 2013](https://arxiv.org/ab
 About 16 million classifications were made by volunteers for 304,122 galaxies, resulting in a rich dataset for morphological analysis. 
 
 The dataset contains a total of 304,122 samples, each corresponding to a unique galaxy. The dataset is available in CSV format and can be accessed through the [Galaxy Zoo 2 data release](https://data.galaxyzoo.org/). Ultimately voting fractions for each answer are used as labels for training machine learning models to classify galaxy morphologies. 
+
+# Data Splits

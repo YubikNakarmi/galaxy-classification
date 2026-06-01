@@ -40,7 +40,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install mkdocs mkdocs-git-revision-date-localized-plugin mkdocs-material mkdocs-minify-plugin pymdown-extensions
+          pip install mkdocs mkdocs-git-revision-date-localized-plugin mkdocs-material mkdocs-minify-plugin mkdocs-awesome-pages-plugin pymdown-extensions
 
       - name: Build documentation
         run: |
