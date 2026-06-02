@@ -24,7 +24,18 @@ class Label_Processing(): # base class
 
 
 class Label_Processing_Classic(Label_Processing):
-    ''' Label processing for galaxy using the orignal paper by (Zhu et al., 2019)'''    
+    ''' Label processing for galaxy using the orignal paper by (Zhu et al., 2019)
+    
+    Args:
+    df (pd.DataFrame): The input dataframe containing the raw data.
+    f_smooth (float): Threshold for smoothness.
+    f_completely_round (float): Threshold for completely round class.
+    f_in_between (float): Threshold for in-between class.
+    f_cigar_shaped (float): Threshold for cigar-shaped class.
+    f_faturesdisk (float): Threshold for features/disk class.
+    
+    
+    '''    
 
 
     CLASS_NAMES = {
@@ -44,6 +55,22 @@ class Label_Processing_Classic(Label_Processing):
         f_edge_onno: float = 0.715,
         f_spiral_yes: float = 0.619,
         voting_columns:Dict[str, str]=None, min_votes: int = 50) -> None:
+
+        ''' 
+         Args:
+            df (pd.DataFrame): The input dataframe containing the raw data.
+            f_smooth (float): Threshold for smoothness.
+            f_completely_round (float): Threshold for completely round class.
+            f_in_between (float): Threshold for in-between class.
+            f_cigar_shaped (float): Threshold for cigar-shaped class.
+            f_faturesdisk (float): Threshold for features/disk class.
+            f_edge_onyes (float): Threshold for edge-on yes class.
+            f_edge_onno (float): Threshold for edge-on no class.
+            f_spiral_yes (float): Threshold for spiral yes class.
+        
+        '''
+
+
         self.f_smooth = f_smooth
         self.f_completely_round = f_completely_round
         self.f_in_between = f_in_between
@@ -73,6 +100,10 @@ class Label_Processing_Classic(Label_Processing):
 
     def _assign_label(self, row) -> Optional[int]:
         """Assign labels using standard method from Zhu et al. (2019)"""
+
+
+
+
         vc = self.voting_columns
         required = [
             'smooth_col','features_col','round_col','inbet_col','cigar_col',
@@ -125,6 +156,17 @@ class Label_Processing_Classic(Label_Processing):
         return debiased_df
 
     def stats(self,original_df:pd.DataFrame, labeled_df: pd.DataFrame) -> None:
+        ''' Print stats about the labeling process
+
+        Args:
+            original_df (pd.DataFrame): The original dataframe before labeling.
+            labeled_df (pd.DataFrame): The dataframe after labeling.
+
+        Returns:
+            None: This function prints the statistics to the console.
+        '''
+
+
         counts = labeled_df["label"].value_counts().sort_index()
         total   = len(original_df)
         labeled = len(labeled_df)

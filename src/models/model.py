@@ -2,6 +2,10 @@ from torch import nn
 
 
 class ResidualUnit(nn.Module):
+
+    ''' Resudual unit for resnet architecture.'''
+
+
     def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.5):
         super(ResidualUnit, self).__init__()
 
@@ -41,6 +45,9 @@ class ResidualUnit(nn.Module):
         return out
     
 class ConvGroup(nn.Module):# Using N = 2
+
+
+    ''' Convolution groups for resunits'''
     def __init__(self, in_channels, mid_channels, out_channels, N = 2,downsample=True):
         super(ConvGroup, self).__init__()
         units = []
@@ -64,7 +71,24 @@ class ConvGroup(nn.Module):# Using N = 2
         return x
     
 class GalaxyClassifier_ResNet(nn.Module):
+
+    ''' ResNet architecture for galaxy classification. 
+    with modifications to better suit the task and dataset size.'''
+
+
     def __init__(self,head:str = "default" ,N=2, k=2, num_classes=5):
+
+        '''
+        Args:
+            head (str): The type of head to use for the model. Default is "default". 
+                        Options include "default", "dropout", "attention", etc.
+            N (int): The number of residual units in each group. Default is 2.
+            k (int): The width multiplier for the number of channels in the convolutional layers. Default is 2.
+            num_classes (int): The number of output classes for classification. Default is 5.
+
+        '''
+
+
         super(GalaxyClassifier_ResNet, self).__init__()
         
         self.conv1 = nn.Conv2d(3, 64, kernel_size=6, stride=2, padding=2) #128 x 128 -> 64 x 64
