@@ -186,6 +186,7 @@ nav:
 
   - Development:
       - Overview: development/index.md
+      - Modules: development/modules.md
       - Adding a new class: development/new-class.md
       - Writing tests: development/testing.md
       - Alembic migrations: development/migrations.md

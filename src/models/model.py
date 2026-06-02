@@ -101,7 +101,7 @@ class GalaxyClassifier_ResNet(nn.Module):
         self.group5  = ConvGroup(1024*k,   512*k,  2048*k, N=N, downsample=False)
         
         #resnet head
-        self.avgpool = nn.AdaptiveAvgPool2d((1,1)) # global average pooling to get 1x1 feature map
+        self.avgpool = nn.AdaptiveAvgPool2d(1) # global average pooling to get 1x1 feature map
         self.dropout = nn.Dropout(0.2)
         
         self.fc      = nn.Linear(2048*k, num_classes) #k = 2
@@ -115,7 +115,8 @@ class GalaxyClassifier_ResNet(nn.Module):
 
     def forward(self, x):
         out = self.conv1(x)             # [128, 128] input 
-        out = self.maxpool1(out)         
+        out = self.maxpool1(out) 
+        out = self.group2(out)         
         out = self.group3(out)         
         out = self.group4(out)          
         out = self.group5(out)        

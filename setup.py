@@ -5,5 +5,7 @@ setup (
     description=" A package which everyting to run galaxy classification",
     name = "galaxy classification",
     version = "0.1.0",
-    packages= find_packages(include =["src","src.*"] )
+    packages= find_packages(include =["src","src.*"] ),
+    install_requires=[
+        "torch","torchvision","pandas","numpy","scikit-learn","loguru","matplotlib" ]
     )

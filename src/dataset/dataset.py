@@ -1,11 +1,9 @@
-from torchvision import transforms
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from torchvision.datasets import ImageFolder
-import loguru as logging
+from torch.utils.data import Dataset, WeightedRandomSampler
+from loguru import logger 
 import torch
-import pandas as pd
 import os
 from PIL import Image
+import pandas as pd
 
 
 class GalaxyDataset(Dataset):
@@ -24,8 +22,19 @@ class GalaxyDataset(Dataset):
 
     def __init__(self, img_dir,labels_df, transform=None,class_names=CLASS_NAMES):
 
+        if isinstance(img_dir, pd.DataFrame) and isinstance(labels_df, (str, os.PathLike)):
+            img_dir, labels_df = labels_df, img_dir #switchable (label,image) |(image,label) in constructor
         self.img_dir = img_dir
-        self.labels =  labels_df
+
+        valid_mask = labels_df["asset_id"].astype(str).map(
+            lambda asset_id: os.path.exists(os.path.join(self.img_dir, f"{asset_id}.jpg"))
+        ) #check if images exists
+        
+        missing_count = int((~valid_mask).sum())
+        if missing_count:
+            logger.warning("Dropped %s rows with missing image files from the dataset.", missing_count)
+
+        self.labels = labels_df.loc[valid_mask].reset_index(drop=True)
         self.transform = transform
         self.CLASS_NAMES = class_names
 
@@ -37,11 +46,6 @@ class GalaxyDataset(Dataset):
         row = self.labels.iloc[idx]
         img_path = os.path.join(self.img_dir, f"{str(row['asset_id'])}.jpg")# load img based on img name
 
-        if not os.path.exists(img_path):
-            logging.error(f"Image not found: {img_path}")
-            raise FileNotFoundError(f"Image not found: {img_path}")
-        
-        
         image = Image.open(img_path).convert('RGB')
         label = int(row['label'])  
 
@@ -49,19 +53,32 @@ class GalaxyDataset(Dataset):
             image = self.transform(image)
         return image, label
     
-    def make_weighted_sampler(self)-> WeightedRandomSampler:
-        ''' Create a weighted random sampler to address class imbalance.'''
+    def make_weighted_sampler(self, indices=None) -> tuple[WeightedRandomSampler, torch.Tensor]:
+        ''' Create a weighted random sampler to address class imbalance.
+        
+        Returns:
+            sampler (WeightedRandomSampler): A sampler that can be used in a DataLoader to sample data points according to the computed weights. 
+            class_weights (torch.Tensor): A tensor containing the computed weights for each class, which can be used for loss weighting during training.
+        
+        
+        '''
 
-        class_counts = self.labels["label"].value_counts().sort_index()
+        if indices is not None:
+            labels = self.labels.iloc[indices]["label"]
+        else:
+            labels = self.labels["label"]
+
+        class_counts = labels.value_counts().sort_index()
         class_counts = torch.tensor(class_counts.values, dtype=torch.float)
         class_weights = 1.0 / class_counts
-        sample_weights = class_weights[self.labels["label"]]
+        label_values = torch.as_tensor(labels.to_numpy(), dtype=torch.long)
+        sample_weights = class_weights[label_values]
 
         return WeightedRandomSampler(
             weights     = sample_weights,
             num_samples = len(sample_weights),
             replacement = True
-        )
+        ),class_weights
     
     def random_image_sample(self, num_samples=10):
         indices = torch.randperm(len(self.labels))[:num_samples]
@@ -88,6 +105,8 @@ class GalaxyDataset(Dataset):
                 self.std += img.std(dim=[1, 2])
         self.mean /= sample_size
         self.std /= sample_size
+
+        return self.mean, self.std
 
 class GalaxyDatasetDirichlet(Dataset):
 
