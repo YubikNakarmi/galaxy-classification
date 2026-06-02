@@ -30,9 +30,9 @@ class GalaxyDataset(Dataset):
             lambda asset_id: os.path.exists(os.path.join(self.img_dir, f"{asset_id}.jpg"))
         ) #check if images exists
         
-        missing_count = int((~valid_mask).sum())
+        missing_count = int((~valid_mask).sum()) #sum missing counts
         if missing_count:
-            logger.warning("Dropped %s rows with missing image files from the dataset.", missing_count)
+            logger.warning(f"Dropped {missing_count} rows with missing image files from the dataset.")
 
         self.labels = labels_df.loc[valid_mask].reset_index(drop=True)
         self.transform = transform

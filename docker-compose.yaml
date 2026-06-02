@@ -53,4 +53,16 @@ services:
       - "10001:10001"
       - "10002:10002"
     command: "azurite --blobHost 0.0.0.0 --blobPort 10000"
+
+  tensorboard:
+    image: tensorflow/tensorflow:latest
+    container_name: tensorboard
+    ports:
+      - "6006:6006"
+    volumes:
+      - ./data/ml/tensorboard/experiment_1:/tensorboard
+    command: tensorboard --logdir=/tensorboard --host=
+
+
+
     
