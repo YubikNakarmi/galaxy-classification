@@ -18,7 +18,7 @@ on:
 
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -51,20 +51,15 @@ jobs:
         with:
           path: docs/site
   deploy-page:
-      runs-on: ubuntu-latest
-      needs: build                  # only runs if build passes
-      steps:
-        - uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
+      
+    needs: build
+    runs-on: ubuntu-latest
 
-        - uses: actions/setup-python@v5
-          with:
-            python-version: '3.x'
-            cache: pip
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
-        - name: Install dependencies
-          run: pip install mkdocs mkdocs-git-revision-date-localized-plugin mkdocs-material mkdocs-minify-plugin mkdocs-awesome-pages-plugin pymdown-extensions
-
-        - name: Deploy to GitHub Pages
-          run: mkdocs gh-deploy --force -f docs/mkdocs.yml
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
