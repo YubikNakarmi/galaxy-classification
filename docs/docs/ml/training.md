@@ -8,3 +8,12 @@
 | Epochs | 50–100 | No pretrained weights, needs longer |
 | Batch Size | 32–64 | Balance gradient quality vs memory |
 | Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
+
+
+
+## checkpoints
+- eval checkpoints
+- training epoch based checkpoints
+
+## visualizations
+-tensorboard with mlflow
