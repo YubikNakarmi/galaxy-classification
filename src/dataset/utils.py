@@ -6,3 +6,5 @@ def split():
 def merge():
     pass
 
+def torch_save():
+    pass

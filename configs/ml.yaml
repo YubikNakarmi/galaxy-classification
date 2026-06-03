@@ -14,9 +14,17 @@ model:
   input_size: 128
 
   training:
+    processed_file_loc: data/preprocessed/train.csv
+    model_checkpoint_dir: checkpoints/
+    log_dir: logs/
     batch_size: 32
-    num_epochs: 10
+    num_epochs: 60
     learning_rate: 0.001
     weight_decay: 0.0001
     scheduler_step_size: 5
     scheduler_gamma: 0.1
+
+  eval:
+    processed_file_loc: data/preprocessed/val.csv
+
+mlflow:

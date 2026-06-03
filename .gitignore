@@ -7,3 +7,5 @@ cosmos-docs
 __pycache__
 *.pyc
 galaxy_classification.egg-info
+/logs
+/models
