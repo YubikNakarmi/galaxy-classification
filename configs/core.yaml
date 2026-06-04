@@ -20,3 +20,19 @@ storage:
 
   mysql:
     url: ${MYSQL_URL}
+
+logging:
+
+  app:
+    level: INFO
+    file: logs/system/app.log
+    rotation: "10 MB"
+    retention: "7 days"
+    compression: zip
+  
+  ml:
+    level: INFO
+    file: logs/system/ml.log
+    rotation: "10 MB"
+    retention: "7 days"
+    compression: zip
