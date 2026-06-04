@@ -8,10 +8,6 @@ runtime:
 ml:
   config_file: configs/ml.yaml
 
-mlflow:
-  tracking_uri: ${MLFLOW_TRACKING_URI}
-  backend: ${MLFLOW_BACKEND}
-  artifact_store: ${MLFLOW_ARTIFACT_STORE}
 
 storage:
   azure:

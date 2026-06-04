@@ -45,11 +45,6 @@ eval:
     - recall
     - f1_score
   
-
-
-
-
-
 artifacts:
   checkpoint_dir: checkpoints/
   log_dir: logs/

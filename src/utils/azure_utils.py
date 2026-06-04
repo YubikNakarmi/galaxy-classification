@@ -1,9 +1,7 @@
 import os, uuid
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 from pathlib import Path
-from kombu.log import setup_logging
 from loguru import logger
 from yaml_utils import load_yaml
 from logging_config import setup_app_logging
@@ -47,21 +45,25 @@ class AzureBlobStorage:
             )
 
 
-    def create_container(self,name=None):
+    def create_container(self,name=None,unique_suffix=False):
         '''
         Creates a container in Azure Blob Storage if it does not already exist.
         Parameters:
         name (str): The name of the container to be created. If None, uses the container name provided during initialization. Default is None.
+        unique_suffix (bool): If True, appends a unique suffix to the container name. Default is False.
         '''
 
         if name:
             self.container_name = name
             self.container_client = self.blob_service_client.get_container_client(self.container_name)
+        if unique_suffix:
+            self.container_name += f"-{uuid.uuid4()}"
         try:
             self.container_client.create_container()
             logger.info(f"Container '{self.container_name}' created successfully.")
         except Exception as e:
             logger.exception(f"Error creating container: {e}")
+
 
     def upload_blob(self, blob_name, data,Overwrite=False):
 
@@ -79,8 +81,6 @@ class AzureBlobStorage:
             logger.info(f"Blob '{blob_name}' uploaded successfully.")
         except Exception as e:
             logger.exception(f"Error uploading blob: {e}")
-
-   
 
     def list_blobs(self):
         try:
@@ -100,6 +100,14 @@ class AzureBlobStorage:
             logger.exception(f"Error listing containers: {e}")
             return []
 
+    def delete_blob(self, blob_name):
+        try:
+            blob_client = self.container_client.get_blob_client(blob_name)
+            blob_client.delete_blob()
+            logger.info(f"Blob '{blob_name}' deleted successfully.")
+        except Exception as e:
+            logger.exception(f"Error deleting blob: {e}")
+
     def print_info(self):
         logger.info(f"Container Name: {self.container_name}")
         logger.info(f"storage_name: {self.blob_service_client.account_name}")
@@ -111,5 +119,4 @@ class AzureBlobStorage:
             logger.info(f"Container Name: {container}")
 
     
-
-
+logger.info("Hello :)") 
