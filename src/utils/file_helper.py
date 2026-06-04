@@ -1,6 +1,6 @@
 import os
 import glob
-import templib
+import tempfile
 
 class directory():
     def __init__(self, path):

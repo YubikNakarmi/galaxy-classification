@@ -7,5 +7,6 @@ setup (
     version = "0.2.0",
     packages= find_packages(include =["src","src.*"] ),
     install_requires=[
-        "torch","torchvision","pandas","numpy","scikit-learn","loguru","matplotlib" ]
+        "torch","torchvision","pandas","numpy","scikit-learn","loguru",
+        "matplotlib","azure-storage-blob", "azure-identity" ]
     )

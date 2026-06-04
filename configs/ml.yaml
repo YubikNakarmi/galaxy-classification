@@ -1,4 +1,12 @@
 
+env:
+  name: galaxy_classification_env
+  python_version: 3.14.4
+  seed: 42
+  device: "cpu"
+  num_workers: 4
+
+
 dataset:
 
   split:
@@ -8,7 +16,7 @@ dataset:
     - val_size: 0.15
      
 model:
-  architecture: default
+  architecture: default # can be "dirchlet" or "default"
   pretrained: false
   num_classes: 5
   input_size: 128
