@@ -1,1 +1,22 @@
+system:
+  name: galaxy-classifier
+  version: 1.0
 
+runtime:
+  mode: local   # local or cloud
+
+ml:
+  config_file: configs/ml.yaml
+
+mlflow:
+  tracking_uri: ${MLFLOW_TRACKING_URI}
+  backend: ${MLFLOW_BACKEND}
+  artifact_store: ${MLFLOW_ARTIFACT_STORE}
+
+storage:
+  azure:
+    connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
+    container_name: ${AZURE_CONTAINER_NAME}
+
+  mysql:
+    url: ${MYSQL_URL}

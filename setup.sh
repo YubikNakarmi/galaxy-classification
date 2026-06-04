@@ -11,13 +11,23 @@ dir_setup()
 
 }
 
+#DVC setup (Assumes DVC is already installed and Storage account and container are aready setup)
 
-dvc_setup()
+dvc_setup() 
 {
     dvc init
     dvc remote add -d azure_remote azure://$AZURE_CONTAINER_NAME
-    echo "DVC setup completed with Azure remote storage."
+    dvc remote modify azure_remote account_name $AZURE_STORAGE_ACCOUNT_NAME   
 
-    dvc remote 
+    export AZURE_STORAGE_CONNECTION_STRING=$(echo $AZURE_STORAGE_CONNECTION_STRING) #or
+    #dvc remote modify azure_remote --local connection_string $AZURE_STORAGE_CONNECTION_STRING 
+    
+    # --local is used to avoid commiting the secret
+    dvc pull
+    echo "DVC setup completed with Azure remote storage."
+        
+
 }
-# DVC setup (Assumes DVC is already installed and Storage account and container are aready setup)
+
+dir_setup
+dvc_setup

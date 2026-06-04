@@ -1,38 +1,61 @@
-
 env:
   name: galaxy_classification_env
   python_version: 3.14.4
   seed: 42
-  device: "cpu"
+  device: cpu
   num_workers: 4
 
-
 dataset:
-
   split:
-    - random_state: 42
-    - test_size: 0.15
-    - train_size: 0.7
-    - val_size: 0.15
-     
+    random_state: 42
+    test_size: 0.15
+    train_size: 0.7
+    val_size: 0.15
+
+data:
+  train_file: data/preprocessed/train.csv
+  val_file: data/preprocessed/val.csv
+
 model:
-  architecture: default # can be "dirchlet" or "default"
+  architecture: default
   pretrained: false
   num_classes: 5
   input_size: 128
 
-  training:
-    processed_file_loc: data/preprocessed/train.csv
-    model_checkpoint_dir: checkpoints/
-    log_dir: logs/
-    batch_size: 32
-    num_epochs: 60
-    learning_rate: 0.001
-    weight_decay: 0.0001
-    scheduler_step_size: 5
-    scheduler_gamma: 0.1
+train:
+  batch_size: 32
+  num_epochs: 60
+  learning_rate: 0.001
+  weight_decay: 0.0001
 
-  eval:
-    processed_file_loc: data/preprocessed/val.csv
+checkpoint:
+  save_freq_epcoh: 10
+
+
+  scheduler:
+    step_size: 5
+    gamma: 0.1
+
+eval:
+  batch_size: 32
+
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+  
+
+
+
+
+
+artifacts:
+  checkpoint_dir: checkpoints/
+  log_dir: logs/
 
 mlflow:
+  tracking_uri: ${MLFLOW_TRACKING_URI}
+  backend: mysql
+  artifact_store: azure
+  experiment_name: galaxy-classification
