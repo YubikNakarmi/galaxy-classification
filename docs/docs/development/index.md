@@ -31,5 +31,5 @@ logging:
 ### ML Configs
 The `ml.yaml` file contains all the machine learning related configurations. It is used to store the parameters for training, evaluation and inference of the machine learning models. It also contains the paths to the datasets, models and other resources used in the machine learning pipeline. 
 
-
+Detailed configs documentation on `ml.yaml` can be found [here](configs.md).
 

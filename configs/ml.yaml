@@ -2,61 +2,66 @@ env:
   name: galaxy_classification_env
   python_version: 3.14.4
   seed: 42
-  device: cpu # Change to 'cuda' in VM
+  device: cpu # Change to cuda on VM
   num_workers: 4
 
-active-variant: Default
+active_variant: Default
 
+experiment:
+  root: galaxy-classification-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+  auto_timestamp: true
+  use_variant_name: true
 
 variants:
+
   Default:
     num_classes: 5
     label_file: data/preprocessed/labels/labeled_data_1.csv
-    
-    data:
 
+    data:
       split:
         train_size: 0.70
         val_size: 0.15
         test_size: 0.15
-      stratify: true # stratified splitting to maintain class distribution
+      stratify: true
 
     model:
       architecture: ResNet
       pretrained: false
-      K: 2 # Wideining factor
-      N: 2 # Number of Resnet blocks
-      conv1_stride: 2 # for 128x 128
+      K: 2
+      N: 2
+      conv1_stride: 2
       input_size: 128
 
     mlflow:
       model_name: galaxy-classification-model
 
-
   Hubble:
-    num_classes: 10         
-    label_file: data/preprocessed/labels/
-    dirichlet_branches: 11  # parallel FC branches for vote fraction regression
+    num_classes: 10
+    label_file: data/preprocessed/labels/labeled_data_2.csv
+    dirichlet_branches: 11
+
     data:
       split:
         train_size: 0.70
         val_size: 0.15
         test_size: 0.15
-      stratify: true # stratified splitting to maintain class distribution
+      stratify: true
 
     mlflow:
       model_name: galaxy-classification-hubble
 
   Dirichlet:
-    num_classes:           
-    label_file: data/preprocessed/labels/apod_nebula.csv
+    num_classes: null
+    label_file: data/preprocessed/labels/labeled_data_3.csv
+
     data:
-     split:
+      split:
         train_size: 0.80
         val_size: 0.10
         test_size: 0.10
-        stratify: false
-    
+      stratify: false
+
     mlflow:
       model_name: galaxy-classification-dirichlet
 
@@ -64,25 +69,66 @@ data:
   raw_dir: data/raw/
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
-  input_size: 128 
-  # GZ2-specific normalization stats (computed from dataset)
+
+  input_size: 128
+
   normalize:
     mean: [0.1376, 0.1276, 0.1187]
-    std:  [0.1728, 0.1586, 0.1488]
+    std: [0.1728, 0.1586, 0.1488]
 
   sampler:
     type: weighted
 
-  logs:
-    dir: logs/
-    tensorboard_dir: logs/tensorboard/
-    
-    
- 
+storage:
 
-augmentation:
+  upload_blob_freq: daily
+
+  #in azure blob container, config for local (will add in future auto local config)
+
+  local: #locals dires
+
+    logs:
+      dir: logs/
+      tensorboard_dir: logs/tensorboard/
+
+    checkpoints:
+      dir: models/checkpoints/
+
+    predictions:
+      dir: models/predictions/
+
+  cloud: #blob dirs
+    dvc:
+      container: galaxy-dvc
+
+    experiments: 
+      container: galaxy-experiments 
 
 
+
+    upload:
+      checkpoint_every_epoch: true
+      best_model_only: true
+      logs_every_n_epochs: 5
+
+    # inside galaxy-classification-experiments/<experiment_name>/..
+    logs:
+      dir: logs/
+
+    tensorboard:
+      dir: tensorboard/
+
+    checkpoints:
+      dir: checkpoints/
+
+    predictions:
+      dir: predictions/
+
+augmentation: {
+
+
+
+}
 
 model:
   architecture: Default
@@ -94,27 +140,27 @@ train:
 
   batch_size: 32
   num_epochs: 60
+
   learning_rate: 0.001
   weight_decay: 0.0001
-  grad_clip_max_norm: 1.0
-  label_smoothing: 0.1 
+
   optimizer: AdamW
 
-  criterion: 
+  grad_clip_max_norm: 1.0
+  label_smoothing: 0.1
+
+  criterion:
     name: cross_entropy
-    weight: true # use class weights to handle imbalance    
+    weight: true
 
   scheduler:
     type: cosine_with_warmup
     warmup_epochs: 5
     min_lr: 0.00001
-  
-  regualarization:
-    dropout: 0.2    
-    weight_decay: 0.0001
 
-
- 
+  regularization:
+    dropout: 0.2
+    gradient_clipping: true
 
   mlflow:
     log_data: true
@@ -122,12 +168,13 @@ train:
     log_metrics: true
     experiment_name: galaxy-classification-training
 
-
   checkpoint:
     save_freq_epoch: 10
-    dir: models/checkpoints/
+    save_best: true
+    save_latest: true
 
 eval:
+
   batch_size: 32
 
   metrics:
@@ -135,11 +182,13 @@ eval:
     - precision
     - recall
     - f1_score
-  
+
+
+  checkpoints:
+
+
 mlflow:
   tracking_uri: ${MLFLOW_TRACKING_URI}
   backend: mysql
   artifact_store: azure
   experiment_name: galaxy-classification
-
-

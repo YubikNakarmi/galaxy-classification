@@ -36,4 +36,11 @@ dvc remote modify azure_remote sas_token <generated_sas_token>
 ## Required containers
  - `mlflow` (for mlflow tracking backend)
  - `dvc-storage` (for dvc remote storage)
- - 
+
+
+
+## containers 
+- dvc-storage
+- mlflow
+- galaxy-classification-experiments
+- galaxy-classification-logs

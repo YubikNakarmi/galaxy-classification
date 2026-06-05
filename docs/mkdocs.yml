@@ -186,18 +186,19 @@ nav:
 
   - Development:
       - Overview: development/index.md 
-      - Modules: 
-        - Overview: development/modules/index.md
-        - Dataset: development/modules/dataset.md
-        - Model: development/modules/model.md
-        - Utils: development/modules/utils.md
-
-
+      - configs: development/configs.md
       - logging: development/logging.md
       - Adding a new class: development/new-class.md
       - Writing tests: development/testing.md
       - Alembic migrations: development/migrations.md
       - Contributing: development/contributing.md
+      - Modules: 
+        - Overview: development/modules/index.md
+        - Dataset: development/modules/dataset.md
+        - Model: development/modules/model.md
+        - Utils: development/modules/utils.md
+    
+
 
   
   - Changelog: changelog.md

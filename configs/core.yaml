@@ -17,8 +17,11 @@ storage:
   mysql:
     url: ${MYSQL_URL}
 
-logging:
 
+# Only system logs like script execution, errors, etc. ML-specific logs (like training metrics) 
+# will be handled separately under mlflow and in differnt files though ml.yaml configs.
+
+logging: 
   app:
     level: INFO
     file: logs/system/app.log
@@ -32,3 +35,18 @@ logging:
     rotation: "10 MB"
     retention: "7 days"
     compression: zip
+
+  cloud: #blob log upload from vm to blob periodocally
+    type: azure-blob
+
+    logs:
+      frequency: daily
+      container: galaxy-classification-logs
+      app:
+        
+        dir: logs/system/app.log
+        blob_dir: app/ #inside blob
+
+      ml:
+        dir: logs/system/ml.log
+        blob_dir: ml/
