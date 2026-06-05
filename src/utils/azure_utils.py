@@ -3,13 +3,14 @@ from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
-from yaml_utils import load_yaml
-from logging_config import setup_app_logging
+from src.utils.yaml_utils import load_yaml
+from src.utils.logging_config import setup_app_logging
 
 
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
-log_config = config = load_yaml(root / 'configs' / 'core.yaml')
+
+log_config = load_yaml(root / 'configs' / 'core.yaml')
 
 setup_app_logging(log_config)
 
@@ -119,4 +120,3 @@ class AzureBlobStorage:
             logger.info(f"Container Name: {container}")
 
     
-logger.info("Hello :)") 

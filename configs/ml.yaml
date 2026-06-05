@@ -2,39 +2,130 @@ env:
   name: galaxy_classification_env
   python_version: 3.14.4
   seed: 42
-  device: cpu
+  device: cpu # Change to 'cuda' in VM
   num_workers: 4
 
-dataset:
-  split:
-    random_state: 42
-    test_size: 0.15
-    train_size: 0.7
-    val_size: 0.15
+active-variant: Default
+
+
+variants:
+  Default:
+    num_classes: 5
+    label_file: data/preprocessed/labels/labeled_data_1.csv
+    
+    data:
+
+      split:
+        train_size: 0.70
+        val_size: 0.15
+        test_size: 0.15
+      stratify: true # stratified splitting to maintain class distribution
+
+    model:
+      architecture: ResNet
+      pretrained: false
+      K: 2 # Wideining factor
+      N: 2 # Number of Resnet blocks
+      conv1_stride: 2 # for 128x 128
+      input_size: 128
+
+    mlflow:
+      model_name: galaxy-classification-model
+
+
+  Hubble:
+    num_classes: 10         
+    label_file: data/preprocessed/labels/
+    dirichlet_branches: 11  # parallel FC branches for vote fraction regression
+    data:
+      split:
+        train_size: 0.70
+        val_size: 0.15
+        test_size: 0.15
+      stratify: true # stratified splitting to maintain class distribution
+
+    mlflow:
+      model_name: galaxy-classification-hubble
+
+  Dirichlet:
+    num_classes:           
+    label_file: data/preprocessed/labels/apod_nebula.csv
+    data:
+     split:
+        train_size: 0.80
+        val_size: 0.10
+        test_size: 0.10
+        stratify: false
+    
+    mlflow:
+      model_name: galaxy-classification-dirichlet
 
 data:
-  train_file: data/preprocessed/train.csv
-  val_file: data/preprocessed/val.csv
+  raw_dir: data/raw/
+  preprocessed_dir: data/preprocessed/
+  split_dir: data/preprocessed/split/
+  input_size: 128 
+  # GZ2-specific normalization stats (computed from dataset)
+  normalize:
+    mean: [0.1376, 0.1276, 0.1187]
+    std:  [0.1728, 0.1586, 0.1488]
+
+  sampler:
+    type: weighted
+
+  logs:
+    dir: logs/
+    tensorboard_dir: logs/tensorboard/
+    
+    
+ 
+
+augmentation:
+
+
 
 model:
-  architecture: default
+  architecture: Default
   pretrained: false
   num_classes: 5
   input_size: 128
 
 train:
+
   batch_size: 32
   num_epochs: 60
   learning_rate: 0.001
   weight_decay: 0.0001
+  grad_clip_max_norm: 1.0
+  label_smoothing: 0.1 
+  optimizer: AdamW
 
-checkpoint:
-  save_freq_epcoh: 10
-
+  criterion: 
+    name: cross_entropy
+    weight: true # use class weights to handle imbalance    
 
   scheduler:
-    step_size: 5
-    gamma: 0.1
+    type: cosine_with_warmup
+    warmup_epochs: 5
+    min_lr: 0.00001
+  
+  regualarization:
+    dropout: 0.2    
+    weight_decay: 0.0001
+
+
+ 
+
+  mlflow:
+    log_data: true
+    log_model: true
+    log_metrics: true
+    experiment_name: galaxy-classification-training
+
+
+  checkpoint:
+    save_freq_epoch: 10
+    dir: models/checkpoints/
 
 eval:
   batch_size: 32
@@ -45,12 +136,10 @@ eval:
     - recall
     - f1_score
   
-artifacts:
-  checkpoint_dir: checkpoints/
-  log_dir: logs/
-
 mlflow:
   tracking_uri: ${MLFLOW_TRACKING_URI}
   backend: mysql
   artifact_store: azure
   experiment_name: galaxy-classification
+
+
