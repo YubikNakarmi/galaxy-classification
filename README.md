@@ -44,3 +44,9 @@ dvc remote modify azure_remote sas_token <generated_sas_token>
 - mlflow
 - galaxy-classification-experiments
 - galaxy-classification-logs
+
+
+
+
+# improvement
+- cascading module loading problem while running scropts. Since the cutom moduels also realy on other modules the runtime is slow especially during importing of modules. This is not really a problem for ml (as they are mostly training eval, etc which take considerable time anyway).part of the projoect. But thsi can be improved. 

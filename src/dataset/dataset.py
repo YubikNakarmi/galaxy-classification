@@ -10,11 +10,7 @@ from src.utils.yaml_utils import load_yaml
 
 root = Path(__file__).resolve().parent.parent.parent
 log_config = config = load_yaml(root / 'configs' / 'core.yaml')
-
 setup_ml_logging(log_config)
-
-
-print(root)
 
 
 class GalaxyDataset(Dataset):

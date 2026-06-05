@@ -13,8 +13,8 @@ experiment:
   use_variant_name: true
 
 variants:
-
   Default:
+    preprocessing: Default
     num_classes: 5
     label_file: data/preprocessed/labels/labeled_data_1.csv
 
@@ -37,6 +37,7 @@ variants:
       model_name: galaxy-classification-model
 
   Hubble:
+    preprocessing: Hubble
     num_classes: 10
     label_file: data/preprocessed/labels/labeled_data_2.csv
     dirichlet_branches: 11
@@ -52,6 +53,7 @@ variants:
       model_name: galaxy-classification-hubble
 
   Dirichlet:
+    preprocessing: Dirichlet
     num_classes: null
     label_file: data/preprocessed/labels/labeled_data_3.csv
 
