@@ -6,11 +6,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
-import yaml
+import click
 
-import time
-
-start = time.perf_counter()
 
 
 #setup logging and config load
@@ -36,10 +33,22 @@ val_size = ml_yaml['variants'][active_variant]['data']['split']["val_size"]
 #splitting data 
 
 
-end = time.perf_counter()
 
-print(f"Execution time: {end - start:.6f} seconds")
 
 def split():
+
     
+    
+    X_t
+
+
+
+
+
+
+
+def main():
     pass 
+
+if __name__ == "__main__":
+    main()

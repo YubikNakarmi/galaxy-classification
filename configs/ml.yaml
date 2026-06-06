@@ -5,6 +5,7 @@ env:
   device: cpu # Change to cuda on VM
   num_workers: 4
 
+mode: cloud # options: local, cloud
 active_variant: Default
 
 experiment:
@@ -101,7 +102,7 @@ storage:
 
   cloud: #blob dirs
     dvc:
-      container: galaxy-dvc
+      container: dvc-storage #stores training data like raw,preprocessed,split
 
     experiments: 
       container: galaxy-experiments 
