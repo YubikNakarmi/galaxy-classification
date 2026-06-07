@@ -82,6 +82,29 @@ data:
     mean: [0.1376, 0.1276, 0.1187]
     std: [0.1728, 0.1586, 0.1488]
 
+  transforms:
+    raw_transforms:
+      - CenterCrop: 
+          size_range: [170, 240]
+      - Resize: 
+          size: 160
+      - RandomCrop: 
+          size: 128
+      - RandomRotation:
+          degrees: [90, 180]
+      - RandomRotation:
+          degrees: [0, 270]
+      - RandomHorizontalFlip: {}
+      - ColorJitter:
+          brightness: 0.4
+          contrast: 0.4
+          saturation: 0.4
+          hue: 0.1
+      - ToTensor: {}
+      - Normalize:
+          mean: [0.1376, 0.1276, 0.1187]
+          std: [0.1728, 0.1586, 0.1488]
+
   sampler:
     type: weighted
 
@@ -136,13 +159,7 @@ augmentation: {
 
 }
 
-model:
-  architecture: Default
-  pretrained: false
-  num_classes: 5
-  input_size: 128
-
-train:
+params: &train_params
 
   batch_size: 32
   num_epochs: 60
@@ -167,6 +184,11 @@ train:
   regularization:
     dropout: 0.2
     gradient_clipping: true
+
+
+train:
+
+  <<: *train_params
 
   mlflow:
     log_data: true

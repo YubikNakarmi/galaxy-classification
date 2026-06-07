@@ -1,7 +1,10 @@
 from loguru import logger
+from pathlib import Path
 import sys
 
 ''' Parser and overwritting default logging with file stream configuration'''
+
+root = Path(__file__).resolve().parent.parent.parent
 
 def setup_app_logging(config):
     logger.remove()
@@ -14,7 +17,7 @@ def setup_app_logging(config):
     )
 
     logger.add(
-        app["file"],
+        root / app["file"],
         level=app["level"],
         rotation=app["rotation"],
         retention=app["retention"],
@@ -33,7 +36,7 @@ def setup_ml_logging(config):
     )
 
     logger.add(
-        ml["file"],
+        root / ml["file"],
         level=ml["level"],
         rotation=ml["rotation"],
         retention=ml["retention"],

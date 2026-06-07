@@ -1,3 +1,9 @@
+
+
+# need to add stack 
+- hydra or omegaconf for config management.
+
+
 # DVC setup
 ```sh
 dvc init

@@ -1,15 +1,15 @@
-import importlib
+import click
 import torch
-import os
 import pandas as pd
 import src.dataset.dataset as dataset
 import src.models.model as model
 from src.dataset.dataset import GalaxyDataset
 from torch.utils.data import DataLoader, dataset
 from torchvision import transforms
-import yaml
 import mlflow
 import random
+
+
 
 raw_transforms = transforms.Compose([
     transforms.CenterCrop(random.randint(170, 240)),  
@@ -25,7 +25,7 @@ raw_transforms = transforms.Compose([
 ])
 
 
-def train():
+def train_default():
     for epoch in range(10):
         model.train()
 
@@ -51,7 +51,11 @@ def train():
             })
         
         scheduler.step()
+
+
 def main():
+
+
 
 
 

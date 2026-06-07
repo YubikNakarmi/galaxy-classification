@@ -21,19 +21,22 @@ setup_ml_logging(log_config)
 file_config = root / 'configs' / 'ml.yaml'
 ml_yaml = load_yaml(file_config)
 
-preprocessed_dir = ml_yaml['data']['preprocessed_dir']
-split_dir = ml_yaml['data']['split_dir']
-
+#core params
 active_variant = str(ml_yaml['active_variant'])
 seed = ml_yaml["env"]["seed"]
 test_size = ml_yaml['variants'][active_variant]['data']['split']["test_size"]
 train_size = ml_yaml['variants'][active_variant]['data']['split']["train_size"]
 val_size = ml_yaml['variants'][active_variant]['data']['split']["val_size"]
 
-label_file = ml_yaml["variants"][active_variant]["label_file"]
+# dirs and paths for preprocessing and splitting
+split_dir = root / ml_yaml['data']['split_dir']
+split_dir.mkdir(parents=True, exist_ok=True)
 
-mapping = ml_yaml['data']["raw_paths"][1]["mappings"]
-labels = ml_yaml['data']["raw_paths"][0]["labels"]
+label_file = root / ml_yaml["variants"][active_variant]["label_file"]
+preprocessed_dir = root / ml_yaml['data']['preprocessed_dir']
+
+mapping = root / ml_yaml['data']["raw_paths"][1]["mappings"]
+labels =  root /ml_yaml['data']["raw_paths"][0]["labels"]
 
 
 # label processing
@@ -41,21 +44,31 @@ labels = ml_yaml['data']["raw_paths"][0]["labels"]
 #splitting data 
 
 
-def split(df:pd.DataFrame)-> dict:
+def split(df:pd.DataFrame)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
     ids = df.drop_duplicates("asset_id")[["asset_id", "label"]]
     
-    X_train, X_val, y_train, y_val = train_test_split(ids,test_size=val_size, random_state=seed, stratify=ids["label"])
+    train_val_ids, test_ids = train_test_split(
+    ids,
+    test_size=test_size,
+    stratify=ids["label"],
+    random_state=seed)
 
-    X_train, X_test, y_train, y_test = train_test_split(X_train,test_size=test_size/(1-val_size),
-                                                         random_state=seed, stratify=X_train["label"])
+
+    train_ids, val_ids = train_test_split(
+    train_val_ids,
+    test_size=val_size/(train_size + val_size),  # Adjust val_size to be a proportion of the remaining data
+    stratify=train_val_ids["label"],
+    random_state=seed)
+
+  
     
-    return {"train": (X_train, y_train), "val": (X_val, y_val), "test": (X_test, y_test)}
+    return train_ids, val_ids, test_ids
 
 
 
 @click.command()
-@click.option('--run_preprocessing',defualt= False, help='Whether to run preprocessing or not')
+@click.option('--run_preprocessing',default= False, help='Whether to run preprocessing or not')
 @click.option('--preprocess_type', default='classic', help='Type of preprocessing to run (e.g., classic, hubble,dirilichet)')
 
 
@@ -63,7 +76,7 @@ def split(df:pd.DataFrame)-> dict:
 
 
 
-def main(run_preprocessing,preprocess_type,run_split,):
+def main(run_preprocessing,run_split,preprocess_type=active_variant):
     
     if run_preprocessing:
 
@@ -71,7 +84,7 @@ def main(run_preprocessing,preprocess_type,run_split,):
             logger.exception("Mapping and labels file paths must be provided in the ml.yaml configuration.")
             return
         
-        if preprocess_type == 'classic':
+        if preprocess_type == 'Default':
             logger.info("Running classic label preprocessing...")
 
             merge = pd.merge(mapping, labels, left_on='objid', right_on='dr7objid')
@@ -99,13 +112,14 @@ def main(run_preprocessing,preprocess_type,run_split,):
         labels_df = pd.read_csv(label_file)
         splits = split(labels_df)
 
-        for split_name, (X, y) in splits.items():
-            split_df = X.copy()
-            split_df["label"] = y
+        train_ids, val_ids, test_ids = splits
+        for split_name, ids in [("train", train_ids), ("val", val_ids), ("test", test_ids)]:
+            split_df = labels_df[labels_df["asset_id"].isin(ids["asset_id"])]
+
             split_path = Path(split_dir) / f"{split_name}_split.csv"
             split_df.to_csv(split_path, index=False)
             logger.info(f"{split_name.capitalize()} split saved to {split_path}")
     
-
+# pythron preprocess.py --run_preprocessing=true --preprocess_type="classic" --run_split=true
 if __name__ == "__main__":
     main()
