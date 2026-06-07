@@ -141,12 +141,15 @@ class Label_Processing_Classic(Label_Processing):
 
         return None
 
-    def assign_label(self, df: pd.DataFrame) -> pd.Series:
+    def assign_label(self, df: pd.DataFrame,series=False) -> pd.Series|pd.DataFrame:
         """Apply labels"""
         df["label"] = df.apply(lambda r: self._assign_label(r), axis=1)
         super().df = df #pass to base for saving options
-
-        return df["label"]
+        if series:
+        
+            return df["label"]
+        else:
+            return df
 
 
     def extract_debiased_df(self) -> pd.DataFrame:

@@ -69,7 +69,10 @@ variants:
       model_name: galaxy-classification-dirichlet
 
 data:
-  raw_dir: data/raw/
+  raw_paths: 
+    - labels: data/raw/labels.csv
+    - mappings: data/raw/mapping.csv
+    
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
 
