@@ -153,6 +153,7 @@ nav:
 
   - ML:
       - Overview: ml/index.md
+      - Preprocessing Script: ml/preprocess.md
       - Model: ml/model.md
       - Training loop: ml/training.md
       - Evaluation & metrics: ml/evaluation.md

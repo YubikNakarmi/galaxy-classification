@@ -1,5 +1,4 @@
 
-from src.dataset.dataset import GalaxyDataset
 from src.dataset.label_preprocessing import Label_Processing_Classic
 from sklearn.model_selection import train_test_split
 from pathlib import Path

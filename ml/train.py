@@ -8,6 +8,21 @@ from torch.utils.data import DataLoader, dataset
 from torchvision import transforms
 import mlflow
 import random
+from dotenv import load_dotenv
+from torch.utils.tensorboard import SummaryWriter
+from pathlib import Path
+import os
+from src.models.model import GalaxyClassifier_ResNet
+
+root = Path(__file__).parent.parent
+load_dotenv(root / ".env")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 
 
 
@@ -26,8 +41,14 @@ raw_transforms = transforms.Compose([
 
 
 def train_default():
+
+    model = GalaxyClassifier_ResNet(num_classes=5)
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
     for epoch in range(10):
         model.train()
+
 
         pbar = tqdm(subset_dataloader, desc=f"Epoch {epoch+1}")
 
