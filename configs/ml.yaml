@@ -2,7 +2,7 @@ env:
   name: galaxy_classification_env
   python_version: 3.14.4
   seed: 42
-  device: cpu # Change to cuda on VM
+  device: cuda # Change to cuda on VM
   num_workers: 4
 
 mode: cloud # options: local, cloud

@@ -13,14 +13,24 @@ from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 import os
 from src.models.model import GalaxyClassifier_ResNet
+from src.utils.yaml_utils import load_yaml
+from src.utils.logging_config import setup_ml_logging
+from loguru import logger
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
 
+log_config = load_yaml(root / 'configs' / 'core.yaml')
+setup_ml_logging(log_config)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+file_config = root / 'configs' / 'ml.yaml'
+ml_yaml = load_yaml(file_config)
+dev = ml_yaml["env"]["device"]
+
+device = torch.device(dev)
 
 
 
