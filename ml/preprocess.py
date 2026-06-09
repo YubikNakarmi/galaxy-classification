@@ -38,10 +38,8 @@ mapping = root / ml_yaml['data']["raw_paths"][1]["mappings"]
 labels =  root /ml_yaml['data']["raw_paths"][0]["labels"]
 
 
-# label processing
 
 #splitting data 
-
 
 def split(df:pd.DataFrame)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
