@@ -8,10 +8,7 @@ env:
 mode: cloud # options: local, cloud
 active_variant: Default
 
-experiment:
-  root: galaxy-classification-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
-  auto_timestamp: true
-  use_variant_name: true
+
 
 variants:
   Default:
@@ -25,6 +22,10 @@ variants:
         val_size: 0.15
         test_size: 0.15
       stratify: true
+    experiment:
+      root: galaxy-classification-default-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
 
     model:
       architecture: ResNet
@@ -35,7 +36,7 @@ variants:
       input_size: 128
 
     mlflow:
-      model_name: galaxy-classification-model
+      model_name: galaxy-classification-default
 
   Hubble:
     preprocessing: Hubble
@@ -43,6 +44,10 @@ variants:
     label_file: data/preprocessed/labels/labeled_data_2.csv
     dirichlet_branches: 11
 
+    experiment:
+      root: galaxy-classification-hubble-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
     data:
       split:
         train_size: 0.70
@@ -57,6 +62,12 @@ variants:
     preprocessing: Dirichlet
     num_classes: null
     label_file: data/preprocessed/labels/labeled_data_3.csv
+
+  experiment:
+    root: galaxy-classification-dirilchlet-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+    auto_timestamp: true
+    use_variant_name: true
+
 
     data:
       split:
@@ -132,6 +143,7 @@ storage:
       container: dvc-storage #stores training data like raw,preprocessed,split
 
     experiments: 
+      
       container: galaxy-experiments 
 
 

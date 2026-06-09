@@ -16,6 +16,11 @@ from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from loguru import logger
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils
+from tqdm import tqdm
+import datetime
+
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
@@ -40,6 +45,11 @@ batch_size = int(ml_yaml["train"]["batch_size"])
 train_path = split_dir / "train_split.csv"
 val_path = split_dir / "val_split.csv"
 
+experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"]
+experiment_name = 
+
+
+writer = SummaryWriter(log_dir=root / "logs" / "tensorboard")
 
 raw_transforms = transforms.Compose([
     transforms.CenterCrop(random.randint(170, 240)),  
@@ -74,15 +84,18 @@ def train_default():
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
-
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
 
     global_step = 0
+
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(experiment_root)
     for epoch in range(10):
         model.train()
 
-        pbar = tqdm(subset_dataloader, desc=f"Epoch {epoch+1}")
+        pbar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}")
 
-        for images, labels in subset_dataloader:
+        for images, labels in train_dataloader:
             images, labels = images.to(device), labels.to(device)
             optimizer.zero_grad()
             outputs = model(images)
@@ -94,7 +107,7 @@ def train_default():
 
 
             optimizer.step()
-            scheduler.step(epoch+ global_step/len(subset_dataloader))
+            scheduler.step(epoch+ global_step/len(train_dataloader))
             
             global_step += 1
 
@@ -106,6 +119,8 @@ def train_default():
                 "lr": optimizer.param_groups[0]["lr"]
             })
 
+        model.eval()
+        val_loss = 0.0
 
         
 
