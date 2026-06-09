@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 from src.utils.logging_config import setup_ml_logging
 from src.utils.yaml_utils import load_yaml
+from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent.parent
 log_config = config = load_yaml(root / 'configs' / 'core.yaml')
@@ -27,7 +28,7 @@ class GalaxyDataset(Dataset):
     mean:float
     std:float
 
-    def __init__(self, img_dir,labels_df, transform=None,class_names=CLASS_NAMES):
+    def __init__(self, img_dir:str|Path,labels_df:pd.DataFrame, transform=None,class_names=CLASS_NAMES):
 
         if isinstance(img_dir, pd.DataFrame) and isinstance(labels_df, (str, os.PathLike)):
             img_dir, labels_df = labels_df, img_dir #switchable (label,image) |(image,label) in constructor

@@ -1,35 +1,14 @@
 stages:
   preprocess:
-    cmd: python ml/preprocess.py --run_preprocessing true --run_split true
+    cmd: python ml/preprocess.py --run_split=true
     deps:
       - ml/preprocess.py
-      - ml/variants.yaml
-      - data/raw/mapping.csv
-      - data/raw/labels.csv
+      - configs/ml.yaml
+      - data/raw/
+      - data/raw/
     outs:
-      - data/preprocessed/
-     
-  train:
-    cmd: python ml/train.py
-    deps:
-      - ml/train.py
-      - ml/variants.yaml
-      - data/preprocessed/
-    outs:
-      - models/
-    params:
-      - configs/ml.yaml :
-          - variants.Default
-          - variants.Hubble
-          - variants.Dirichlet
-          - params
-
-  evaluate:
-    cmd: python ml/evaluate.py
-    deps:
-      - ml/evaluate.py
-      - ml/variants.yaml
-      - data/preprocessed/
-      - models/
-    outs:
-      - evaluation/
+      - data/preprocessed/split/
+      - data/preprocessed/split/
+      - data/preprocessed/split/
+      # - data/preprocessed/preprocessed/ {didnt include as it was prerun script}
+    

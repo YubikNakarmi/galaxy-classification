@@ -1,0 +1,29 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python ml/preprocess.py --run_split=true
+    deps:
+    - path: configs/ml.yaml
+      hash: md5
+      md5: 7743d4a96c9d5e1bf853342e27b80172
+      size: 4156
+    - path: data/raw/
+      hash: md5
+      md5: d4b4d082266de0889eb85af3682967ac.dir
+      size: 386679970
+      nfiles: 2
+    - path: data/raw/
+      hash: md5
+      md5: d4b4d082266de0889eb85af3682967ac.dir
+      size: 386679970
+      nfiles: 2
+    - path: ml/preprocess.py
+      hash: md5
+      md5: a6bd40cb6ad2afa372bf6af9466b0f4f
+      size: 4453
+    outs:
+    - path: data/preprocessed/split/
+      hash: md5
+      md5: 95d393d9275dba491a4504d237ba45bf.dir
+      size: 78436303
+      nfiles: 3

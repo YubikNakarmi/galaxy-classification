@@ -1,6 +1,5 @@
 images
 .venv
-/data
 .env
 docs/site
 cosmos-docs
@@ -9,3 +8,4 @@ __pycache__
 galaxy_classification.egg-info
 /logs
 /models
+/data
