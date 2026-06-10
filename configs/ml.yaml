@@ -173,8 +173,6 @@ augmentation: {
 }
 
 
-
-
 train:
 
 
@@ -195,8 +193,8 @@ train:
 
   scheduler:
     type: cosine_with_warmup
-    warmup_epochs: 5
-    min_lr: 0.00001
+    warmup_epochs: 10
+    min_lr: 0.000001
 
   regularization:
     dropout: 0.2

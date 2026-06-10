@@ -1,5 +1,6 @@
 import click
 from functorch import dim
+from matplotlib.pyplot import step
 import torch
 import pandas as pd
 import src.dataset.dataset as dataset
@@ -21,7 +22,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, Precision, Recall, F1Score, ConfusionMatrix, AUROC
 from tqdm import tqdm
 from torch import nn
-
+from src.utils.azure_utils import AzureBlobStorage
 import datetime
 
 
@@ -52,10 +53,21 @@ active = str(ml_yaml["active_variant"])
 
 experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"]
 experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
+checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+
+tensorboard_dir = root / ml_yaml["storage"]["local"]["tensorboard"]["dir"]
 
 num_class = ml_yaml["variants"][active]["num_classes"]
+lr = ml_yaml["train"]["learning_rate"]
+grad_clip = ml_yaml["train"]["grad_clip"]
+eta_min = ml_yaml["train"]["scheduler"]["eta_min"]
+warmup_epochs = ml_yaml["train"]["scheduler"]["warmup_epochs"]
+optimizer = ml_yaml["train"]["optimizer"]
 
-writer = SummaryWriter(log_dir=root / "logs" / "tensorboard" / experiment_name)
+
+writer = SummaryWriter(log_dir=tensorboard_dir / experiment_name)
 
 
 
@@ -75,6 +87,17 @@ raw_transforms = transforms.Compose([
     transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
                          std= [0.1728, 0.1586, 0.1488])    
 ])
+
+val_transforms = transforms.Compose([
+    transforms.CenterCrop(200),
+    transforms.Resize(128),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.1376, 0.1276, 0.1187],
+        std=[0.1728, 0.1586, 0.1488]
+    )
+])
+
 
 def validate_setup() -> bool:
     missing = []
@@ -122,47 +145,68 @@ def train_default():
     
     metrics = make_metrics(num_class, device) #cleaner version of metrics setup
 
+    mlflow.log_params({
+    "epochs": epoch,
+    "batch_size": batch_size,
+    "variant": active,
+    "num_classes": num_class,
+})
 
-    with mlflow.start_run(run_name=experiment_name):
+
+    
+    #load data and samplers
+    train_label_df = pd.read_csv(train_path)
+    val_label_df = pd.read_csv(val_path)
+
+    train_dataset = GalaxyDataset(labels_df=train_label_df, img_dir=image_dir, transform=raw_transforms)
+    val_dataset = GalaxyDataset(labels_df=val_label_df, img_dir=image_dir, transform=raw_transforms)
+
+    train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
+
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False,sampler=train_sampler)
+    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
+    #load models and optimizers
+    model = GalaxyClassifier_ResNet(num_classes=5)
+    model.to(device)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=warmup_epochs,eta_min = eta_min ,T_mult=2)
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
+
+    best_val_loss = float("inf")
+    best_checkpoint_path = checkpoint_dir / "best.pt"
+    global_step = 0
+
+    global_step = 0 #for scheeduler 
+    
+    with mlflow.start_run(run_name=experiment_name) as run:
+
+        run_id = run.info.run_id
+        logger.info(f"MLflow run started: {run_id}")
         accuracy = Accuracy(task = "multiclass", num_classes=5).to(device)
 
         mlflow.log_params({
-        "epochs": epoch,
-        "batch_size": batch_size,
-        "variant": active,
-        "num_classes": num_class,
-    })
-
-
-        
-        #load data and samplers
-        train_label_df = pd.read_csv(train_path)
-        val_label_df = pd.read_csv(val_path)
-
-        train_dataset = GalaxyDataset(labels_df=train_label_df, img_dir=image_dir, transform=raw_transforms)
-        val_dataset = GalaxyDataset(labels_df=val_label_df, img_dir=image_dir, transform=raw_transforms)
-
-        train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
-
-        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False,sampler=train_sampler)
-        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
-        
-        #load models and optimizers
-        model = GalaxyClassifier_ResNet(num_classes=5)
-
-        model.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=5, T_mult=2)
-        criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
-
-        global_step = 0 #for scheeduler 
+            "epochs": epoch,
+            "batch_size": batch_size,
+            "lr": lr,
+            "grad_clip": grad_clip,
+            "variant": active,
+            "num_classes": num_class,
+            "optimizer": "AdamW",
+            "scheduler": "CosineAnnealingWarmRestarts",
+            "T_0": 5,
+            "T_mult": 2,
+            "label_smoothing": 0.1,
+        })
 
         for ep in range(epoch):
             model.train()
+            train_loss = 0.0
 
-            pbar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}")
+            pbar = tqdm(train_dataloader, desc=f"Epoch {ep+1}/{epoch} [train]")
 
-            for images, labels in train_dataloader:
+            for images, labels in pbar:
 
                 images, labels = images.to(device), labels.to(device)
                 optimizer.zero_grad()
@@ -183,14 +227,18 @@ def train_default():
                 writer.add_scalar("LearningRate", optimizer.param_groups[0]['lr'], global_step)
                 
                 pbar.set_postfix({
-                    "loss": loss.item(),
-                    "lr": optimizer.param_groups[0]["lr"]
+                    "loss": f"{loss.item():.4f}",
+                    "lr": f"{optimizer.param_groups[0]['lr']:.2e}"
                 })
+ 
+            train_loss /= len(train_dataset)
+
+            
 
             model.eval()
             val_loss = 0.0
 
-            for images, labels in val_dataloader:
+            for images, labels in pbar(val_dataloader, desc=f"Epoch {ep+1}/{num_epochs} [val]"):
                 images, labels = images.to(device), labels.to(device)
                 with torch.no_grad():
                     outputs = model(images)
@@ -200,40 +248,121 @@ def train_default():
                     preds = torch.softmax(outputs, dim=1)
 
                     #all metrics
-                    accuracy.update(preds, labels)
-                    f1_micro.update(preds, labels)
-                    f1_macro.update(preds, labels)
-                    f1_classwise.update(preds, labels)
-                    precision_micro.update(preds, labels)
-                    precision_macro.update(preds, labels)
-                    precision_classwise.update(preds, labels)
-                    recall_micro.update(preds, labels)
-                    recall_macro.update(preds, labels)
-                    recall_classwise.update(preds, labels)
-                    roc_auc.update(preds, labels)
-            
-            val_loss /= len(val_dataloader.dataset)
+                    metrics["accuracy"].update(preds, labels)
+                    metrics["f1_micro"].update(preds, labels)
+                    metrics["f1_macro"].update(preds, labels)
+                    metrics["f1_classwise"].update(preds, labels)
+                    metrics["precision_micro"].update(preds, labels)
+                    metrics["precision_macro"].update(preds, labels)
+                    metrics["precision_classwise"].update(preds, labels)
+                    metrics["recall_micro"].update(preds, labels)
+                    metrics["recall_macro"].update(preds, labels)
+                    metrics["recall_classwise"].update(preds, labels)
+                    metrics["roc_auc"].update(preds, labels)
+
+            val_loss /= len(val_dataset)
 
 
 
-            val_acc = accuracy.compute().item()
-            val_f1_micro = f1_micro.compute().item()
-            val_f1_macro = f1_macro.compute().item()
-            val_f1_classwise = f1_classwise.compute().item()
-            val_precision_micro = precision_micro.compute().item()
-            val_precision_macro = precision_macro.compute().item()
-            val_precision_classwise = precision_classwise.compute().item()
-            val_recall_micro = recall_micro.compute().item()
-            val_recall_macro = recall_macro.compute().item()
-            val_recall_classwise = recall_classwise.compute().item()
-            val_roc_auc = roc_auc.compute().item()
+            val_acc = metrics["accuracy"].compute().item()
+            val_f1_micro = metrics["f1_micro"].compute().item()
+            val_f1_macro = metrics["f1_macro"].compute().item()
+            val_f1_classwise = metrics["f1_classwise"].compute().tolist()
+            val_prec_micro = metrics["precision_micro"].compute().item()
+            val_prec_macro = metrics["precision_macro"].compute().item()
+            val_prec_classwise = metrics["precision_classwise"].compute().tolist()
+            val_recall_micro = metrics["recall_micro"].compute().item()
+            val_recall_macro = metrics["recall_macro"].compute().item()
+            val_recall_classwise = metrics["recall_classwise"].compute().tolist()
+            val_roc_auc = metrics["roc_auc"].compute().item()
+ 
+            reset_metrics(metrics)
 
+            #per epoch mlflow log
             mlflow.log_metrics({
-            "val_loss": val_loss,
-            "val_acc": val_acc,
-            "val_f1_macro": val_f1,
-        }, step=ep)
+                "train_loss": train_loss,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+                "val_f1_micro": val_f1_micro,
+                "val_f1_macro": val_f1_macro,
+                "val_precision_micro": val_prec_micro,
+                "val_precision_macro": val_prec_macro,
+                "val_recall_micro": val_recall_micro,
+                "val_recall_macro": val_recall_macro,
+                "val_roc_auc": val_roc_auc,
+                "lr": optimizer.param_groups[0]["lr"],
+            }, step=ep)
 
+            #class wise metrics logging
+            for i, (f1, prec, rec) in enumerate(zip(val_f1_classwise, val_prec_classwise, val_recall_classwise)):
+                mlflow.log_metrics({
+                    f"val_f1_class_{i}": f1,
+                    f"val_precision_class_{i}": prec,
+                    f"val_recall_class_{i}": rec,
+                }, step=ep)
+    
+           # TensorBoard loggings
+            writer.add_scalar("Loss/val", val_loss, ep)
+            writer.add_scalar("Accuracy/val", val_acc, ep)
+            writer.add_scalar("F1/val_macro", val_f1_macro, ep)
+
+            logger.info(
+                f"Epoch {ep+1}/{epoch} | "
+                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
+                f"val_acc={val_acc:.4f} | val_f1_macro={val_f1_macro:.4f}"
+            )
+
+            logger.info(
+                f"Epoch {ep+1}/{epoch} | "
+                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
+                f"val_acc={val_acc:.4f} | val_f1_macro={val_f1_macro:.4f}"
+            )
+
+            # checkpoints with best val models
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                torch.save({
+                    "epoch": ep,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "val_loss": val_loss,
+                    "val_f1_macro": val_f1_macro,
+                    "run_id": run_id,
+                    "config": {
+                        "variant": active,
+                        "num_classes": num_class,
+                        "lr": lr,
+                        "batch_size": batch_size,
+                    }
+                }, best_checkpoint_path)
+                logger.info(f"New best checkpoint saved (val_loss={val_loss:.4f})")
+
+        logger.info("Training complete. Uploading checkpoint to Azure Blob...")
+        blob_path = f"checkpoints/{run_id}/best.pt"
+
+        blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["azure"]["container_name"])
+        blob_url = upload_to_blob(best_checkpoint_path, blob_path)
+        mlflow.set_tag("checkpoint_url", blob_url)
+        mlflow.set_tag("checkpoint_blob_path", blob_path)
+
+        # Load best weights before logging to registry
+        best_ckpt = torch.load(best_checkpoint_path, map_location=device)
+        model.load_state_dict(best_ckpt["model_state_dict"])
+        logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
+
+        mlflow.pytorch.log_model(
+            model,
+            artifact_path="model",
+            registered_model_name=ml_yaml["variants"][active].get("mlflow", {}).get("model_name"),
+        )
+        logger.info("Model logged to MLflow registry.")
+
+        writer.close()
+        logger.info("Training Completed")
+
+    
 
 
         
