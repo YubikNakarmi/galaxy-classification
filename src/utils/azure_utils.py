@@ -43,9 +43,19 @@ class AzureBlobStorage:
         if container_name:# Not None create client
             self.container_client = self.blob_service_client.get_container_client(
                 container_name
+                
             )
 
 
+    def check_container_exists(self, name=None):
+            container_name = name or self.container_name
+            client = self.blob_service_client.get_container_client(container_name)
+            try:
+                return client.exists()
+            except Exception as e:
+                logger.exception(f"Error checking container existence: {e}")
+                return False
+     
     def create_container(self,name=None,unique_suffix=False):
         '''
         Creates a container in Azure Blob Storage if it does not already exist.
@@ -53,7 +63,10 @@ class AzureBlobStorage:
         name (str): The name of the container to be created. If None, uses the container name provided during initialization. Default is None.
         unique_suffix (bool): If True, appends a unique suffix to the container name. Default is False.
         '''
-
+        if self.check_container_exists(name):
+            logger.info(f"Container '{name}' already exists.")
+            return
+        
         if name:
             self.container_name = name
             self.container_client = self.blob_service_client.get_container_client(self.container_name)
@@ -66,7 +79,7 @@ class AzureBlobStorage:
             logger.exception(f"Error creating container: {e}")
 
 
-    def upload_blob(self, blob_name, data,Overwrite=False):
+    def upload_blob(self, blob_name, data,Overwrite=False)-> str:
 
         ''' Uploads a blob to the specified container.
         
@@ -74,14 +87,21 @@ class AzureBlobStorage:
         blob_name (str): The name of the blob to be created or overwritten.
         data (bytes): The data to be uploaded.
         Overwrite (bool): If True, overwrites the blob if it already exists. Default is False.
+
+        Returns:
+        str: The URL of the uploaded blob if successful, None otherwise.
         
         '''
         try:
             blob_client = self.container_client.get_blob_client(blob_name)
             blob_client.upload_blob(data, overwrite=Overwrite)
             logger.info(f"Blob '{blob_name}' uploaded successfully.")
+
+            return str(blob_client.url)
+        
         except Exception as e:
             logger.exception(f"Error uploading blob: {e}")
+            return None
 
     def list_blobs(self):
         try:

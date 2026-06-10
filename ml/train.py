@@ -24,7 +24,7 @@ from tqdm import tqdm
 from torch import nn
 from src.utils.azure_utils import AzureBlobStorage
 import datetime
-
+from mlflow.models.signature import infer_signature
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
@@ -206,6 +206,7 @@ def train_default():
 
             pbar = tqdm(train_dataloader, desc=f"Epoch {ep+1}/{epoch} [train]")
 
+            ''' Training'''
             for images, labels in pbar:
 
                 images, labels = images.to(device), labels.to(device)
@@ -223,9 +224,11 @@ def train_default():
                 
                 global_step += 1
 
+                #tensorboard loggings
                 writer.add_scalar("Loss/train", loss.item(), global_step)
                 writer.add_scalar("LearningRate", optimizer.param_groups[0]['lr'], global_step)
                 
+                #cli visual
                 pbar.set_postfix({
                     "loss": f"{loss.item():.4f}",
                     "lr": f"{optimizer.param_groups[0]['lr']:.2e}"
@@ -234,11 +237,11 @@ def train_default():
             train_loss /= len(train_dataset)
 
             
-
+            ''' Evaluation'''
             model.eval()
             val_loss = 0.0
 
-            for images, labels in pbar(val_dataloader, desc=f"Epoch {ep+1}/{num_epochs} [val]"):
+            for images, labels in pbar(val_dataloader, desc=f"Epoch {ep+1}/{epoch} [val]"):
                 images, labels = images.to(device), labels.to(device)
                 with torch.no_grad():
                     outputs = model(images)
@@ -339,23 +342,45 @@ def train_default():
                 }, best_checkpoint_path)
                 logger.info(f"New best checkpoint saved (val_loss={val_loss:.4f})")
 
+
+        ''' after training steps'''        
+
         logger.info("Training complete. Uploading checkpoint to Azure Blob...")
         blob_path = f"checkpoints/{run_id}/best.pt"
 
-        blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["azure"]["container_name"])
-        blob_url = upload_to_blob(best_checkpoint_path, blob_path)
+        blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["cloud"]["experiments"]["container"])
+
+        blob_helper.create_container() 
+        blob_url = blob_helper.upload_blob(str(best_checkpoint_path), blob_path)
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
 
-        # Load best weights before logging to registry
+        # Load best weights before logging to registry 
         best_ckpt = torch.load(best_checkpoint_path, map_location=device)
         model.load_state_dict(best_ckpt["model_state_dict"])
         logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
 
+
+        #infer signatures for mlflow registry 
+        sample_images, _ = next(iter(val_dataloader))
+        sample_images = sample_images.to(device)
+
+        with torch.no_grad():
+            sample_preds = model(sample_images)
+            sample_preds_np = torch.softmax(sample_preds, dim=1).cpu().numpy()
+
+        signature = infer_signature(
+            sample_images.cpu().numpy(),
+            sample_preds_np
+        )
+        
+
+        #logging to mlflwo registry
         mlflow.pytorch.log_model(
             model,
             artifact_path="model",
             registered_model_name=ml_yaml["variants"][active].get("mlflow", {}).get("model_name"),
+            signature=signature
         )
         logger.info("Model logged to MLflow registry.")
 
@@ -371,14 +396,14 @@ def train_default():
 
 
 def main(variant):
-    validation()
-
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-    if variant == "default":
-        mlflow.set_experiment(experiment_name)
-        train_default()
     
+    if validate_setup():
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+        if variant == "default":
+            mlflow.set_experiment(experiment_name)
+            train_default()
+        
 
 
 
