@@ -1,12 +1,7 @@
 import click
-from functorch import dim
-from matplotlib.pyplot import step
 import torch
 import pandas as pd
-import src.dataset.dataset as dataset
-import src.models.model as model
 from src.dataset.dataset import GalaxyDataset
-from torch.utils.data import DataLoader, dataset
 from torchvision import transforms
 import mlflow
 import random
@@ -19,9 +14,8 @@ from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from loguru import logger
 from torch.utils.tensorboard import SummaryWriter
-from torchmetrics import Accuracy, Precision, Recall, F1Score, ConfusionMatrix, AUROC
+from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC
 from tqdm import tqdm
-from torch import nn
 from src.utils.azure_utils import AzureBlobStorage
 import datetime
 from mlflow.models.signature import infer_signature
@@ -55,14 +49,14 @@ experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["
 experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
 checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
 checkpoint_dir.mkdir(parents=True, exist_ok=True)
+log_dir = root / log_config["logging"]["ml"]["file"]
 
 
-tensorboard_dir = root / ml_yaml["storage"]["local"]["tensorboard"]["dir"]
+tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
 
 num_class = ml_yaml["variants"][active]["num_classes"]
 lr = ml_yaml["train"]["learning_rate"]
-grad_clip = ml_yaml["train"]["grad_clip"]
-eta_min = ml_yaml["train"]["scheduler"]["eta_min"]
+eta_min = ml_yaml["train"]["scheduler"]["min_lr"]
 warmup_epochs = ml_yaml["train"]["scheduler"]["warmup_epochs"]
 optimizer = ml_yaml["train"]["optimizer"]
 
@@ -145,14 +139,6 @@ def train_default():
     
     metrics = make_metrics(num_class, device) #cleaner version of metrics setup
 
-    mlflow.log_params({
-    "epochs": epoch,
-    "batch_size": batch_size,
-    "variant": active,
-    "num_classes": num_class,
-})
-
-
     
     #load data and samplers
     train_label_df = pd.read_csv(train_path)
@@ -167,24 +153,29 @@ def train_default():
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
     #load models and optimizers
-    model = GalaxyClassifier_ResNet(num_classes=5)
+    model = GalaxyClassifier_ResNet(num_classes=num_class)
     model.to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr) #weight decay
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=warmup_epochs,eta_min = eta_min ,T_mult=2)
     criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
 
     best_val_loss = float("inf")
     best_checkpoint_path = checkpoint_dir / "best.pt"
-    global_step = 0
 
     global_step = 0 #for scheeduler 
     
     with mlflow.start_run(run_name=experiment_name) as run:
 
+        mlflow.log_params({
+            "epochs": epoch,
+            "batch_size": batch_size,
+            "variant": active,
+            "num_classes": num_class,
+            })
+
         run_id = run.info.run_id
         logger.info(f"MLflow run started: {run_id}")
-        accuracy = Accuracy(task = "multiclass", num_classes=5).to(device)
 
         mlflow.log_params({
             "epochs": epoch,
@@ -213,7 +204,7 @@ def train_default():
                 optimizer.zero_grad()
                 outputs = model(images)
                 loss = criterion(outputs, labels)
-                
+                train_loss += loss.item() * images.size(0)
                 
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)# Gradient clipping to prevent exploding gradients
@@ -240,10 +231,12 @@ def train_default():
             ''' Evaluation'''
             model.eval()
             val_loss = 0.0
+            with torch.no_grad():
 
-            for images, labels in pbar(val_dataloader, desc=f"Epoch {ep+1}/{epoch} [val]"):
-                images, labels = images.to(device), labels.to(device)
-                with torch.no_grad():
+                for images, labels in tqdm(val_dataloader, desc=f"Epoch {ep+1}/{epoch} [val]"):
+                    images, labels = images.to(device), labels.to(device)
+
+                    
                     outputs = model(images)
                     loss = criterion(outputs, labels)
                     val_loss += loss.item() * images.size(0)
@@ -263,7 +256,7 @@ def train_default():
                     metrics["recall_classwise"].update(preds, labels)
                     metrics["roc_auc"].update(preds, labels)
 
-            val_loss /= len(val_dataset)
+                val_loss /= len(val_dataset)
 
 
 
@@ -315,12 +308,7 @@ def train_default():
                 f"val_acc={val_acc:.4f} | val_f1_macro={val_f1_macro:.4f}"
             )
 
-            logger.info(
-                f"Epoch {ep+1}/{epoch} | "
-                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
-                f"val_acc={val_acc:.4f} | val_f1_macro={val_f1_macro:.4f}"
-            )
-
+            
             # checkpoints with best val models
 
             if val_loss < best_val_loss:
@@ -350,10 +338,19 @@ def train_default():
 
         blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["cloud"]["experiments"]["container"])
 
+        #uploading best checkpoint to azure
         blob_helper.create_container() 
         blob_url = blob_helper.upload_blob(str(best_checkpoint_path), blob_path)
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
+
+        #uploading logs to azure
+        log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
+        log_blob_path = f"logs/{run_id}/training.log"
+        log_system.create_container()
+        blob_log_url= log_system.upload_blob(str(log_dir), log_blob_path)
+         
+        mlflow.set_tag("log_url", blob_log_url)
 
         # Load best weights before logging to registry 
         best_ckpt = torch.load(best_checkpoint_path, map_location=device)
@@ -401,11 +398,11 @@ def main(variant):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
         if variant == "default":
-            mlflow.set_experiment(experiment_name)
+            mlflow.set_experiment(experiment_root)
             train_default()
         
 
 
 
 if __name__ == "__main__":
-    main()
+    pass

@@ -131,6 +131,7 @@ storage:
     logs:
       dir: logs/
       tensorboard_dir: logs/tensorboard/
+      system_dir: logs/system/
 
     checkpoints:
       dir: models/checkpoints/
