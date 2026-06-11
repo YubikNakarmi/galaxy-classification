@@ -19,6 +19,7 @@ from tqdm import tqdm
 from src.utils.azure_utils import AzureBlobStorage
 import datetime
 from mlflow.models.signature import infer_signature
+from src.dataset.utils import generate_report
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
@@ -47,10 +48,11 @@ val_path = root / ml_yaml["data"]["val_path"]
 active = str(ml_yaml["active_variant"])
 
 experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"]
-experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active
+experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active #used throughout all loggings
 checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
 checkpoint_dir.mkdir(parents=True, exist_ok=True)
 log_dir = root / log_config["logging"]["ml"]["file"]
+reports_dir = root / ml_yaml["storage"]["local"]["logs"]["reports_dir"]
 
 
 tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
@@ -363,21 +365,7 @@ def train_default():
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
 
-        #uploading logs to azure
-        log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
-        log_blob_path = f"logs/{run_id}/training.log"
-        log_system.create_container()
-
-        with open(str(log_dir), "rb") as f:
-            blob_log_url= log_system.upload_blob(blob_name=log_blob_path, data=f)
-         
-        mlflow.set_tag("log_url", blob_log_url)
-
-        #uploading tensorboard logs to azure
-        with open(str(tensorboard_path), "rb") as f:
-            tb_blob_path = f"tensorboard/{run_id}/"
-            tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
-        mlflow.set_tag("tensorboard_url", tb_blob_url)
+      
 
 
         # Load best weights before logging to registry 
@@ -401,14 +389,39 @@ def train_default():
         
 
         #logging to mlflwo registry
+
+
         mlflow.pytorch.log_model(
             model,
-            artifact_path="model",
+            serialization_format="pt2",
+            input_example=sample_images.cpu(),
+            name="model",
             registered_model_name=ml_yaml["variants"][active].get("mlflow", {}).get("model_name"),
-            signature=signature
+            signature=signature,
         )
         logger.info("Model logged to MLflow registry.")
 
+        generate_report(run_id=run_id, output_path=reports_dir / f"{experiment_name}.md")
+
+
+          #uploading logs to azure
+        log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
+        log_blob_path = f"logs/{run_id}/training.log"
+        log_system.create_container()
+
+        with open(str(log_dir), "rb") as f:
+            blob_log_url= log_system.upload_blob(blob_name=log_blob_path, data=f)
+         
+        mlflow.set_tag("log_url", blob_log_url)
+
+
+        with open(reports_dir / f"{experiment_name}.md", "rb") as f:
+            report_blob_path = f"reports/{run_id}/report.md"
+            report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
+
+
+
+        logger.info(f"report generated at {reports_dir / f'{experiment_name}.md'}")
         writer.close()
         logger.info("Training Completed")
 

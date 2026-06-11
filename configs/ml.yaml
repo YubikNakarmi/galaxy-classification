@@ -124,7 +124,6 @@ data:
 
 storage:
 
-  upload_blob_freq: daily
 
   #in azure blob container, config for local (will add in future auto local config)
 
@@ -134,6 +133,7 @@ storage:
       dir: logs/
       tensorboard_dir: logs/tensorboard/
       system_dir: logs/system/
+      reports_dir: logs/reports/
 
     checkpoints:
       dir: models/checkpoints/
@@ -180,7 +180,7 @@ train:
 
 
   batch_size: 64
-  num_epochs: 60
+  num_epochs: 1
 
   learning_rate: 0.001
   weight_decay: 0.0001
