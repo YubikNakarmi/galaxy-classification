@@ -419,7 +419,7 @@ def train_default():
             report_blob_path = f"reports/{run_id}/report.md"
             report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
 
-
+        mlflow.set_tag("report_url", report_blob_url)
 
         logger.info(f"report generated at {reports_dir / f'{experiment_name}.md'}")
         writer.close()
@@ -431,7 +431,6 @@ def train_default():
         
 @click.command()
 @click.option("--variant", type=str, default="default", help="Training variant to use")
-
 
 def main(variant):
     

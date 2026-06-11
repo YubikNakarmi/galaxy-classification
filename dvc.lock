@@ -5,8 +5,8 @@ stages:
     deps:
     - path: configs/ml.yaml
       hash: md5
-      md5: 7743d4a96c9d5e1bf853342e27b80172
-      size: 4156
+      md5: ea53f26ab84336dcda0b1141aa391cfa
+      size: 4741
     - path: data/raw/
       hash: md5
       md5: d4b4d082266de0889eb85af3682967ac.dir
@@ -19,11 +19,5 @@ stages:
       nfiles: 2
     - path: ml/preprocess.py
       hash: md5
-      md5: a6bd40cb6ad2afa372bf6af9466b0f4f
-      size: 4453
-    outs:
-    - path: data/preprocessed/split/
-      hash: md5
-      md5: 95d393d9275dba491a4504d237ba45bf.dir
-      size: 78436303
-      nfiles: 3
+      md5: faec29816fb5e20e2ebab099147574d0
+      size: 4431

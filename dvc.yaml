@@ -6,9 +6,6 @@ stages:
       - configs/ml.yaml
       - data/raw/
       - data/raw/
-    outs:
-      - data/preprocessed/split/
-      - data/preprocessed/split/
-      - data/preprocessed/split/
+     
       # - data/preprocessed/preprocessed/ {didnt include as it was prerun script}
     
