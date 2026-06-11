@@ -8,12 +8,12 @@ import random
 from dotenv import load_dotenv
 from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
+from torch.utils.data import DataLoader
 import os
 from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from loguru import logger
-from torch.utils.tensorboard import SummaryWriter
 from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC
 from tqdm import tqdm
 from src.utils.azure_utils import AzureBlobStorage
@@ -34,49 +34,52 @@ ml_yaml = load_yaml(file_config)
 dev = ml_yaml["env"]["device"]
 
 device = torch.device(dev)
+seed = ml_yaml["env"]["seed"]
+
 
 epoch = int(ml_yaml["train"]["num_epochs"])
-image_dir = ml_yaml["data"]["img_dir"]
-split_dir = ml_yaml["data"]["split_dir"]
+image_dir = root / ml_yaml["data"]["img_dir"]
 batch_size = int(ml_yaml["train"]["batch_size"])
 
-train_path = Path(split_dir) / "train_split.csv"
-val_path = Path(split_dir) / "val_split.csv"
+train_path = root /ml_yaml["data"]["train_path"]
+val_path = root / ml_yaml["data"]["val_path"] 
 
 active = str(ml_yaml["active_variant"])
 
 experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"]
-experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active
 checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
 checkpoint_dir.mkdir(parents=True, exist_ok=True)
 log_dir = root / log_config["logging"]["ml"]["file"]
 
 
 tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
+tensorboard_path = tensorboard_dir / experiment_name
 
 num_class = ml_yaml["variants"][active]["num_classes"]
 lr = ml_yaml["train"]["learning_rate"]
 eta_min = ml_yaml["train"]["scheduler"]["min_lr"]
 warmup_epochs = ml_yaml["train"]["scheduler"]["warmup_epochs"]
 optimizer = ml_yaml["train"]["optimizer"]
+grad_clip = ml_yaml["train"]["grad_clip_max_norm"]
 
+model_registry_name = ml_yaml["variants"][active]["mlflow"]["model_name"]
 
-writer = SummaryWriter(log_dir=tensorboard_dir / experiment_name)
+writer = SummaryWriter(log_dir=tensorboard_path)
 
 
 
 best_val_loss = float('inf')
 best_val_model = None
-
+ 
 
 raw_transforms = transforms.Compose([
     transforms.CenterCrop(random.randint(170, 240)),  
     transforms.Resize(160),                            
     transforms.RandomCrop(128),                        
-    transforms.RandomRotation(degrees = [90, 180]),
-    transforms.RandomRotation(degrees = [0,270]),      
+    transforms.RandomRotation(degrees = [0, 360]),
     transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.1),
+    transforms.ColorJitter(brightness=0.2, contrast=0.5, saturation=0.4, hue=0.1),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
                          std= [0.1728, 0.1586, 0.1488])    
@@ -95,13 +98,14 @@ val_transforms = transforms.Compose([
 
 def validate_setup() -> bool:
     missing = []
-    for p in [train_path, val_path, Path(image_dir), Path(split_dir)]:
+    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir]:
         if not Path(p).exists():
             missing.append(str(p))
+
     if missing:
-        logger.error(f"Missing paths: {missing}")
+        logger.exception(f"Missing paths: {', '.join(missing)}")
         return False
- 
+
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment("Connection Test")
@@ -111,7 +115,7 @@ def validate_setup() -> bool:
     except Exception as e:
         logger.error(f"MLflow not reachable: {e}")
         return False
- 
+    logger.info("All setup checks passed.")
     return True
 
 
@@ -136,6 +140,14 @@ def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
 
 
 def train_default():
+
+
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
     
     metrics = make_metrics(num_class, device) #cleaner version of metrics setup
 
@@ -145,7 +157,7 @@ def train_default():
     val_label_df = pd.read_csv(val_path)
 
     train_dataset = GalaxyDataset(labels_df=train_label_df, img_dir=image_dir, transform=raw_transforms)
-    val_dataset = GalaxyDataset(labels_df=val_label_df, img_dir=image_dir, transform=raw_transforms)
+    val_dataset = GalaxyDataset(labels_df=val_label_df, img_dir=image_dir, transform=val_transforms)
 
     train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
 
@@ -164,6 +176,9 @@ def train_default():
     best_checkpoint_path = checkpoint_dir / "best.pt"
 
     global_step = 0 #for scheeduler 
+
+  
+    mlflow.enable_system_metrics_logging()
     
     with mlflow.start_run(run_name=experiment_name) as run:
 
@@ -172,6 +187,7 @@ def train_default():
             "batch_size": batch_size,
             "variant": active,
             "num_classes": num_class,
+            "seed": seed
             })
 
         run_id = run.info.run_id
@@ -186,7 +202,7 @@ def train_default():
             "num_classes": num_class,
             "optimizer": "AdamW",
             "scheduler": "CosineAnnealingWarmRestarts",
-            "T_0": 5,
+            "T_0": eta_min,
             "T_mult": 2,
             "label_smoothing": 0.1,
         })
@@ -340,7 +356,10 @@ def train_default():
 
         #uploading best checkpoint to azure
         blob_helper.create_container() 
-        blob_url = blob_helper.upload_blob(str(best_checkpoint_path), blob_path)
+
+        with open(best_checkpoint_path, "rb") as f:
+            blob_url = blob_helper.upload_blob(blob_name=blob_path, data=f)
+            
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
 
@@ -348,9 +367,18 @@ def train_default():
         log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
         log_blob_path = f"logs/{run_id}/training.log"
         log_system.create_container()
-        blob_log_url= log_system.upload_blob(str(log_dir), log_blob_path)
+
+        with open(str(log_dir), "rb") as f:
+            blob_log_url= log_system.upload_blob(blob_name=log_blob_path, data=f)
          
         mlflow.set_tag("log_url", blob_log_url)
+
+        #uploading tensorboard logs to azure
+        with open(str(tensorboard_path), "rb") as f:
+            tb_blob_path = f"tensorboard/{run_id}/"
+            tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
+        mlflow.set_tag("tensorboard_url", tb_blob_url)
+
 
         # Load best weights before logging to registry 
         best_ckpt = torch.load(best_checkpoint_path, map_location=device)
@@ -405,4 +433,4 @@ def main(variant):
 
 
 if __name__ == "__main__":
-    pass
+    main()

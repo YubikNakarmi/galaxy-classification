@@ -80,7 +80,6 @@ class AzureBlobStorage:
 
 
     def upload_blob(self, blob_name, data,Overwrite=False)-> str:
-
         ''' Uploads a blob to the specified container.
         
         Parameters:

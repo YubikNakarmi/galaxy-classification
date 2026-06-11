@@ -2,7 +2,7 @@ env:
   name: galaxy_classification_env
   python_version: 3.14.4
   seed: 42
-  device: cuda # Change to cuda on VM
+  device: cpu # Change to cuda on VM[cpu,cuda]
   num_workers: 4
 
 mode: cloud # options: local, cloud
@@ -87,6 +87,8 @@ data:
     
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
+  train_path: data/preprocessed/split/train_sample.csv
+  val_path: data/preprocessed/split/val_sample.csv
 
   input_size: 128
 
