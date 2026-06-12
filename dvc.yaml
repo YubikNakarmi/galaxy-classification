@@ -6,6 +6,7 @@ stages:
       - configs/ml.yaml
       - data/raw/
       - data/raw/
-     
-      # - data/preprocessed/preprocessed/ {didnt include as it was prerun script}
+    
+   # out: skipped to avoid file traccking hassle in dvc pipline
+   #   - data/split/''' # - data/preprocessed/preprocessed/ {didnt include as it was prerun script}
     

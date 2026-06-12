@@ -168,3 +168,4 @@ Werkzeug==3.1.8
 yarl==1.23.0
 zc.lockfile==4.0
 zipp==4.1.0
+mkdocstrings[python]>=0.18

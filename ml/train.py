@@ -143,7 +143,7 @@ def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
 
 def train_default():
 
-
+    #setting seed 
     random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -365,7 +365,6 @@ def train_default():
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
 
-      
 
 
         # Load best weights before logging to registry 
@@ -393,7 +392,7 @@ def train_default():
 
         mlflow.pytorch.log_model(
             model,
-            serialization_format="pt2",
+            serialization_format="pt2", #most stable one
             input_example=sample_images.cpu(),
             name="model",
             registered_model_name=ml_yaml["variants"][active].get("mlflow", {}).get("model_name"),
@@ -420,6 +419,18 @@ def train_default():
             report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
 
         mlflow.set_tag("report_url", report_blob_url)
+
+        try:
+            for path in Path(tensorboard_dir).iterdir():
+                if path.is_dir() and path.name == experiment_name:
+                    for file in path.iterdir():
+                        if file.is_file():
+                            tb_blob_path = f"tensorboard/{run_id}/{file.name}"
+                            with open(file, "rb") as f:
+                                tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
+                            mlflow.set_tag(f"tensorboard_{file.name}", tb_blob_url)
+        except Exception as e:
+            logger.error(f"Error uploading TensorBoard logs: {e}")
 
         logger.info(f"report generated at {reports_dir / f'{experiment_name}.md'}")
         writer.close()

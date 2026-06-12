@@ -1,3 +1,34 @@
+/* Improve readability */
+.md-content {
+  max-width: 80ch;
+  line-height: 1.7;
+}
+
+/* Slightly larger code font and better contrast */
+code, pre code {
+  font-size: 0.95rem;
+}
+
+pre.md-typeset, .md-typeset pre {
+  background-color: #0b1220; /* dark background for code blocks */
+  color: #e6eef6;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+/* Make page meta (dates) stand out */
+.page-meta {
+  font-size: 0.9rem;
+  color: var(--md-typeset-cite-color, #6b7280);
+  margin-bottom: 0.75rem;
+}
+
+/* Improve spacing for tabbed content */
+.md-tabs {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
 /* CosmosClassifier — MkDocs Material extra styles */
 :root {
   --md-primary-fg-color: #6200ea;
@@ -12,4 +43,52 @@
 .md-social__link svg {
     width: 2rem;
     height: 2rem;
+}
+
+/* Sidebar toggle buttons */
+.sidebar-toggle {
+  position: fixed;
+  top: 50%;
+  width: 16px;
+  height: 48px;
+  background: var(--md-primary-fg-color);
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+  border-radius: 0 4px 4px 0;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+.sidebar-toggle:hover { opacity: 1; }
+.sidebar-toggle.left  { left: 0; transform: translateY(-50%); }
+.sidebar-toggle.right { right: 0; transform: translateY(-50%); border-radius: 4px 0 0 4px; }
+
+.sidebar-toggle::after {
+  content: '‹';
+  color: var(--md-primary-bg-color);
+  font-size: 14px;
+}
+.sidebar-toggle.collapsed::after { content: '›'; }
+.sidebar-toggle.right::after     { content: '›'; }
+.sidebar-toggle.right.collapsed::after { content: '‹'; }
+
+/* Hidden states */
+.nav-hidden .md-sidebar--primary   { display: none; }
+.nav-hidden .md-content            { margin-left: 0; }
+.toc-hidden .md-sidebar--secondary { display: none; }
+.toc-hidden .md-content            { margin-right: 0; }
+
+.md-sidebar--secondary {
+  width: 10rem;
+}
+
+.md-sidebar--secondary .md-sidebar__scrollwrap {
+  width: 10rem;
+}
+
+/* Give content more room */
+@media screen and (min-width: 76.25em) {
+  .md-content {
+    max-width: calc(100% - 10rem - 12.1rem);
+  }
 }

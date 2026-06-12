@@ -16,4 +16,4 @@
 - training epoch based checkpoints
 
 ## visualizations
-- Mlflow and tensorboard
+- Mlflow and tensorboard, and reports
