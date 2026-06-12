@@ -429,6 +429,7 @@ def train_default():
                             with open(file, "rb") as f:
                                 tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
                             mlflow.set_tag(f"tensorboard_{file.name}", tb_blob_url)
+                            
         except Exception as e:
             logger.error(f"Error uploading TensorBoard logs: {e}")
 

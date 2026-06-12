@@ -16,4 +16,9 @@
 - training epoch based checkpoints
 
 ## visualizations
-- Mlflow and tensorboard, and reports
+- Mlflow and tensorboard, and reports functions
+
+## Default training model
+
+### Experiments
+Each training run should log its own experiment name with ```{time}_{model_variant}```
