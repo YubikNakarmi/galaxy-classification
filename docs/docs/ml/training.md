@@ -18,6 +18,17 @@
 ## visualizations
 - Mlflow and tensorboard, and reports functions
 
+## Training options
+
+### Default
+    Default model variant with standard training settings. With 5 classes and using default model
+
+### Hubble
+    Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
+
+### Dirilichet
+    Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
+
 ## Default training model
 
 ### Experiments

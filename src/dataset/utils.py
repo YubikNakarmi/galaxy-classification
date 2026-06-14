@@ -2,9 +2,25 @@
 import matplotlib.pyplot as plt
 import mlflow
 from pathlib import Path
+import random
 
+from torchvision.transforms import functional as TF
+
+
+
+
+class RandomCenterCrop:
+    def __init__(self, min_size, max_size):
+        self.min_size = min_size
+        self.max_size = max_size
+
+    def __call__(self, img):
+        size = random.randint(self.min_size, self.max_size)
+        return TF.center_crop(img, size)
 
 def generate_report(run_id: str, output_path: Path):
+
+
     client = mlflow.tracking.MlflowClient()
     run = client.get_run(run_id)
     params = run.data.params

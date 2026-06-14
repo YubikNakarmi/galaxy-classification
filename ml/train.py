@@ -20,6 +20,7 @@ from src.utils.azure_utils import AzureBlobStorage
 import datetime
 from mlflow.models.signature import infer_signature
 from src.dataset.utils import generate_report
+from src.dataset.utils import RandomCenterCrop
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
@@ -47,8 +48,8 @@ val_path = root / ml_yaml["data"]["val_path"]
 
 active = str(ml_yaml["active_variant"])
 
-experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"]
-experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active #used throughout all loggings
+experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"] #top level experiment name
+experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active #used throughout all loggings runs
 checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
 checkpoint_dir.mkdir(parents=True, exist_ok=True)
 log_dir = root / log_config["logging"]["ml"]["file"]
@@ -76,7 +77,7 @@ best_val_model = None
  
 
 raw_transforms = transforms.Compose([
-    transforms.CenterCrop(random.randint(170, 240)),  
+    RandomCenterCrop(170, 240), 
     transforms.Resize(160),                            
     transforms.RandomCrop(128),                        
     transforms.RandomRotation(degrees = [0, 360]),
@@ -88,7 +89,7 @@ raw_transforms = transforms.Compose([
 ])
 
 val_transforms = transforms.Compose([
-    transforms.CenterCrop(200),
+    RandomCenterCrop(170, 240),
     transforms.Resize(128),
     transforms.ToTensor(),
     transforms.Normalize(
@@ -184,13 +185,7 @@ def train_default():
     
     with mlflow.start_run(run_name=experiment_name) as run:
 
-        mlflow.log_params({
-            "epochs": epoch,
-            "batch_size": batch_size,
-            "variant": active,
-            "num_classes": num_class,
-            "seed": seed
-            })
+    
 
         run_id = run.info.run_id
         logger.info(f"MLflow run started: {run_id}")
@@ -204,9 +199,14 @@ def train_default():
             "num_classes": num_class,
             "optimizer": "AdamW",
             "scheduler": "CosineAnnealingWarmRestarts",
-            "T_0": eta_min,
+            "T_0": warmup_epochs,
             "T_mult": 2,
             "label_smoothing": 0.1,
+            "batch_size": batch_size,
+            "variant": active,
+            "num_classes": num_class,
+            "seed": seed
+            
         })
 
         for ep in range(epoch):
@@ -442,7 +442,7 @@ def train_default():
 
         
 @click.command()
-@click.option("--variant", type=str, default="default", help="Training variant to use")
+@click.option("--variant", type=str, default="default", help="Training variant to use",options=["default","hubble","dirilichet"])
 
 def main(variant):
     
@@ -452,7 +452,7 @@ def main(variant):
         if variant == "default":
             mlflow.set_experiment(experiment_root)
             train_default()
-        
+        #need to test centercrop images 
 
 
 
