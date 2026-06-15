@@ -81,7 +81,6 @@ fonttools==4.63.0
 frozenlist==1.8.0
 fsspec==2026.4.0
 funcy==2.0
--e git+https://github.com/YubikNakarmi/galaxy-classification.git@cf732b92304ef4d0e20bb2c6b0ffaa95b9784aa7#egg=galaxy_classification
 ghp-import==2.1.0
 gitdb==4.0.12
 GitPython==3.1.50
