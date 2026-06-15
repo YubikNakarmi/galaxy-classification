@@ -33,6 +33,8 @@ setup_ml_logging(log_config)
 
 file_config = root / 'configs' / 'ml.yaml'
 ml_yaml = load_yaml(file_config)
+
+
 dev = ml_yaml["env"]["device"]
 
 device = torch.device(dev)
@@ -99,16 +101,15 @@ val_transforms = transforms.Compose([
 ])
 
 
-def validate_setup() -> bool:
+def validate_setup(create_dirs:bool=False) -> bool:
     missing = []
     for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir]:
         if not Path(p).exists():
             missing.append(str(p))
 
     if missing:
-        logger.exception(f"Missing paths: {', '.join(missing)}")
+        logger.warning(f"Missing paths: {', '.join(missing)}")
         return False
-
     try:
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment("Connection Test")
@@ -446,6 +447,8 @@ def train_default():
 
 def main(variant):
     
+
+
     if validate_setup():
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 

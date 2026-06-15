@@ -5,11 +5,16 @@ source .env
 
 dir_setup()
 {
-
-    mkdir logs models data
-
-
+    echo "Creating project directories..."
+    mkdir -p images \
+             docs/site \
+             cosmos-docs \
+             logs/{reports,system,tensorboard,training} \
+             models/checkpoints \
+             data/{raw,preprocessed,split} \
+             .venv
 }
+
 
 #DVC setup (Assumes DVC is already installed and Storage account and container are aready setup)
 
