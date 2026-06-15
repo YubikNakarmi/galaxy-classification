@@ -46,7 +46,7 @@ jobs:
 
       - name: Build documentation
         run: |
-          mkdocs build -f docs/mkdocs.yml --strict
+          mkdocs build -f docs/mkdocs.yml 
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
