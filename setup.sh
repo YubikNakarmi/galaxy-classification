@@ -24,9 +24,13 @@ dvc_setup()
     
     # --local is used to avoid commiting the secret
     dvc pull
-    echo "DVC setup completed with Azure remote storage."
-        
+    echo "DVC setup completed with Azure remote storage for root"
 
+    cd data
+
+    dvc pull
+    echo "Data pulled for /data"
+        
 }
 
 dir_setup

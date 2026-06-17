@@ -12,16 +12,10 @@ resource "azurerm_resource_group" "rg" {
     location = var.location
 
 
-
 }
 
 
 
-resource "azurerm_storage_container" "example" {
-  name                  = "content"
-  storage_account_id    = azurerm_storage_account.example.id
-  container_access_type = "private"
-}
 
 #----------storage-----------------
 resource "azurerm_storage_account" "acc-name" {
@@ -31,6 +25,37 @@ resource "azurerm_storage_account" "acc-name" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 }
+
+resource "azurerm_storage_container" "mlflow" {
+  name                  = "mlflow"
+  storage_account_id = azurerm_storage_account.acc-name.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "dvc-storage" {
+  name                  = "dvc-storage"
+  storage_account_id = azurerm_storage_account.acc-name.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "logs" {
+  name                  = "galaxy-classification-logs"
+  storage_account_id = azurerm_storage_account.acc-name.id
+  container_access_type = "private"
+}
+
+resource "azurerm_storage_container" "experiments" { #for checkpoints
+  name                  = "galaxy-experiments"
+  storage_account_id = azurerm_storage_account.acc-name.id
+  container_access_type = "private"
+}
+
+
+
+
+
+
+
 
 
 #-------network----------------
@@ -89,3 +114,35 @@ resource "azurerm_network_security_rule" "mlflow" {
     network_security_group_name = azurerm_network_security_group.nsg.name
     resource_group_name = azurerm_resource_group.rg.name
 } 
+
+#---------VM--------------------------------------------------
+
+resource "azurerm_linux_virtual_machine" "vm" {
+    name = "${var.resource_group_name}-vm"
+    resource_group_name = azurerm_resource_group.rg.name
+    location = azurerm_resource_group.rg.location
+    size = "${var.vm_type}" 
+    admin_username = var.admin-name
+    network_interface_ids = [azurerm_network_interface.nic.id]
+
+    admin_ssh_key {
+      username = var.admin-name
+      public_key =  var.public-key #using existing ssh key for authentication
+    }
+    os_disk {
+        caching = "ReadWrite"
+        storage_account_type = "Standard_LRS"
+    }
+    source_image_reference {
+        publisher = "Canonical"
+        offer = "ubuntu-24_04-lts"
+        sku = "server"
+        version = "latest"
+    }
+
+    custom_data = filebase64("${path.module}/setup.sh") #cloud init script to install docker and start the container
+
+    lifecycle {
+      ignore_changes = [custom_data]
+    }
+}

@@ -1,4 +1,4 @@
-#!/bin/bash
+'!/bin/bash'
 
 inits(){
 sudo apt install python3-venv -y

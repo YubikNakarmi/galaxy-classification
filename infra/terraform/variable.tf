@@ -9,6 +9,13 @@ variable "storage_account_name" {
   
 }
 
+variable "vm_type"{
+  description = "type of VM to serve"
+  type = string
+  default="Standard_B2s" #fallback to cheapest vm
+
+}
+
 variable "location" {
   description = "Location for the resource group"
   type        = string
