@@ -87,8 +87,8 @@ data:
     
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
-  train_path: data/preprocessed/split/train_sample.csv
-  val_path: data/preprocessed/split/val_sample.csv
+  train_path: data/preprocessed/sample/train_sample.csv
+  val_path: data/preprocessed/sample/val_sample.csv
 
   input_size: 128
 

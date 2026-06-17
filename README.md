@@ -65,4 +65,7 @@ do nvdia-smi
 ```
 pip uninstall torch torchvision -y
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@20.204.16.165
 ```
+

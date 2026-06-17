@@ -24,7 +24,7 @@ from src.dataset.utils import RandomCenterCrop
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
 
 
 log_config = load_yaml(root / 'configs' / 'core.yaml')
@@ -401,6 +401,7 @@ def train_default():
         logger.info("Model logged to MLflow registry.")
 
         generate_report(run_id=run_id, output_path=reports_dir / f"{experiment_name}.md")
+        logger.info("report generated at {}")
 
 
           #uploading logs to azure
@@ -413,10 +414,14 @@ def train_default():
          
         mlflow.set_tag("log_url", blob_log_url)
 
+        # with exceptions to run even if there are erros saving
+        try:
+            with open(reports_dir / f"{experiment_name}.md", "rb") as f:
+                report_blob_path = f"reports/{run_id}/report.md"
+                report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
 
-        with open(reports_dir / f"{experiment_name}.md", "rb") as f:
-            report_blob_path = f"reports/{run_id}/report.md"
-            report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
+        except Exception as e:
+            logger.error(f"couldnt save report data {e}")
 
         mlflow.set_tag("report_url", report_blob_url)
 
