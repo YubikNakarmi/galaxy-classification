@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import os
 from .runners import load_best_model
 from PIL import Image
+from runners import run_default_model,run_dirichlet_model,run_grad_cam,run_hubble_model
 
 
 root = Path(__file__).parent.parent
@@ -41,7 +42,7 @@ class GalaxyClassification:
 
     @bentoml.api(batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):
-        pass 
+        pas
         
 
         
