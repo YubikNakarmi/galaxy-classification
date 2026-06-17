@@ -442,7 +442,7 @@ def train_default():
 
         
 @click.command()
-@click.option("--variant", type=str, default="default", help="Training variant to use",options=["default","hubble","dirilichet"])
+@click.option("--variant", type=str, default="default", help="Training variant to use")
 
 def main(variant):
     
