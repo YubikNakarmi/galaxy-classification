@@ -42,8 +42,13 @@ class GalaxyClassification:
 
     @bentoml.api(batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):
-        pas
-        
+        pass
+
+    def classify_hubble(self,images:list[Image.Image]):
+        pass
+
+    def classify_dirichlet(self,images:list[Image.Image]):
+        pass        
 
         
 

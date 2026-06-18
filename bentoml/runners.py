@@ -47,10 +47,8 @@ def load_gradcam(model,):
     pass
 
 def run_gradcam(
-    cam: GradCAM,
-    tensor: torch.Tensor,
-    orig_img: Image.Image,
-        ) -> str:
+    cam: GradCAM,tensor: torch.Tensor,
+    orig_img: Image.Image) -> str:
     
 
     """Return base64-encoded PNG heatmap overlay for a single image tensor."""
@@ -64,7 +62,8 @@ def run_gradcam(
 
 
 
-def run_default_model(cam):
+def run_default_model(cam: GradCAM, tensor: torch.Tensor, orig_img: Image.Image):
+    pass
     
 
 def run_hubble_model():

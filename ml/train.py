@@ -1,3 +1,6 @@
+
+#Need to refactor some code in order be make it more clean with other models. Like refactoring Azure uploads into one function. 
+
 import click
 import torch
 import pandas as pd
@@ -142,7 +145,7 @@ def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
         m.reset()
 
 
-def train_default():
+def train_default(tensorboard:bool=True,report:bool=True,):
 
     #setting seed 
     random.seed(seed)
