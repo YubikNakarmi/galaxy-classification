@@ -1,6 +1,5 @@
 
 #Need to refactor some code in order be make it more clean with other models. Like refactoring Azure uploads into one function. 
-
 import click
 import torch
 import pandas as pd
@@ -64,8 +63,6 @@ checkpoint_container_name = ml_yaml["storage"]["cloud"]["experiments"]["containe
 log_dir = root / log_config["logging"]["ml"]["file"]
 reports_dir = root / ml_yaml["storage"]["local"]["logs"]["reports_dir"]
 
-
-
 tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
 tensorboard_path = tensorboard_dir / experiment_name
 
@@ -79,10 +76,7 @@ grad_clip = ml_yaml["train"]["grad_clip_max_norm"]
 model_registry_name = ml_yaml["variants"][active]["mlflow"]["model_name"]
 
 
-
 writer = SummaryWriter(log_dir=tensorboard_path)
-
-
 
 best_val_loss = float('inf')
 best_val_model = None
@@ -113,7 +107,7 @@ val_transforms = transforms.Compose([
 
 def validate_setup() -> bool:
     missing = []
-    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir]:
+    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir,checkpoint_dir_local, reports_dir]:
         if not Path(p).exists():
             missing.append(str(p))
 
@@ -154,7 +148,18 @@ def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
         m.reset()
 
 
-def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:bool=False):
+def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:bool=False,resume_from_checkpoint=checkpoint_resume):
+
+
+    logger.info(f"Starting training with variant '{active}'")
+    logger.info(f"Experiment name: {experiment_name}")
+
+    if resume_from_checkpoint:
+        logger.warning("Checkpoint resume enabled.")
+
+    logger.warning(f"Checkpoint resume hard mode: {checkpoint_resume_hard}")
+
+    logger.info(f"Resume from checkpoint: {resume_from_checkpoint}")
 
     #setting seed 
     random.seed(seed)
@@ -192,7 +197,8 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
 
     global_step = 0 #for scheeduler 
 
-    if checkpoint_resume and Path(checkpoint_dir_local / "resume_best.pt").exists():
+    # For resuming training from checkpoint if available
+    if resume_from_checkpoint and Path(checkpoint_dir_local / "resume_best.pt").exists():
         blob_helper = AzureBlobStorage(container_name = checkpoint_container_name)
         blob_helper.load_blob(blob_name=checkpoint_dir_blob, local_path=checkpoint_dir_local / "resume_best.pt")
         
@@ -203,7 +209,6 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
         start_epoch = ckpt["epoch"] + 1
         best_val_loss = ckpt["val_loss"]
         logger.info(f"Resumed from epoch {start_epoch}")
-
     else:
 
         if checkpoint_resume_hard:#if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
@@ -213,13 +218,10 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
         logger.info("No checkpoint found, starting fresh training.")
         start_epoch = 0
   
-    resume_run_id = ckpt.get("run_id") if checkpoint_resume else None
+    resume_run_id = ckpt.get("run_id") if resume_from_checkpoint else None
     mlflow.enable_system_metrics_logging()
     
     with mlflow.start_run(run_id=resume_run_id, run_name=experiment_name) as run:
-
-    
-
         run_id = run.info.run_id
         logger.info(f"MLflow run started: {run_id}")
 
@@ -473,25 +475,31 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
 
         logger.info(f"report generated at {reports_dir / f'{experiment_name}.md'}")
         writer.close()
+        
         logger.info("Training Completed")
 
     
 
 
+
+
+
+
         
 @click.command()
 @click.option("--variant", type=str, default="default", help="Training variant to use")
-@click.option("--checkpoint_resume_hard", is_flag=True, default=checkpoint_hard,help="If set, the training will exit if no checkpoint is found to resume from. If not set, it will start fresh training.")
-def main(variant):
+@click.option("--checkpoint_resume_force", is_flag=True, default=checkpoint_hard,help="If set, the training will exit if no " \
+"checkpoint is found to resume from. If not set, it will start fresh training.")
+@click.option("--resume_checkpoint", is_flag=True, default=checkpoint_resume, help="Whether to attempt resuming from checkpoint if available.")
+
+def main(variant, checkpoint_resume_force,resume_checkpoint):
     
     if validate_setup():
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
         if variant == "default":
             mlflow.set_experiment(experiment_root)
-            train_default()
-        #need to test centercrop images 
-
+            train_default(checkpoint_resume_hard=checkpoint_resume_force)
 
 
 if __name__ == "__main__":
