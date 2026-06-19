@@ -42,15 +42,15 @@ def load_best_model(experiment_name: str) -> torch.nn.Module:
     model_uri = f"runs:/{best_run.info.run_id}/model"
     return mlflow.pytorch.load_model(model_uri) #preload while return
 
-def load_gradcam(model,):
+def build_gradcam(model: torch.nn.Module) -> GradCAM:
 
-    pass
+    target_layer = [model.group5.units[-1].conv2]#second last layer or last group to capture high feature maps
+    return GradCAM(model=model, target_layers=target_layer)
 
 def run_gradcam(
     cam: GradCAM,tensor: torch.Tensor,
     orig_img: Image.Image) -> str:
     
-
     """Return base64-encoded PNG heatmap overlay for a single image tensor."""
 
     grayscale_cam = cam(input_tensor=tensor.unsqueeze(0), targets=None)[0]

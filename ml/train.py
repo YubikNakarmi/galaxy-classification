@@ -41,6 +41,8 @@ dev = ml_yaml["env"]["device"]
 device = torch.device(dev)
 seed = ml_yaml["env"]["seed"]
 
+checkpoint= ml_yaml["train"]["resume_from_checkpoint"]
+checkpoint_restore_path = ml_yaml["train"]["checkpoint_restore_path"]
 
 epoch = int(ml_yaml["train"]["num_epochs"])
 image_dir = root / ml_yaml["data"]["img_dir"]
@@ -58,6 +60,8 @@ checkpoint_dir.mkdir(parents=True, exist_ok=True)
 log_dir = root / log_config["logging"]["ml"]["file"]
 reports_dir = root / ml_yaml["storage"]["local"]["logs"]["reports_dir"]
 
+checkpoint_container_name = ml_yaml["storage"]["cloud"]["experiments"]["container"]
+
 
 tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
 tensorboard_path = tensorboard_dir / experiment_name
@@ -70,6 +74,8 @@ optimizer = ml_yaml["train"]["optimizer"]
 grad_clip = ml_yaml["train"]["grad_clip_max_norm"]
 
 model_registry_name = ml_yaml["variants"][active]["mlflow"]["model_name"]
+
+
 
 writer = SummaryWriter(log_dir=tensorboard_path)
 
@@ -183,6 +189,17 @@ def train_default(tensorboard:bool=True,report:bool=True,):
 
     global_step = 0 #for scheeduler 
 
+    if checkpoint and Path(checkpoint_restore_path).exists():
+        blob_helper = AzureBlobStorage(container_name = checkpoint_container_name)
+        blob_helper.download_blob(blob_path, resume_path)
+        
+        ckpt = torch.load(resume_path, map_location=device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+        start_epoch = ckpt["epoch"] + 1
+        best_val_loss = ckpt["val_loss"]
+        logger.info(f"Resumed from epoch {start_epoch}")
   
     mlflow.enable_system_metrics_logging()
     
@@ -357,13 +374,13 @@ def train_default(tensorboard:bool=True,report:bool=True,):
         logger.info("Training complete. Uploading checkpoint to Azure Blob...")
         blob_path = f"checkpoints/{run_id}/best.pt"
 
-        blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["cloud"]["experiments"]["container"])
+        blob_helper_checkpoints = AzureBlobStorage(container_name=checkpoint_container_name)
 
         #uploading best checkpoint to azure
-        blob_helper.create_container() 
+        blob_helper_checkpoints.create_container() 
 
         with open(best_checkpoint_path, "rb") as f:
-            blob_url = blob_helper.upload_blob(blob_name=blob_path, data=f)
+            blob_url = blob_helper_checkpoints.upload_blob(blob_name=blob_path, data=f)
             
         mlflow.set_tag("checkpoint_url", blob_url)
         mlflow.set_tag("checkpoint_blob_path", blob_path)
@@ -408,12 +425,12 @@ def train_default(tensorboard:bool=True,report:bool=True,):
 
 
           #uploading logs to azure
-        log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
+        blob_helper_logs = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
         log_blob_path = f"logs/{run_id}/training.log"
-        log_system.create_container()
+        blob_helper_logs.create_container()
 
         with open(str(log_dir), "rb") as f:
-            blob_log_url= log_system.upload_blob(blob_name=log_blob_path, data=f)
+            blob_log_url= blob_helper_logs.upload_blob(blob_name=log_blob_path, data=f)
          
         mlflow.set_tag("log_url", blob_log_url)
 
@@ -421,7 +438,7 @@ def train_default(tensorboard:bool=True,report:bool=True,):
         try:
             with open(reports_dir / f"{experiment_name}.md", "rb") as f:
                 report_blob_path = f"reports/{run_id}/report.md"
-                report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
+                report_blob_url = blob_helper_logs.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
 
         except Exception as e:
             logger.error(f"couldnt save report data {e}")
@@ -435,7 +452,7 @@ def train_default(tensorboard:bool=True,report:bool=True,):
                         if file.is_file():
                             tb_blob_path = f"tensorboard/{run_id}/{file.name}"
                             with open(file, "rb") as f:
-                                tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
+                                tb_blob_url = blob_helper_logs.upload_blob(blob_name=tb_blob_path, data=f)
                             mlflow.set_tag(f"tensorboard_{file.name}", tb_blob_url)
                             
         except Exception as e:

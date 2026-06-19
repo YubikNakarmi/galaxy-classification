@@ -172,6 +172,11 @@ class AzureBlobStorage:
         except Exception as e:
             logger.exception(f"Error uploading blob: {e}")
             return None
+        
+    def load_blob(self,blob_name):
+        try:
+            blob_client = self.container_client.get_blob_client(blob_name)
+            
 
     def list_blobs(self):
 

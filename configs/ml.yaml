@@ -178,7 +178,8 @@ augmentation: {
 
 train:
 
-
+  resume_from_checkpoint: False
+  checkpoint_restore_path: "checkpoints/{run_id}/best.pt" #set run-id to resume
   batch_size: 64
   num_epochs: 1
 
