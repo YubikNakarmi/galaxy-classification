@@ -6,8 +6,14 @@ source .env
 dir_setup()
 {
 
-    mkdir logs models data
-
+     echo "Creating project directories..."
+    mkdir -p 
+    
+             logs/{reports,system,tensorboard,training} \
+             models/{checkpoints,temp} \
+             data/{raw,preprocessed,split} \
+             .venv
+}
 
 }
 
@@ -34,4 +40,3 @@ dvc_setup()
 }
 
 dir_setup
-dvc_setup

@@ -173,10 +173,16 @@ class AzureBlobStorage:
             logger.exception(f"Error uploading blob: {e}")
             return None
         
-    def load_blob(self,blob_name):
+    def load_blob(self, blob_name, local_path: str):
         try:
             blob_client = self.container_client.get_blob_client(blob_name)
-            
+            with open(local_path, "wb") as f:
+                f.write(blob_client.download_blob().readall())
+            logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
+            return local_path
+        except Exception as e:
+            logger.exception(f"Error downloading blob: {e}")
+            return None
 
     def list_blobs(self):
 

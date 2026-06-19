@@ -41,8 +41,11 @@ dev = ml_yaml["env"]["device"]
 device = torch.device(dev)
 seed = ml_yaml["env"]["seed"]
 
-checkpoint= ml_yaml["train"]["resume_from_checkpoint"]
-checkpoint_restore_path = ml_yaml["train"]["checkpoint_restore_path"]
+checkpoint_resume= ml_yaml["train"]["checkpoints"]["resume_from_checkpoint"]
+checkpoint_dir_blob = ml_yaml["train"]["checkpoints"]["checkpoint_restore_path"]
+checkpoint_dir_local = root / ml_yaml["train"]["checkpoints"]["local_checkpoint_path"]
+checkpoint_dir_local.mkdir(parents=True, exist_ok=True).touch("resume_best.pt")
+checkpoint_hard = ml_yaml["train"]["checkpoints"]["checkpoint_resume_hard"] #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
 
 epoch = int(ml_yaml["train"]["num_epochs"])
 image_dir = root / ml_yaml["data"]["img_dir"]
@@ -50,17 +53,17 @@ batch_size = int(ml_yaml["train"]["batch_size"])
 
 train_path = root /ml_yaml["data"]["train_path"]
 val_path = root / ml_yaml["data"]["val_path"] 
-
 active = str(ml_yaml["active_variant"])
 
 experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"] #top level experiment name
 experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active #used throughout all loggings runs
 checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
 checkpoint_dir.mkdir(parents=True, exist_ok=True)
+checkpoint_container_name = ml_yaml["storage"]["cloud"]["experiments"]["container"]
+
 log_dir = root / log_config["logging"]["ml"]["file"]
 reports_dir = root / ml_yaml["storage"]["local"]["logs"]["reports_dir"]
 
-checkpoint_container_name = ml_yaml["storage"]["cloud"]["experiments"]["container"]
 
 
 tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
@@ -151,7 +154,7 @@ def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
         m.reset()
 
 
-def train_default(tensorboard:bool=True,report:bool=True,):
+def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:bool=False):
 
     #setting seed 
     random.seed(seed)
@@ -189,21 +192,31 @@ def train_default(tensorboard:bool=True,report:bool=True,):
 
     global_step = 0 #for scheeduler 
 
-    if checkpoint and Path(checkpoint_restore_path).exists():
+    if checkpoint_resume and Path(checkpoint_dir_local / "resume_best.pt").exists():
         blob_helper = AzureBlobStorage(container_name = checkpoint_container_name)
-        blob_helper.download_blob(blob_path, resume_path)
+        blob_helper.load_blob(blob_name=checkpoint_dir_blob, local_path=checkpoint_dir_local / "resume_best.pt")
         
-        ckpt = torch.load(resume_path, map_location=device)
+        ckpt = torch.load(checkpoint_dir_local / "resume_best.pt", map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"] + 1
         best_val_loss = ckpt["val_loss"]
         logger.info(f"Resumed from epoch {start_epoch}")
+
+    else:
+
+        if checkpoint_resume_hard:#if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
+            logger.error("Checkpoint resume requested but no checkpoint found. Exiting.")
+            raise logger.exception("No checkpoint found for resuming training.")
+            
+        logger.info("No checkpoint found, starting fresh training.")
+        start_epoch = 0
   
+    resume_run_id = ckpt.get("run_id") if checkpoint_resume else None
     mlflow.enable_system_metrics_logging()
     
-    with mlflow.start_run(run_name=experiment_name) as run:
+    with mlflow.start_run(run_id=resume_run_id, run_name=experiment_name) as run:
 
     
 
@@ -229,7 +242,7 @@ def train_default(tensorboard:bool=True,report:bool=True,):
             
         })
 
-        for ep in range(epoch):
+        for ep in range(start_epoch, epoch):
             model.train()
             train_loss = 0.0
 
@@ -468,7 +481,7 @@ def train_default(tensorboard:bool=True,report:bool=True,):
         
 @click.command()
 @click.option("--variant", type=str, default="default", help="Training variant to use")
-
+@click.option("--checkpoint_resume_hard", is_flag=True, default=checkpoint_hard,help="If set, the training will exit if no checkpoint is found to resume from. If not set, it will start fresh training.")
 def main(variant):
     
     if validate_setup():
