@@ -373,7 +373,7 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
                     "scheduler_state_dict": scheduler.state_dict(),
                     "val_loss": val_loss,
                     "val_f1_macro": val_f1_macro,
-                    "run_id": run_id,
+                    "run_id": run_id, #mlflow metadata to resume and track the run of the model
                     "config": {
                         "variant": active,
                         "num_classes": num_class,
