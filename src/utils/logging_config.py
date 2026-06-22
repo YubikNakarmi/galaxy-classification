@@ -1,8 +1,14 @@
+''' Parser and overwritting default logging with file stream configuration
+- setup_app_logging: for application logs
+- setup_ml_logging: for machine learning logs
+
+
+'''
+
 from loguru import logger
 from pathlib import Path
 import sys
 
-''' Parser and overwritting default logging with file stream configuration'''
 
 root = Path(__file__).resolve().parent.parent.parent
 
