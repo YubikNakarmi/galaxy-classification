@@ -15,7 +15,7 @@ root = Path(__file__).parent.parent
 
 load_dotenv(root / '.env')
 
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
 
 
@@ -37,15 +37,9 @@ class GalaxyClassification:
 
     @bentoml.api(batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):
-        pass
+        run_default_model(model = self.default_model,cam=self.gradcam_default,orig_img=images)
 
-    def classify_hubble(self,images:list[Image.Image]):
-        pass
 
-    def classify_dirichlet(self,images:list[Image.Image]):
-        pass        
-
-        
 
 
     

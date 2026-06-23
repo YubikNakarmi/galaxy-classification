@@ -83,7 +83,7 @@ def run_gradcam(
 
 
 
-def run_default_model(model: torch.nn.Module, cam: GradCAM, tensor: torch.Tensor, orig_img: list[Image.Image]) -> list[ClassificationResult]:
+def run_default_model(model: torch.nn.Module, cam: GradCAM, orig_img: list[Image.Image]) -> list[ClassificationResult]:
     
     tensor = torch.stack([TRANSFORM(img) for img in orig_img]).to(DEVICE)
 

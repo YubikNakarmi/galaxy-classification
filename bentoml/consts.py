@@ -42,8 +42,8 @@ TRANSFORM = transforms.Compose([
 
 
 DEVICE = ml_yaml["env"]["device"]
-experiment_root_default = ml_yaml["variants"][ml_yaml["Default"]]["experiment"]["root"] #MLFLOW experiment name for a specific variant
-experiment_root_hubble = ml_yaml["variants"][ml_yaml["Hubble"]]["experiment"]["root"]
-experiment_root_dirichlet = ml_yaml["variants"][ml_yaml["Dirichlet:"]]["experiment"]["root"]
+experiment_root_default = ml_yaml["variants"]["Default"]["experiment"]["root"] #MLFLOW experiment name for a specific variant
+experiment_root_hubble = ml_yaml["variants"]["Hubble"]["experiment"]["root"]
+experiment_root_dirichlet = ml_yaml["variants"]["Dirichlet"]["experiment"]["root"]
 device = ml_yaml["env"]["device"]
 

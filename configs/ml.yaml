@@ -63,10 +63,10 @@ variants:
     num_classes: null
     label_file: data/preprocessed/labels/labeled_data_3.csv
 
-  experiment:
-    root: galaxy-classification-dirilchlet-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
-    auto_timestamp: true
-    use_variant_name: true
+    experiment:
+      root: galaxy-classification-dirilchlet-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
 
 
     data:
@@ -170,7 +170,6 @@ storage:
       dir: predictions/
 
 augmentation: {
-
 
 
 }
