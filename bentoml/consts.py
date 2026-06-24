@@ -19,7 +19,6 @@ DEFAULT_CLASS_NAMES = {
 }
 
 
-print(DEFAULT_CLASS_NAMES[0])
  
 # HUBBLE_CLASSES = [
 #     "E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7",

@@ -18,10 +18,6 @@ load_dotenv(root / '.env')
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
 
-
-
-
-
 @bentoml.service(resources={"cpu": "2","memory": "4Gi"},
                  traffic={"max_concurrency": 5})
 class GalaxyClassification:

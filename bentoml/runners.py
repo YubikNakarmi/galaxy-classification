@@ -27,9 +27,6 @@ setup_app_logging(log_yaml)
 ml_config = load_yaml(root / 'configs' / 'ml.yaml')
 
 
-
-
-
 def load_best_model(experiment_name: str) -> torch.nn.Module:
     client = MlflowClient()
     experiment = client.get_experiment_by_name(experiment_name)
