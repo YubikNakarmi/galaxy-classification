@@ -147,7 +147,7 @@ storage:
 
     experiments: 
   
-      container: galaxy-experiments 
+      container: galaxy-experiments #for models
 
 
 
@@ -177,9 +177,9 @@ augmentation: {
 
 train:
   checkpoints:
-    resume_from_checkpoint: False
+    resume_from_checkpoint: True
     local_checkpoint_path: "models/temp/resume_best.pt" #used if resume_from_checkpoint is true and mode is local
-    checkpoint_restore_path: "checkpoints/{run_id}/best.pt" #set run-id to resume
+    checkpoint_restore_path: "checkpoints/acfa1451290b4a8d880870fe4c21557a/best.pt" #set run-id to resume
     checkpoint_resume_hard: False #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     
   batch_size: 64

@@ -33,7 +33,8 @@ class GalaxyClassification:
 
     @bentoml.api(batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):
-        run_default_model(model = self.default_model,cam=self.gradcam_default,orig_img=images)
+        response = run_default_model(model = self.default_model,cam=self.gradcam_default,orig_img=images)
+        return response
 
 
 
