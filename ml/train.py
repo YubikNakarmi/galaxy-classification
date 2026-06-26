@@ -42,8 +42,8 @@ seed = ml_yaml["env"]["seed"]
 
 checkpoint_resume= ml_yaml["train"]["checkpoints"]["resume_from_checkpoint"]
 checkpoint_dir_blob = ml_yaml["train"]["checkpoints"]["checkpoint_restore_path"]
-checkpoint_dir_local = root / ml_yaml["train"]["checkpoints"]["local_checkpoint_path"]
-checkpoint_dir_local.mkdir(parents=True, exist_ok=True)
+load_checkpoint_dir_local = root / ml_yaml["train"]["checkpoints"]["local_checkpoint_path"]
+load_checkpoint_dir_local.mkdir(parents=True, exist_ok=True)
 checkpoint_hard = ml_yaml["train"]["checkpoints"]["checkpoint_resume_hard"] #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
 
 epoch = int(ml_yaml["train"]["num_epochs"])
@@ -107,12 +107,20 @@ val_transforms = transforms.Compose([
 
 def validate_setup() -> bool:
     missing = []
-    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir,checkpoint_dir_local, reports_dir]:
+    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir,load_checkpoint_dir_local, reports_dir]:
         if not Path(p).exists():
             missing.append(str(p))
 
     if missing:
         logger.exception(f"Missing paths: {', '.join(missing)}")
+        return False
+    
+    if not Path(load_checkpoint_dir_local).exists() and not checkpoint_resume:
+        logger.warning(f"Local checkpoint path {load_checkpoint_dir_local} does not exist. It will be created if needed.")
+        Path(load_checkpoint_dir_local).mkdir(parents=True, exist_ok=True)
+
+    elif not Path(load_checkpoint_dir_local).exists() and checkpoint_resume:
+        logger.exception(f"Local checkpoint path {load_checkpoint_dir_local} does not exist. Cannot resume from checkpoint.")
         return False
 
     try:
@@ -121,9 +129,11 @@ def validate_setup() -> bool:
         with mlflow.start_run(run_name="setup_validation"):
             mlflow.log_param("validation", "success")
         logger.info("MLflow connection OK")
+
     except Exception as e:
         logger.error(f"MLflow not reachable: {e}")
         return False
+    
     logger.info("All setup checks passed.")
     return True
 
@@ -193,32 +203,38 @@ def train_default(tensorboard:bool=True,report:bool=True,checkpoint_resume_hard:
     criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
 
     best_val_loss = float("inf")
-    best_checkpoint_path = checkpoint_dir / "best.pt"
+    best_checkpoint_path = checkpoint_dir #for saving best checkpoint locally
 
     global_step = 0 #for scheeduler 
 
     # For resuming training from checkpoint if available
-    if resume_from_checkpoint and Path(checkpoint_dir_local / "resume_best.pt").exists():
-        blob_helper = AzureBlobStorage(container_name = checkpoint_container_name)
-        blob_helper.load_blob(blob_name=checkpoint_dir_blob, local_path=checkpoint_dir_local / "resume_best.pt")
+    if resume_from_checkpoint and Path(load_checkpoint_dir_local).exists():
+        logger.warning(f"Resuming training from checkpoint at {load_checkpoint_dir_local}")
+        logger.warning(f"loaded from azure blob path {checkpoint_dir_blob/ "best.pt"}")
         
-        ckpt = torch.load(checkpoint_dir_local / "resume_best.pt", map_location=device)
+        blob_helper = AzureBlobStorage(container_name = checkpoint_container_name)
+        blob_helper.load_blob(blob_name=checkpoint_dir_blob, local_path=load_checkpoint_dir_local /"best.pt")
+        
+        ckpt = torch.load(load_checkpoint_dir_local , map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         start_epoch = ckpt["epoch"] + 1
         best_val_loss = ckpt["val_loss"]
+
         logger.info(f"Resumed from epoch {start_epoch}")
     else:
 
+        logger.warning("No checkpoint found for resuming training.")
         if checkpoint_resume_hard:#if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
             logger.error("Checkpoint resume requested but no checkpoint found. Exiting.")
             raise logger.exception("No checkpoint found for resuming training.")
             
         logger.info("No checkpoint found, starting fresh training.")
         start_epoch = 0
-  
+          
     resume_run_id = ckpt.get("run_id") if resume_from_checkpoint else None
+
     mlflow.enable_system_metrics_logging()
     
     with mlflow.start_run(run_id=resume_run_id, run_name=experiment_name) as run:

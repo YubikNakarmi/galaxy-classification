@@ -12,8 +12,8 @@ dir_setup()
              logs/{reports,system,tensorboard,training} \
              models/{checkpoints,temp} \
              data/{raw,preprocessed,split} \
-             .venv
-}
+             logs/{reports,system,tensorboard}
+
 
 
 
