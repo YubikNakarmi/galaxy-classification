@@ -7,7 +7,7 @@ from src.config.schema import RootConfig
 from .parser import parse_config, RootConfig
  
 
-__all__ = ["load_and_validate_config", "RootConfig "]
+__all__ = ["load_and_validate_config", "RootConfig"]
 
 
 def load_and_validate_config(
