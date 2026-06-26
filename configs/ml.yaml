@@ -1,3 +1,6 @@
+active_variant: Default
+
+
 env:
   name: galaxy_classification_env
   python_version: 3.14.4
@@ -6,7 +9,6 @@ env:
   num_workers: 4
 
 mode: cloud # options: local, cloud
-active_variant: Default
 
 
 

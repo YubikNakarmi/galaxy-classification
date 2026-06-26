@@ -152,7 +152,6 @@ class TrainConfig:
 '''Mlflow'''
 @dataclass
 class MLflowConfig:
-    tracking_uri: str                  # resolved from env by loader
     backend: str
     artifact_store: str
     experiment_name: str
