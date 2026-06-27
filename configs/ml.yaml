@@ -189,7 +189,6 @@ train:
 
   learning_rate: 0.001
   weight_decay: 0.0001
-
   optimizer: AdamW
 
   grad_clip_max_norm: 1.0

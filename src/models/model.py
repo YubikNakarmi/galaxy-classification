@@ -6,7 +6,7 @@ class ResidualUnit(nn.Module):
     ''' Resudual unit for resnet architecture.'''
 
 
-    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.5):
+    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.8):
         super(ResidualUnit, self).__init__()
 
         #block 1
@@ -126,6 +126,3 @@ class GalaxyClassifier_ResNet(nn.Module):
         out = self.fc(out)              
         return out
 
-def model():
-
-    model = GalaxyClassifier_ResNet(N=2, k=2, num_classes=5)

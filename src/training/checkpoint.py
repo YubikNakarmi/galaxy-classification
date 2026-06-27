@@ -41,11 +41,39 @@ class CheckpointManager:
 
         self.cfg = config
         self.az_container = cfg.storage.cloud.experiments.container
+        self.resume_hard = cfg.train.checkpoints.checkpoint_resume_hard
+
         self.resume_enabled = resume_enabled
         self.run_id = run_id 
 
-    def save_checkpoint(self, model, optimizer, epoch):
-        pass
+    def save_checkpoint(self,checkpoint: dict):
+        ''' Saves the model and optimizer state to a checkpoint file in local storage and uploads it to Azure Blob Storage. 
+
+        Args:
+            model: The model to save.
+            optimizer: The optimizer to save.
+            scheduler: The scheduler to save.
+            epoch: The current epoch number.
+
+        '''
+
+        torch.save(checkpoint, self.checkpoint_dir)
+        logger.info(f"Checkpoint saved locally at {self.checkpoint_dir}")
+
+    def upload_checkpoint_to_azure(self):
+        ''' Uploads the checkpoint file from local storage to Azure Blob Storage. '''
+
+        if not self.run_id:
+            raise RuntimeError("run_id must be set before uploading checkpoint.")
+
+        
+
+        try:
+            az_loader = AzureBlobStorage(container_name=self.az_container)
+            az_loader.upload_blob(blob_name=self.checkpoint_dir_azure, local_path=self.checkpoint_dir)
+            logger.info(f"Checkpoint uploaded to Azure Blob Storage at {self.checkpoint_dir_azure} in container {self.az_container}")
+        except Exception as e:
+            logger.exception(f"Error uploading checkpoint to Azure Blob Storage: {e}")  
 
     def load_checkpoint(self, model, optimizer,scheduler, device)-> CheckpointState:
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
@@ -66,9 +94,28 @@ class CheckpointManager:
             logger.info("Resume is disabled. Starting training from scratch.")
             return CheckpointState(start_epoch=0, best_val_loss=float('inf'), resume_run_id=None)
         
+        logger.warning(f"Attempting to resume from blob: {self.checkpoint_dir_azure} in container: {self.az_container}")
         try: 
             az_loader = AzureBlobStorage(container_name=self.az_container)
             az_loader.load_blob(blob_name= self.checkpoint_dir_azure, local_path=self.checkpoint_dir)
+
+        except Exception as e:
+            logger.exception(f"Error loading checkpoint from Azure Blob Storage: {e}")
+            logger.warning("Starting training from scratch due to checkpoint load failure.")
+            return self._handle_missing()
+        
+
+
+        
+    def _handle_missing(self) -> CheckpointState:
+        if self.resume_hard:
+            raise RuntimeError(
+                "resume_from_checkpoint=True and checkpoint_resume_hard=True "
+                "but no checkpoint found. Exiting."
+            )
+        logger.warning("No checkpoint found. Starting fresh training.")
+        return CheckpointState(start_epoch=0, best_val_loss=float("inf"), resume_run_id=None)
+
 
 
 
