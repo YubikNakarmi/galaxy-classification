@@ -9,13 +9,14 @@ from dataclasses import dataclass
 from src.config import load_and_validate_config
 from src.config.schema import RootConfig
 from src.utils import setup_ml_logging
+from src.utils import load_yaml
 from loguru import logger
 
 root = Path(__file__).parent.parent.parent
 cfg_file = root / "configs" / "ml.yaml"
 log_file = root / "configs" / "core.yaml"
 
-setup_ml_logging(log_file)
+setup_ml_logging(load_yaml(log_file))
 
 cfg = load_and_validate_config(cfg_file,root = root)
 

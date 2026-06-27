@@ -45,6 +45,23 @@ dev = cfg.env.device
 validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path,], 
 
                mlflow_tracking_uri=MLFLOW_TRACKING_URI,)
+
+
+def make_metrics(num_classes, device):
+    return {
+        "accuracy":           Accuracy(task="multiclass", num_classes=num_classes).to(device),
+        "f1_micro":           F1Score(task="multiclass", average="micro", num_classes=num_classes).to(device),
+        "f1_macro":           F1Score(task="multiclass", average="macro", num_classes=num_classes).to(device),
+        "f1_classwise":       F1Score(task="multiclass", average="none", num_classes=num_classes).to(device),
+        "precision_micro":    Precision(task="multiclass", average="micro", num_classes=num_classes).to(device),
+        "precision_macro":    Precision(task="multiclass", average="macro", num_classes=num_classes).to(device),
+        "precision_classwise":Precision(task="multiclass", average="none", num_classes=num_classes).to(device),
+        "recall_micro":       Recall(task="multiclass", average="micro", num_classes=num_classes).to(device),
+        "recall_macro":       Recall(task="multiclass", average="macro", num_classes=num_classes).to(device),
+        "recall_classwise":   Recall(task="multiclass", average="none", num_classes=num_classes).to(device),
+        "roc_auc":            AUROC(task="multiclass", num_classes=num_classes).to(device),
+    }
+
 # Hardcoded as there will be less editing of these transforms, but can be moved to config if needed
 raw_transforms = transforms.Compose([
     RandomCenterCrop(170, 240), 
@@ -66,3 +83,7 @@ val_transforms = transforms.Compose([
                          std= [0.1728, 0.1586, 0.1488])    
 ])
 
+
+def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
+    for m in metrics.values():
+        m.reset()
