@@ -33,7 +33,9 @@ class CheckpointManager:
     def __init__(self, checkpoint_dir_local: str,checkpoint_dir_azure: 
                  str,config:RootConfig,resume_enabled:bool = False,run_id:str | None = None):
 
-        self.checkpoint_dir = Path(checkpoint_dir_local) / "best.pt"
+        self.checkpoint_dir = Path(checkpoint_dir_local) / "best.pt" #local dir
+        self.checkpoint_dir_tmp = Path(checkpoint_dir_local) / "tmp.pt" #local dir for load
+
         self.checkpoint_dir.parent.mkdir(parents=True, exist_ok=True)
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -58,22 +60,26 @@ class CheckpointManager:
         '''
 
         torch.save(checkpoint, self.checkpoint_dir)
-        logger.info(f"Checkpoint saved locally at {self.checkpoint_dir}")
 
-    def upload_checkpoint_to_azure(self):
+        logger.success(f"Checkpoint saved locally at {self.checkpoint_dir}")
+
+    def upload_checkpoint_to_azure(self)->str| None:
         ''' Uploads the checkpoint file from local storage to Azure Blob Storage. '''
 
         if not self.run_id:
             raise RuntimeError("run_id must be set before uploading checkpoint.")
 
-        
-
         try:
-            az_loader = AzureBlobStorage(container_name=self.az_container)
-            az_loader.upload_blob(blob_name=self.checkpoint_dir_azure, local_path=self.checkpoint_dir)
-            logger.info(f"Checkpoint uploaded to Azure Blob Storage at {self.checkpoint_dir_azure} in container {self.az_container}")
+            az_ = AzureBlobStorage(container_name=self.az_container)
+            path = az_.upload_blob(blob_name=self.checkpoint_dir_azure, data=self.checkpoint_dir)
+            logger.success(f"Checkpoint uploaded to Azure Blob Storage at {self.checkpoint_dir_azure} in container {self.az_container}")
+
+            return path
         except Exception as e:
             logger.exception(f"Error uploading checkpoint to Azure Blob Storage: {e}")  
+
+            return None
+
 
     def load_checkpoint(self, model, optimizer,scheduler, device)-> CheckpointState:
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
@@ -97,12 +103,24 @@ class CheckpointManager:
         logger.warning(f"Attempting to resume from blob: {self.checkpoint_dir_azure} in container: {self.az_container}")
         try: 
             az_loader = AzureBlobStorage(container_name=self.az_container)
-            az_loader.load_blob(blob_name= self.checkpoint_dir_azure, local_path=self.checkpoint_dir)
+            az_loader.load_blob(blob_name= self.checkpoint_dir_azure, local_path=self.checkpoint_dir_tmp)
 
         except Exception as e:
             logger.exception(f"Error loading checkpoint from Azure Blob Storage: {e}")
             logger.warning("Starting training from scratch due to checkpoint load failure.")
             return self._handle_missing()
+        
+        ckpt = torch.load(self.checkpoint_dir_tmp, map_location=device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+ 
+        start_epoch = ckpt["epoch"] + 1
+        best_val_loss = ckpt["val_loss"]
+        resume_run_id = ckpt.get("run_id")
+
+        logger.success(f"Checkpoint loaded successfully. Resuming from epoch {start_epoch} with best validation loss {best_val_loss}.")
+        return CheckpointState(start_epoch=start_epoch, best_val_loss=best_val_loss, resume_run_id=resume_run_id)
         
 
 

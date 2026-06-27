@@ -114,6 +114,7 @@ def _parse_train(raw: dict, root: Path) -> TrainConfig:
             checkpoint_restore_path=ckpt["checkpoint_restore_path"],
             checkpoint_resume_hard=bool(ckpt["checkpoint_resume_hard"]),
         ),
+        
         batch_size=int(t["batch_size"]),
         num_epochs=int(t["num_epochs"]),
         learning_rate=float(t["learning_rate"]),
