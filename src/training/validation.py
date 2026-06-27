@@ -8,10 +8,10 @@ from loguru import logger
 
 def validate_setup(
     required_paths: list[Path],
-    create_dirs: list[Path],
     mlflow_tracking_uri: str,
+    create_dirs: list[Path]| None =None,
 ) -> bool:
-    
+
     """
     Validate training environment before any training code runs.
 
@@ -34,6 +34,7 @@ def validate_setup(
     #paths
     for p in required_paths:
         if not Path(p).exists():
+            Path(p).mkdir(parents=True, exist_ok=True)
             logger.error(f"Required path missing: {p}")
             ok = False
 
@@ -41,9 +42,10 @@ def validate_setup(
         return False
 
     #create dirs if missing
-    for d in create_dirs:
-        Path(d).mkdir(parents=True, exist_ok=True)
-    logger.info(f"Output directories ready ({len(create_dirs)} dirs)")
+    if create_dirs:
+        for d in create_dirs:
+            Path(d).mkdir(parents=True, exist_ok=True)
+        logger.info(f"Output directories ready ({len(create_dirs)} dirs)")
 
     # check mlflow
     try:

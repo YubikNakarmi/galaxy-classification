@@ -2,6 +2,7 @@
 
 # need to add stack 
 - hydra or omegaconf for config management.
+- I insted made by custom parser cuz I was too focuesed on the proj. 
 
 
 # DVC setup
@@ -69,3 +70,8 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@20.204.16.165
 ```
 
+
+
+# configs need to improve 
+- prevalidation of paths instead of sepearte on training
+- 

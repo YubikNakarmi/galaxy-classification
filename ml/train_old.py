@@ -100,7 +100,7 @@ val_transforms = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
                          std= [0.1728, 0.1586, 0.1488])    
-])])
+])
 
 
 def validate_setup() -> bool:
