@@ -95,7 +95,7 @@ def validate_epoch(
             loss = criterion(outputs, labels)
             batch_size = images.size(0)
 
-            val_loss += loss.item() * batch_size
+            running_loss += loss.item() * batch_size
             num_samples += batch_size
 
             preds = torch.softmax(outputs, dim=1)
@@ -120,9 +120,9 @@ def validate_epoch(
         "val_roc_auc":          metrics["roc_auc"].compute().item(),
         }
         
-    for m in metrics.values():
-        m.reset()
- 
+        for m in metrics.values():
+            m.reset()
+    
 
-        val_loss /= num_samples
-    return val_loss, results
+        val_loss = running_loss / num_samples if num_samples > 0 else 0
+        return val_loss, results

@@ -13,12 +13,8 @@ from src.utils import load_yaml
 from loguru import logger
 
 root = Path(__file__).parent.parent.parent
-cfg_file = root / "configs" / "ml.yaml"
 log_file = root / "configs" / "core.yaml"
 
-setup_ml_logging(load_yaml(log_file))
-
-cfg = load_and_validate_config(cfg_file,root = root)
 
 @dataclass
 class CheckpointState:
@@ -32,7 +28,7 @@ class CheckpointManager:
 
 
     def __init__(self, checkpoint_dir_local: str,checkpoint_dir_azure: 
-                 str,config:RootConfig,resume_enabled:bool = False,run_id:str | None = None):
+                 str,cfg:RootConfig,run_id:str | None = None):
 
         self.checkpoint_dir = Path(checkpoint_dir_local) / "best.pt" #local dir
         self.checkpoint_dir_tmp = Path(checkpoint_dir_local) / "tmp.pt" #local dir for load
@@ -41,12 +37,11 @@ class CheckpointManager:
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir_azure = checkpoint_dir_azure
-
-        self.cfg = config
+        self.cfg = cfg
         self.az_container = cfg.storage.cloud.experiments.container
         self.resume_hard = cfg.train.checkpoints.checkpoint_resume_hard
 
-        self.resume_enabled = resume_enabled
+        self.resume_enabled = cfg.train.checkpoints.resume_from_checkpoint
         self.run_id = run_id 
 
     def save_checkpoint(self,checkpoint: dict):

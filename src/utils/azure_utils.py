@@ -17,7 +17,7 @@ from pathlib import Path
 from loguru import logger
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_app_logging
-from typing import BinaryIO
+from typing import BinaryIO,Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
@@ -145,7 +145,7 @@ class AzureBlobStorage:
 
 
     def upload_blob(self, blob_name:str, data:bytes | BinaryIO | str | Path,
-                    Overwrite:bool=False)-> str:
+                    Overwrite:bool=False)-> Optional[str]:
 
         """Upload a blob to the current container.
 
@@ -181,7 +181,7 @@ class AzureBlobStorage:
             logger.exception(f"Error uploading blob: {e}")
             return None
         
-    def load_blob(self, blob_name:str, local_path: str | Path) -> str | None:
+    def load_blob(self, blob_name:str, local_path: str | Path) -> Optional[str]:
         '''Download a blob from the current container to a local file.
 
         Args:
@@ -222,7 +222,7 @@ class AzureBlobStorage:
             logger.exception(f"Error listing blobs: {e}")
             return []
     
-    def list_containers(self):
+    def list_containers(self)->Optional[list[str]]:
 
         """List all blobs in the current container.
 
@@ -237,7 +237,7 @@ class AzureBlobStorage:
             return container_names
         except Exception as e:
             logger.exception(f"Error listing containers: {e}")
-            return []
+            return None
 
     def delete_blob(self, blob_name:str):
 
@@ -267,7 +267,7 @@ class AzureBlobStorage:
         for blob in self.list_blobs():
             logger.info(f"Blob Name: {blob}")
         
-        for container in self.list_containers():
-            logger.info(f"Container Name: {container}")
-
-    
+        container_names = self.list_containers()
+        if container_names is not None:
+            for container in container_names:
+                logger.info(f"Container Name: {container}")
