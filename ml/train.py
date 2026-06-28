@@ -22,6 +22,7 @@ from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from src.dataset.dataset import GalaxyDataset
+from src.training import train_epoch,validate_epoch
 
 from src.config import load_and_validate_config
 from src.training import CheckpointManager,validate_setup
@@ -155,10 +156,107 @@ def train_default(variant:str, resume_enabled:bool, hard_resume:bool,):
     model.to(dev)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate) #weight decay
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg.train.scheduler.warmup_epochs,eta_min = cfg.train.eta_min ,T_mult=2)
-    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
-    
-    load_chkpt = CheckpointManager(config=cfg,checkpoint_dir_local=cfg.train.checkpoints.local_checkpoint_path,
-                                   checkpoint_dir_azure=cfg.storage.cloud.checkpoints.blob_path,resume_enabled=resume_enabled,run_id=None)
 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg.train.scheduler.warmup_epochs,eta_min =
+                                                                      cfg.train.scheduler.min_lr 
+                                                                     ,T_mult=2)
+    
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
+    metrics   = make_metrics(cfg.variant.num_classes, dev)
+    writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
+    
+    az_checkpint_dir = cfg.train.checkpoints.checkpoint_restore_path
+    chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=cfg.train.checkpoints.local_checkpoint_path,
+                                   checkpoint_dir_azure=az_checkpint_dir,
+                                   run_id=cfg.train.checkpoints.run_id)
+    
+    # checkpoint manager already handles the logic for getting config if you want to resume or not
+    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev)
+    
+    best_val_loss = chkpt_state.best_val_loss
+
+    cfg_snapshot = {
+        "variant":     cfg.active_variant,
+        "num_classes": cfg.variant.num_classes,
+        "lr":          cfg.train.learning_rate,
+        "batch_size":  cfg.train.batch_size,
+    }# to log in mlfow
+
+    mlflow.enable_system_metrics_logging()
+
+    with mlflow.start_run(run_name=experiment_name,run_id=chkpt_state.resume_run_id) as run:
+        run_id = run.info.run_id
+        chkpt.run_id = run_id #resuign same functino to update the run_id incase of new run
+        logger.info(f"MLflow run: {run_id}")
+ 
+        mlflow.log_params({
+            "epochs":          cfg.train.num_epochs,
+            "batch_size":      cfg.train.batch_size,
+            "lr":              cfg.train.learning_rate,
+            "weight_decay":    cfg.train.weight_decay,
+            "grad_clip":       cfg.train.grad_clip_max_norm,
+            "label_smoothing": cfg.train.label_smoothing,
+            "variant":         cfg.active_variant,
+            "num_classes":     cfg.variant.num_classes,
+            "optimizer":       cfg.train.optimizer,
+            "scheduler":       cfg.train.scheduler.type,
+            "T_0":             cfg.train.scheduler.warmup_epochs,
+            "T_mult":          2,
+            "seed":            cfg.env.seed,
+        })
+
+        global_step = 0
+
+        for ep in range(chkpt_state.start_epoch, cfg.train.num_epochs):
+            train_loss, global_step = train_epoch(
+                model, train_dataloader, optimizer, scheduler, criterion,
+                writer, ep, cfg.train.num_epochs, global_step,
+                cfg.train.grad_clip_max_norm, torch.device(dev),
+            )
+            
+            val_loss, val_metrics = validate_epoch(
+                model, val_dataloader, criterion, metrics,
+                ep, cfg.train.num_epochs, torch.device(dev),
+            )
+
+            mlflow.log_metrics({
+                "train_loss":          train_loss,
+                "val_loss":            val_loss,
+                "val_acc":             val_metrics["val_acc"],
+                "val_f1_micro":        val_metrics["val_f1_micro"],
+                "val_f1_macro":        val_metrics["val_f1_macro"],
+                "val_precision_micro": val_metrics["val_precision_micro"],
+                "val_precision_macro": val_metrics["val_precision_macro"],
+                "val_recall_micro":    val_metrics["val_recall_micro"],
+                "val_recall_macro":    val_metrics["val_recall_macro"],
+                "val_roc_auc":         val_metrics["val_roc_auc"],
+                "lr":                  optimizer.param_groups[0]["lr"],
+            }, step=global_step)
+
+            # Log classwise metrics to MLflow
+            for i, (f1, prec, rec) in enumerate(zip(
+                val_metrics["val_f1_classwise"],
+                val_metrics["val_precision_classwise"],
+                val_metrics["val_recall_classwise"],
+            )):
+                mlflow.log_metrics({
+                    f"val_f1_class_{i}":        f1,
+                    f"val_precision_class_{i}": prec,
+                    f"val_recall_class_{i}":    rec,
+                }, step=global_step)
+
+            # handle tensorbaord checkpointing
+            writer.add_scalar("Loss/val",     val_loss,                    ep)
+            writer.add_scalar("Accuracy/val", val_metrics["val_acc"],      ep)
+            writer.add_scalar("F1/val_macro", val_metrics["val_f1_macro"], ep)
+ 
+            logger.info(
+                f"Epoch {ep+1}/{cfg.train.num_epochs} | "
+                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
+                f"val_acc={val_metrics['val_acc']:.4f} | val_f1_macro={val_metrics['val_f1_macro']:.4f}"
+            )
+
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot)
     pass

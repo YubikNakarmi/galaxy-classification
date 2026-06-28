@@ -27,10 +27,10 @@ class CheckpointManager:
     '''Class for managing model checkpoints. It handles saving and loading checkpoints to/from local storage and Azure Blob Storage.'''
 
 
-    def __init__(self, checkpoint_dir_local: str,checkpoint_dir_azure: 
+    def __init__(self, checkpoint_dir_local: str|Path,checkpoint_dir_azure: 
                  str,cfg:RootConfig,run_id:str | None = None):
 
-        self.checkpoint_dir = Path(checkpoint_dir_local) / "best.pt" #local dir
+        self.checkpoint_dir = Path(checkpoint_dir_local)/ f"{run_id}" / "best.pt" #local dir
         self.checkpoint_dir_tmp = Path(checkpoint_dir_local) / "tmp.pt" #local dir for load
 
         self.checkpoint_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -44,20 +44,32 @@ class CheckpointManager:
         self.resume_enabled = cfg.train.checkpoints.resume_from_checkpoint
         self.run_id = run_id 
 
-    def save_checkpoint(self,checkpoint: dict):
-        ''' Saves the model and optimizer state to a checkpoint file in local storage and uploads it to Azure Blob Storage. 
+    def save(self, model, optimizer, scheduler, epoch: int, val_loss: float,
+             val_f1_macro: float, cfg_snapshot: dict) -> None:
+        
+        """Save checkpoint locally. Upload to Azure if run_id is set.
+            Args:
+                model: The model to save.
+                optimizer: The optimizer to save.
+                scheduler: The scheduler to save.
+                epoch: The current epoch number.
+                val_loss: The validation loss.
+                val_f1_macro: The validation F1 score (macro).
+                cfg_snapshot: A dictionary containing the configuration snapshot.
 
-        Args:
-            model: The model to save.
-            optimizer: The optimizer to save.
-            scheduler: The scheduler to save.
-            epoch: The current epoch number.
+        """
+        torch.save({
+            "epoch": epoch,
+            "model_state_dict": model.state_dict(),
+            "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
+            "val_loss": val_loss,
+            "val_f1_macro": val_f1_macro,
+            "run_id": self.run_id,
+            "config": cfg_snapshot,
+        }, self.checkpoint_dir)
 
-        '''
-
-        torch.save(checkpoint, self.checkpoint_dir)
-
-        logger.success(f"Checkpoint saved locally at {self.checkpoint_dir}")
+        logger.success(f"Checkpoint saved locally (val_loss={val_loss:.4f})")
 
     def upload_checkpoint_to_azure(self)->str| None:
         ''' Uploads the checkpoint file from local storage to Azure Blob Storage. '''
