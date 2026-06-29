@@ -113,7 +113,7 @@ class AzureBlobStorage:
             logger.exception(f"Error checking container existence: {e}")
             return False
      
-    def create_container(self,name:str,unique_suffix:bool=False):
+    def create_container(self,name:Optional[str] = None,unique_suffix:bool=False):
         """Create a new container if it does not already exist.
 
         Args:
@@ -127,6 +127,12 @@ class AzureBlobStorage:
         Example:
             >>> storage.create_container("datasets")
         """
+        if not name and not self.container_name:
+            logger.exception("Container name must be specified either in the constructor or as an argument.")
+
+        elif not name:#fallback to constructor name
+            name = self.container_name
+            logger.info(f"Using default container name: {name}")
 
         if self.check_container_exists(name):
             logger.info(f"Container '{name}' already exists.")

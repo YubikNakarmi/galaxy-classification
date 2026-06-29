@@ -11,7 +11,6 @@ from torch.utils.data import DataLoader
 import os
 from loguru import logger
 from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC
-from tqdm import tqdm
 import datetime
 from mlflow.models.signature import infer_signature
 
@@ -23,7 +22,6 @@ from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from src.dataset.dataset import GalaxyDataset
 from src.training import train_epoch,validate_epoch
-
 from src.config import load_and_validate_config
 from src.training import CheckpointManager,validate_setup
 
@@ -46,8 +44,7 @@ experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftim
 dev = cfg.env.device
 active_variant = cfg.active_variant
 
-validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
-               mlflow_tracking_uri=MLFLOW_TRACKING_URI,)
+
 
 def make_metrics(num_classes:int, device: torch.device) -> dict:
     return {
@@ -116,6 +113,7 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
         with open(report_path, "rb") as f:
             url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=f)
         mlflow.set_tag("report_url", url)
+
     except Exception as e:
         logger.error(f"Could not upload report: {e}")
  
@@ -126,13 +124,14 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
                 with open(file, "rb") as f:
                     url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=f)
                 mlflow.set_tag(f"tensorboard_{file.name}", url)
+
     except Exception as e:
         logger.error(f"Could not upload tensorboard logs: {e}")
 
 
-def train_default(variant:str, resume_enabled:bool, hard_resume:bool,):
+def train_default():
 
-    logger.info(f"Starting training for variant: {variant} with resume_enabled={resume_enabled} and hard_resume={hard_resume}")
+    logger.info(f"Starting training for variant: {variant} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
     random.seed(cfg.env.seed)
     torch.manual_seed(cfg.env.seed)
     torch.cuda.manual_seed_all(cfg.env.seed)
@@ -162,10 +161,11 @@ def train_default(variant:str, resume_enabled:bool, hard_resume:bool,):
                                                                      ,T_mult=2)
     
     criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
-    metrics   = make_metrics(cfg.variant.num_classes, dev)
+    metrics   = make_metrics(cfg.variant.num_classes, torch.device(dev))
     writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
     
     az_checkpint_dir = cfg.train.checkpoints.checkpoint_restore_path
+
     chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=cfg.train.checkpoints.local_checkpoint_path,
                                    checkpoint_dir_azure=az_checkpint_dir,
                                    run_id=cfg.train.checkpoints.run_id)
@@ -259,4 +259,46 @@ def train_default(variant:str, resume_enabled:bool, hard_resume:bool,):
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot)
-    pass
+            
+            blob = AzureBlobStorage()
+            blob.create_container(name=cfg.storage.cloud.experiments.container)   
+            blob.create_container()
+            chkpt_url = chkpt.upload_checkpoint_to_azure()
+            mlflow.set_tag("checkpoint_url", chkpt_url)
+            mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
+
+            best_ckpt = torch.load(chkpt.checkpoint_dir, map_location=dev)
+            model.load_state_dict(best_ckpt["model_state_dict"])
+            logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
+            
+            register_model(model, val_dataloader)
+            generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
+            upload_artifact(blob, run_id)
+    
+            writer.close()
+            logger.success("Training complete.")
+            pass
+
+# CLI entry
+@click.command()
+@click.option("--variant", type=str, default="Default", help="Training variant to use")
+def main(variant):
+
+    if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
+               mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+               
+            create_dirs =   [cfg.storage.local.checkpoints.dir,
+            cfg.storage.local.logs.reports_dir,
+            cfg.storage.local.logs.tensorboard_dir]):
+        
+        logger.error("Setup validation failed. Exiting.")
+        return
+        
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    if variant == "Default":
+        mlflow.set_experiment(cfg.variant.experiment.root)
+        train_default()
+    
+ 
+if __name__ == "__main__":
+    main()

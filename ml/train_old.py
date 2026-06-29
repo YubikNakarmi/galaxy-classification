@@ -1,5 +1,6 @@
 
-#Need to refactor some code in order be make it more clean with other models. Like refactoring Azure uploads into one function. 
+
+# Old training script for galaxy classification. This is the unrefactored version and is kept for reference. The new training script is in ml/train.py and uses a more modular approach with better logging, checkpointing, and MLflow integration.
 import click
 import torch
 import pandas as pd
