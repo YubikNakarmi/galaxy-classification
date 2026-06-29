@@ -21,7 +21,7 @@ from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from src.dataset.dataset import GalaxyDataset
-from src.training import train_epoch,validate_epoch
+from src.training import checkpoint, train_epoch,validate_epoch
 from src.config import load_and_validate_config
 from src.training import CheckpointManager,validate_setup
 
@@ -259,25 +259,25 @@ def train_default():
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot)
-            
-            blob = AzureBlobStorage()
-            blob.create_container(name=cfg.storage.cloud.experiments.container)   
-            blob.create_container()
-            chkpt_url = chkpt.upload_checkpoint_to_azure()
-            mlflow.set_tag("checkpoint_url", chkpt_url)
-            mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
+                ckpt_url =chkpt.upload_checkpoint_to_azure()#upload immediately after improvement for better restore
+                mlflow.set_tag("checkpoint_url", ckpt_url)
+                mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
+        # after training   
+        #              
+        blob = AzureBlobStorage()
+        blob.create_container(name=cfg.storage.cloud.experiments.container)   
+        blob.create_container()
+       
+        best_ckpt = torch.load(chkpt.checkpoint_dir, map_location=dev)
+        model.load_state_dict(best_ckpt["model_state_dict"])
+        logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
+        
+        register_model(model, val_dataloader)
+        generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
+        upload_artifact(blob, run_id)
 
-            best_ckpt = torch.load(chkpt.checkpoint_dir, map_location=dev)
-            model.load_state_dict(best_ckpt["model_state_dict"])
-            logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
-            
-            register_model(model, val_dataloader)
-            generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
-            upload_artifact(blob, run_id)
-    
-            writer.close()
-            logger.success("Training complete.")
-            pass
+        writer.close()
+        logger.success("Training complete.")
 
 # CLI entry
 @click.command()

@@ -9,7 +9,8 @@
 | Batch Size | 32–64 | Balance gradient quality vs memory |
 | Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
 
-
+# Architrure
+![training architecture diagram](../assets/training_process.drawio.png)
 # Customizations
 All the training customaizations can be done through the `configs/ml.yaml` file. The following are the main sections of the configuration file:
 
