@@ -78,11 +78,13 @@ class CheckpointManager:
             raise RuntimeError("run_id must be set before uploading checkpoint.")
 
         try:
-            az_ = AzureBlobStorage(container_name=self.az_container)
-            path = az_.upload_blob(blob_name=self.checkpoint_dir_azure, data=self.checkpoint_dir)
-            logger.success(f"Checkpoint uploaded to Azure Blob Storage at {self.checkpoint_dir_azure} in container {self.az_container}")
 
-            return path
+            with AzureBlobStorage(container_name=self.az_container) as az_:
+                path = az_.upload_blob(blob_name=self.checkpoint_dir_azure, data=self.checkpoint_dir)
+                logger.success(f"Checkpoint uploaded to Azure Blob Storage at {self.checkpoint_dir_azure} in container {self.az_container}")
+                return path
+           
+
         except Exception as e:
             logger.exception(f"Error uploading checkpoint to Azure Blob Storage: {e}")  
 
@@ -110,8 +112,10 @@ class CheckpointManager:
         
         logger.warning(f"Attempting to resume from blob: {self.checkpoint_dir_azure} in container: {self.az_container}")
         try: 
-            az_loader = AzureBlobStorage(container_name=self.az_container)
-            az_loader.load_blob(blob_name= self.checkpoint_dir_azure, local_path=self.checkpoint_dir_tmp)
+            with AzureBlobStorage(container_name=self.az_container) as az_loader:
+                az_loader = AzureBlobStorage(container_name=self.az_container)
+                az_loader.load_blob(blob_name= self.checkpoint_dir_azure, local_path=self.checkpoint_dir_tmp)
+                logger.success(f"Checkpoint downloaded from Azure Blob Storage to {self.checkpoint_dir_tmp}")
 
         except Exception as e:
             logger.exception(f"Error loading checkpoint from Azure Blob Storage: {e}")

@@ -104,14 +104,12 @@ def register_model(model,val_loader:DataLoader):
 def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
     log_path = root / core_cfg["logging"]["ml"]["file"]
  
-    with open(log_path, "rb") as f:
-        url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=f)
+    url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=log_path)
     mlflow.set_tag("log_url", url)
  
     try:
         report_path = cfg.storage.local.logs.reports_dir / f"{experiment_name}.md"
-        with open(report_path, "rb") as f:
-            url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=f)
+        url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=report_path)
         mlflow.set_tag("report_url", url)
 
     except Exception as e:
@@ -121,8 +119,7 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
         tb_run_dir = cfg.storage.local.logs.tensorboard_dir / experiment_name
         for file in tb_run_dir.iterdir():
             if file.is_file():
-                with open(file, "rb") as f:
-                    url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=f)
+                url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=file)
                 mlflow.set_tag(f"tensorboard_{file.name}", url)
 
     except Exception as e:
@@ -131,7 +128,7 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
 
 def train_default():
 
-    logger.info(f"Starting training for variant: {variant} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
+    logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
     random.seed(cfg.env.seed)
     torch.manual_seed(cfg.env.seed)
     torch.cuda.manual_seed_all(cfg.env.seed)
@@ -263,11 +260,12 @@ def train_default():
                 mlflow.set_tag("checkpoint_url", ckpt_url)
                 mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
         # after training   
-        #              
-        blob = AzureBlobStorage()
-        blob.create_container(name=cfg.storage.cloud.experiments.container)   
-        blob.create_container()
-       
+        # 
+        with AzureBlobStorage() as blob:
+            blob.create_container(name=cfg.storage.cloud.experiments.container)   
+            blob.create_container()     
+      
+     
         best_ckpt = torch.load(chkpt.checkpoint_dir, map_location=dev)
         model.load_state_dict(best_ckpt["model_state_dict"])
         logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
