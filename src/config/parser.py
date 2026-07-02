@@ -1,7 +1,5 @@
 from .schema import *
 
-
-
 def _parse_env(raw: dict) -> EnvConfig:
     e = raw["env"]
     return EnvConfig(

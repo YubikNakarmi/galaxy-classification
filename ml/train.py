@@ -1,7 +1,6 @@
 import click
 import torch
 import pandas as pd
-from torchvision import transforms
 import mlflow
 import random
 from dotenv import load_dotenv
@@ -10,21 +9,17 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 import os
 from loguru import logger
-from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC
 import datetime
-from mlflow.models.signature import infer_signature
 
 from src.dataset.utils import generate_report
-from src.dataset.utils import RandomCenterCrop
 from src.utils.azure_utils import AzureBlobStorage
 from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
 from src.dataset.dataset import GalaxyDataset
-from src.training import checkpoint, train_epoch,validate_epoch
+from src.training import train_epoch,validate_epoch
 from src.config import load_and_validate_config
-from src.training import CheckpointManager,validate_setup
-
+from src.training import CheckpointManager,validate_setup,upload_artifact,register_model,make_metrics, raw_transforms, val_transforms
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
@@ -41,89 +36,9 @@ cfg = load_and_validate_config(file_config)
 
 #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
 experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
-dev = cfg.env.device
+# normalize device to a torch.device once
+dev = torch.device(cfg.env.device)
 active_variant = cfg.active_variant
-
-
-
-def make_metrics(num_classes:int, device: torch.device) -> dict:
-    return {
-        "accuracy":           Accuracy(task="multiclass", num_classes=num_classes).to(device),
-        "f1_micro":           F1Score(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "f1_macro":           F1Score(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "f1_classwise":       F1Score(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "precision_micro":    Precision(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "precision_macro":    Precision(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "precision_classwise":Precision(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "recall_micro":       Recall(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "recall_macro":       Recall(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "recall_classwise":   Recall(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "roc_auc":            AUROC(task="multiclass", num_classes=num_classes).to(device),
-    }
-# Hardcoded as there will be less editing of these transforms, but can be moved to config if needed
-raw_transforms = transforms.Compose([
-    RandomCenterCrop(170, 240), 
-    transforms.Resize(160),                            
-    transforms.RandomCrop(128),                        
-    transforms.RandomRotation(degrees = [0, 360]),
-    transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(brightness=0.2, contrast=0.5, saturation=0.4, hue=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
-                         std= [0.1728, 0.1586, 0.1488])    
-])
-
-val_transforms = transforms.Compose([
-    transforms.CenterCrop(207),  
-    transforms.Resize(128),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
-                         std= [0.1728, 0.1586, 0.1488])    
-])
-
-def register_model(model,val_loader:DataLoader):
-    sample_images, _ = next(iter(val_loader))
-    sample_images = sample_images.to(dev)
-    
-    # getting model signatures and sample for pt2 serialization
-    with torch.no_grad():
-        preds_np = torch.softmax(model(sample_images), dim=1).cpu().numpy()
- 
-    signature = infer_signature(sample_images.cpu().numpy(), preds_np)
- 
-    mlflow.pytorch.log_model(
-        model,
-        serialization_format="pt2", #most robust format for torchscript and future compatibility
-        input_example=sample_images.cpu(),
-        name="model",
-        registered_model_name=cfg.variant.mlflow.model_name,
-        signature=signature,
-    )
-    logger.info("Model logged to MLflow registry.")
- 
-def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
-    log_path = root / core_cfg["logging"]["ml"]["file"]
- 
-    url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=log_path)
-    mlflow.set_tag("log_url", url)
- 
-    try:
-        report_path = cfg.storage.local.logs.reports_dir / f"{experiment_name}.md"
-        url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=report_path)
-        mlflow.set_tag("report_url", url)
-
-    except Exception as e:
-        logger.error(f"Could not upload report: {e}")
- 
-    try:
-        tb_run_dir = cfg.storage.local.logs.tensorboard_dir / experiment_name
-        for file in tb_run_dir.iterdir():
-            if file.is_file():
-                url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=file)
-                mlflow.set_tag(f"tensorboard_{file.name}", url)
-
-    except Exception as e:
-        logger.error(f"Could not upload tensorboard logs: {e}")
 
 
 def train_default():
@@ -158,13 +73,14 @@ def train_default():
                                                                      ,T_mult=2)
     
     criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
-    metrics   = make_metrics(cfg.variant.num_classes, torch.device(dev))
+    metrics   = make_metrics(cfg.variant.num_classes, dev)
     writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
     
-    az_checkpint_dir = cfg.train.checkpoints.checkpoint_restore_path
+    az_checkpoint_dir = cfg.train.checkpoints.checkpoint_restore_path
+    chkpt_local_path = Path(cfg.train.checkpoints.local_checkpoint_path) / experiment_name   
 
-    chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=cfg.train.checkpoints.local_checkpoint_path,
-                                   checkpoint_dir_azure=az_checkpint_dir,
+    chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=chkpt_local_path,
+                                   checkpoint_dir_azure=az_checkpoint_dir,
                                    run_id=cfg.train.checkpoints.run_id)
     
     # checkpoint manager already handles the logic for getting config if you want to resume or not
@@ -208,12 +124,12 @@ def train_default():
             train_loss, global_step = train_epoch(
                 model, train_dataloader, optimizer, scheduler, criterion,
                 writer, ep, cfg.train.num_epochs, global_step,
-                cfg.train.grad_clip_max_norm, torch.device(dev),
+                cfg.train.grad_clip_max_norm, dev,
             )
             
             val_loss, val_metrics = validate_epoch(
                 model, val_dataloader, criterion, metrics,
-                ep, cfg.train.num_epochs, torch.device(dev),
+                ep, cfg.train.num_epochs, dev,
             )
 
             mlflow.log_metrics({
@@ -255,28 +171,40 @@ def train_default():
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot)
-                ckpt_url =chkpt.upload_checkpoint_to_azure()#upload immediately after improvement for better restore
+                chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot, filename="best.pt")
+                ckpt_url =chkpt.upload_checkpoint_to_azure(filename="best.pt")#upload immediately after improvement for better restore
                 mlflow.set_tag("checkpoint_url", ckpt_url)
                 mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
         # after training   
         # 
         with AzureBlobStorage() as blob:
-            blob.create_container(name=cfg.storage.cloud.experiments.container)   
-            blob.create_container()     
-      
-     
-        best_ckpt = torch.load(chkpt.checkpoint_dir, map_location=dev)
-        model.load_state_dict(best_ckpt["model_state_dict"])
-        logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
-        
-        register_model(model, val_dataloader)
-        generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
-        upload_artifact(blob, run_id)
+            # ensure experiment container exists
+            blob.create_container(name=cfg.storage.cloud.experiments.container)
+
+            # load best checkpoint (support either file path or directory containing best.pt)
+            best_candidate = Path(chkpt.checkpoint_dir)
+            if best_candidate.is_file():
+                best_ckpt_path = best_candidate
+            else:
+                best_ckpt_path = best_candidate / "best.pt"
+
+            best_ckpt = torch.load(best_ckpt_path, map_location=dev)
+            model.load_state_dict(best_ckpt["model_state_dict"])
+            logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
+            
+            register_model(model, val_dataloader)
+            generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
+            upload_artifact(blob, run_id)
 
         writer.close()
         logger.success("Training complete.")
 
+
+def train_hubble():
+    pass
+
+def train_dirilchled():
+    pass
 # CLI entry
 @click.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")

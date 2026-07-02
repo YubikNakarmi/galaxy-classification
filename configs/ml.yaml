@@ -180,8 +180,8 @@ augmentation: {
 train:
   checkpoints:
     resume_from_checkpoint: True
-    local_checkpoint_path: "models/temp" #used if resume_from_checkpoint is true and mode is local
-    checkpoint_restore_path: "checkpoints" #set run-id to resume
+    local_checkpoint_path: "models" #used if resume_from_checkpoint is true and mode is local
+    checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
     run_id: "acfa1451290b4a8d880870fe4c21557a" #set run-id to resume
     checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     

@@ -5,11 +5,10 @@ Provides a wrapper around the Azure Blob Storage SDK for creating
 containers, uploading files, listing blobs, and deleting blobs.
 
 Example:
-    >>> storage = AzureBlobStorage("images")
-    >>> storage.upload_blob("cat.jpg", image_bytes)
+    >>>with AzuleBlobStorage("images") as storage:
+    >>>    storage.create_container("images")
+    
 """
-
-
 import os, uuid
 from azure.storage.blob import BlobServiceClient
 from dotenv import load_dotenv
@@ -160,7 +159,7 @@ class AzureBlobStorage:
 
 
     def upload_blob(self, blob_name:str, data:bytes | BinaryIO | str | Path,
-                    Overwrite:bool=False)-> Optional[str]:
+                    Overwrite:bool=True)-> Optional[str]:
 
         """Upload a blob to the current container.
 
