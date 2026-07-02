@@ -32,6 +32,8 @@ class CheckpointManager:
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.checkpoint_dir_azure = checkpoint_dir_azure
+
+
         self.cfg = cfg
         self.az_container = cfg.storage.cloud.experiments.container 
         self.resume_hard = cfg.train.checkpoints.checkpoint_resume_hard
@@ -53,6 +55,9 @@ class CheckpointManager:
                 cfg_snapshot: A dictionary containing the configuration snapshot.
 
         """
+        target = self.checkpoint_dir / Path(filename)
+        tmp = target.with_suffix(target.suffix + ".tmp")
+
         torch.save({
             "epoch": epoch,
             "model_state_dict": model.state_dict(),
@@ -62,35 +67,50 @@ class CheckpointManager:
             "val_f1_macro": val_f1_macro,
             "run_id": self.run_id,
             "config": cfg_snapshot,
-        }, self.checkpoint_dir / Path(filename))
+        }, tmp)
+
+        tmp.replace(target)
 
         logger.success(f"Checkpoint saved locally (val_loss={val_loss:.4f})")
 
     def upload_checkpoint_to_azure(self,filename:str| Path, blob_path:Optional[str|Path]=None)->str| None:
-        ''' Uploads the checkpoint file from local storage to Azure Blob Storage. '''
+        ''' Uploads the checkpoint file from local storage to Azure Blob Storage.  
+        Args:
+            filename: The name of the checkpoint file to upload.
+            blob_path: The path to the blob in Azure Blob Storage where the checkpoint will be uploaded.
+
+        Returns:
+            str: The path to the uploaded blob in Azure Blob Storage.
+        '''
 
         if not self.run_id:
             raise RuntimeError("run_id must be set before uploading checkpoint.")
+        
+        blob_name = str(Path(blob_path)) if blob_path else self._blob_path(filename)
 
         try:
 
             with AzureBlobStorage(container_name=self.az_container) as az_:
                 # upload local checkpoint file to blob storage under a run-specific path
-                if blob_path is None:
-                    blob_name = str(Path(self.checkpoint_dir_azure) / Path(self.run_id) / Path(filename))
-                else:
-                    blob_name = str(Path(blob_path))
-
-                path = az_.upload_blob(blob_name=blob_name, data=self.checkpoint_dir / Path(filename), Overwrite=True)
-                logger.success(f"Checkpoint uploaded to Azure Blob Storage at {blob_name} in container {self.az_container}")
-                return path
+             
+                path = az_.upload_blob(blob_name=blob_name, 
+                                       data=self.checkpoint_dir / Path(filename),#gets locally
+                                         Overwrite=True)
+                
            
 
         except Exception as e:
             logger.exception(f"Error uploading checkpoint to Azure Blob Storage: {e}")  
-
             return None
+        
+        if path is None:
+            logger.error(f"Upload to {blob_name} failed (see AzureBlobStorage logs above).")
+            return None
+        
+        logger.success(f"Checkpoint uploaded to Azure Blob Storage at {blob_name} in container {self.az_container}")
+        return path
 
+ 
 
     def load_checkpoint(self, model, optimizer,scheduler, device,filename:str|Path="temp.pt", blob_name:Optional[str|Path]=None)-> CheckpointState:
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
@@ -113,39 +133,52 @@ class CheckpointManager:
             logger.info("Resume is disabled. Starting training from scratch.")
             return CheckpointState(start_epoch=0, best_val_loss=float('inf'), resume_run_id=None)
         
+        resolved_blob_name = str(Path(blob_name)) if blob_name else self._blob_path(filename) #use filename argument else create
+        local_path = self.checkpoint_dir / Path(filename)
         logger.warning(f"Attempting to resume from blob: {self.checkpoint_dir_azure} in container: {self.az_container}")
-        try:
-            if not self.run_id:
-                raise RuntimeError("run_id must be set before loading checkpoint.")
-            
-            with AzureBlobStorage(container_name=self.az_container) as az_loader:
-                if blob_name is None:
-                    blob_name = str(Path(self.run_id) / self.checkpoint_dir_azure / Path(filename))
-                else:
-                    blob_name = str(Path(blob_name))
-                logger.info(f"Loading checkpoint from Azure Blob Storage: {blob_name}")
-                az_loader.load_blob(blob_name=blob_name, local_path=self.checkpoint_dir / Path(filename))
-                logger.success(f"Checkpoint downloaded from Azure Blob Storage to {self.checkpoint_dir / Path(filename)}")
 
+        try:
+            with AzureBlobStorage(container_name=self.az_container) as az_loader:
+                downloaded_url = az_loader.load_blob(blob_name=resolved_blob_name, local_path=local_path)
         except Exception as e:
-            logger.exception(f"Error loading checkpoint from Azure Blob Storage: {e}")
-            logger.warning("Starting training from scratch due to checkpoint load failure.")
+            logger.exception(f"Unexpected error contacting Azure Blob Storage: {e}")
             return self._handle_missing()
-        
-        ckpt = torch.load(self.checkpoint_dir / Path(filename), map_location=device)
+
+        # load_blob swallows its own errors and returns None on failure
+        if downloaded_url is None:
+            logger.warning(f"Checkpoint blob not found or failed to download: {resolved_blob_name}")
+            return self._handle_missing()
+
+        logger.success(f"Checkpoint downloaded from Azure Blob Storage to {local_path}")
+
+        try:
+            ckpt = torch.load(local_path, map_location=device)
+        except Exception as e:
+            logger.exception(f"Downloaded checkpoint file is corrupt or unreadable: {e}")
+            return self._handle_missing()
+
         model.load_state_dict(ckpt["model_state_dict"])
         optimizer.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
- 
+
         start_epoch = ckpt["epoch"] + 1
         best_val_loss = ckpt["val_loss"]
         resume_run_id = ckpt.get("run_id")
 
-        logger.success(f"Checkpoint loaded successfully. Resuming from epoch {start_epoch} with best validation loss {best_val_loss}.")
+        logger.success(
+            f"Checkpoint loaded successfully. Resuming from epoch {start_epoch} "
+            f"with best validation loss {best_val_loss}."
+        )
         return CheckpointState(start_epoch=start_epoch, best_val_loss=best_val_loss, resume_run_id=resume_run_id)
         
-
-
+    # Internal class helpers
+    def _blob_path(self, filename: str | Path) -> str:
+        """Single source of truth for the blob path — used by both upload and load
+        so the two can never diverge."""
+        if not self.run_id:
+            raise RuntimeError("run_id must be set before building a blob path.")
+        return str(Path(self.run_id) / self.checkpoint_dir_azure / Path(filename))
+    
     def _handle_missing(self) -> CheckpointState:
         if self.resume_hard:
             raise RuntimeError(

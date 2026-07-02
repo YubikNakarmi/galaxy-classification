@@ -203,8 +203,8 @@ class AzureBlobStorage:
             local_path: Local file path to save the downloaded blob.
 
         Returns:
-            The local path of the downloaded file if successful; otherwise None.
-        
+            The URL of the downloaded blob if successful; otherwise None.
+
         Example:
             >>> storage.load_blob("image.jpg", "local_image.jpg")
         '''
@@ -214,7 +214,8 @@ class AzureBlobStorage:
             with open(local_path, "wb") as f:
                 f.write(blob_client.download_blob().readall())
             logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
-            return local_path
+            
+            return str(blob_client.url)  # Return the blob URL for reference
         except Exception as e:
             logger.exception(f"Error downloading blob: {e}")
             return None

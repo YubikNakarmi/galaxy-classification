@@ -17,7 +17,7 @@ from src.utils.logging_config import setup_ml_logging
 from src.config import load_and_validate_config
 
 
-root = Path(__file__).parent.parent
+root = Path(__file__).parent.parent.parent
 load_dotenv(root / ".env")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
 
