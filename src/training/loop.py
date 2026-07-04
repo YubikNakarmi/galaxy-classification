@@ -10,7 +10,7 @@ def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
-    scheduler: torch.optim.lr_scheduler._LRScheduler,
+    scheduler: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts,
     criterion: nn.Module,
     writer: SummaryWriter,
     epoch: int,
@@ -45,7 +45,7 @@ def train_epoch(
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip)# Gradient clipping to prevent exploding gradients
 
         optimizer.step()
-        scheduler.step(epoch + global_step/len(dataloader)) # Update scheduler with epoch and batch progress
+        scheduler.step(epoch + global_step/len(dataloader))  # type: ignore[arg-type]
         num_samples += batch_size
         global_step += 1
 

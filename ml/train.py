@@ -44,6 +44,15 @@ active_variant = cfg.active_variant
 def train_default():
 
     logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
+    logger.info(
+        "Training configuration | device={} | seed={} | batch_size={} | num_epochs={} | train_path={} | val_path={}",
+        cfg.env.device,
+        cfg.env.seed,
+        cfg.train.batch_size,
+        cfg.train.num_epochs,
+        cfg.data.train_path,
+        cfg.data.val_path,
+    )
     random.seed(cfg.env.seed)
     torch.manual_seed(cfg.env.seed)
     torch.cuda.manual_seed_all(cfg.env.seed)
@@ -53,8 +62,15 @@ def train_default():
     
     train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), img_dir=cfg.data.img_dir, transform=raw_transforms)
     val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), img_dir=cfg.data.img_dir, transform=val_transforms)
+    logger.info(
+        "Loaded datasets | train_samples={} | val_samples={} | image_dir={}",
+        len(train_dataset),
+        len(val_dataset),
+        cfg.data.img_dir,
+    )
 
     train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
+    logger.info("Weighted sampler prepared | class_weights={}", train_class_weights)
 
     train_dataloader = DataLoader(train_dataset, batch_size=cfg.train.batch_size, shuffle=False,sampler=train_sampler)
     val_dataloader = DataLoader(val_dataset, batch_size=cfg.train.batch_size, shuffle=False)
@@ -82,6 +98,12 @@ def train_default():
     chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=chkpt_local_path,
                                    checkpoint_dir_azure=az_checkpoint_dir,
                                    run_id=cfg.train.checkpoints.run_id)
+    logger.info(
+        "Checkpoint manager initialized | local_dir={} | azure_dir={} | resume_enabled={}",
+        chkpt_local_path,
+        az_checkpoint_dir,
+        cfg.train.checkpoints.resume_from_checkpoint,
+    )
     
     # checkpoint manager already handles the logic for getting config if you want to resume or not
     chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev)
@@ -100,7 +122,13 @@ def train_default():
     with mlflow.start_run(run_name=experiment_name,run_id=chkpt_state.resume_run_id) as run:
         run_id = run.info.run_id
         chkpt.run_id = run_id #resuign same functino to update the run_id incase of new run
-        logger.info(f"MLflow run: {run_id}")
+        logger.info(
+            "MLflow run started | run_id={} | resume_run_id={} | start_epoch={} | best_val_loss={}",
+            run_id,
+            chkpt_state.resume_run_id,
+            chkpt_state.start_epoch,
+            chkpt_state.best_val_loss,
+        )
  
         mlflow.log_params({
             "epochs":          cfg.train.num_epochs,
@@ -171,14 +199,18 @@ def train_default():
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
+                logger.info("New best validation loss {:.4f} at epoch {}", val_loss, ep + 1)
+
                 chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot, filename="best.pt")
                 ckpt_url =chkpt.upload_checkpoint_to_azure(filename="best.pt")#upload immediately after improvement for better restore
                 mlflow.set_tag("checkpoint_url", ckpt_url)
                 mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
+                logger.info("Best checkpoint synced to Azure | url={}", ckpt_url)
         # after training   
         # 
         with AzureBlobStorage() as blob:
             # ensure experiment container exists
+            logger.info("Ensuring Azure artifact container exists: {}", cfg.storage.cloud.experiments.container)
             blob.create_container(name=cfg.storage.cloud.experiments.container)
 
             # load best checkpoint (support either file path or directory containing best.pt)
@@ -190,10 +222,19 @@ def train_default():
 
             best_ckpt = torch.load(best_ckpt_path, map_location=dev)
             model.load_state_dict(best_ckpt["model_state_dict"])
-            logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
-            
+            logger.info(
+                "Loaded best weights | epoch={} | checkpoint_path={}",
+                best_ckpt["epoch"] + 1,
+                best_ckpt_path,
+            )
+
+            logger.info("Registering model to mlflow")
             register_model(model, val_dataloader)
+
+            logger.info("Generating training report")
             generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
+
+            logger.info("Uploading artifacts to Azure Blob Storage")
             upload_artifact(blob, run_id)
 
         writer.close()

@@ -74,4 +74,12 @@ ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@20.204.16.165
 
 # configs need to improve 
 - prevalidation of paths instead of sepearte on training
-- 
+
+
+# tests
+
+```
+pytest tests/test_checkpoint_manager.py
+
+pytsst -m integration -v
+```

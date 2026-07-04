@@ -57,6 +57,14 @@ class CheckpointManager:
         """
         target = self.checkpoint_dir / Path(filename)
         tmp = target.with_suffix(target.suffix + ".tmp")
+        logger.info(
+            "Saving checkpoint | file={} | epoch={} | val_loss={:.4f} | val_f1_macro={:.4f} | run_id={}",
+            target,
+            epoch + 1,
+            val_loss,
+            val_f1_macro,
+            self.run_id,
+        )
 
         torch.save({
             "epoch": epoch,
@@ -71,7 +79,7 @@ class CheckpointManager:
 
         tmp.replace(target)
 
-        logger.success(f"Checkpoint saved locally (val_loss={val_loss:.4f})")
+        logger.success("Checkpoint saved locally at {}", target)
 
     def upload_checkpoint_to_azure(self,filename:str| Path, blob_path:Optional[str|Path]=None)->str| None:
         ''' Uploads the checkpoint file from local storage to Azure Blob Storage.  
@@ -87,6 +95,13 @@ class CheckpointManager:
             raise RuntimeError("run_id must be set before uploading checkpoint.")
         
         blob_name = str(Path(blob_path)) if blob_path else self._blob_path(filename)
+        local_file = self.checkpoint_dir / Path(filename)
+        logger.info(
+            "Uploading checkpoint | local_file={} | blob_name={} | container={}",
+            local_file,
+            blob_name,
+            self.az_container,
+        )
 
         try:
 
@@ -94,20 +109,20 @@ class CheckpointManager:
                 # upload local checkpoint file to blob storage under a run-specific path
              
                 path = az_.upload_blob(blob_name=blob_name, 
-                                       data=self.checkpoint_dir / Path(filename),#gets locally
+                                       data=local_file,#gets locally
                                          Overwrite=True)
                 
            
 
         except Exception as e:
-            logger.exception(f"Error uploading checkpoint to Azure Blob Storage: {e}")  
+            logger.exception(f"Error uploading checkpoint to Azure Blob Storage for {blob_name}: {e}")  
             return None
         
         if path is None:
             logger.error(f"Upload to {blob_name} failed (see AzureBlobStorage logs above).")
             return None
         
-        logger.success(f"Checkpoint uploaded to Azure Blob Storage at {blob_name} in container {self.az_container}")
+        logger.success("Checkpoint uploaded to Azure Blob Storage at {} in container {}", blob_name, self.az_container)
         return path
 
  
@@ -135,7 +150,12 @@ class CheckpointManager:
         
         resolved_blob_name = str(Path(blob_name)) if blob_name else self._blob_path(filename) #use filename argument else create
         local_path = self.checkpoint_dir / Path(filename)
-        logger.warning(f"Attempting to resume from blob: {self.checkpoint_dir_azure} in container: {self.az_container}")
+        logger.warning(
+            "Attempting to resume checkpoint | blob_name={} | local_path={} | container={}",
+            resolved_blob_name,
+            local_path,
+            self.az_container,
+        )
 
         try:
             with AzureBlobStorage(container_name=self.az_container) as az_loader:
@@ -149,7 +169,7 @@ class CheckpointManager:
             logger.warning(f"Checkpoint blob not found or failed to download: {resolved_blob_name}")
             return self._handle_missing()
 
-        logger.success(f"Checkpoint downloaded from Azure Blob Storage to {local_path}")
+        logger.success("Checkpoint downloaded from Azure Blob Storage to {}", local_path)
 
         try:
             ckpt = torch.load(local_path, map_location=device)
@@ -166,8 +186,9 @@ class CheckpointManager:
         resume_run_id = ckpt.get("run_id")
 
         logger.success(
-            f"Checkpoint loaded successfully. Resuming from epoch {start_epoch} "
-            f"with best validation loss {best_val_loss}."
+            "Checkpoint loaded successfully. Resuming from epoch {} with best validation loss {}.",
+            start_epoch,
+            best_val_loss,
         )
         return CheckpointState(start_epoch=start_epoch, best_val_loss=best_val_loss, resume_run_id=resume_run_id)
         
@@ -185,7 +206,7 @@ class CheckpointManager:
                 "resume_from_checkpoint=True and checkpoint_resume_hard=True "
                 "but no checkpoint found. Exiting."
             )
-        logger.warning("No checkpoint found. Starting fresh training.")
+        logger.warning("No checkpoint found. Starting fresh training with a clean state.")
         return CheckpointState(start_epoch=0, best_val_loss=float("inf"), resume_run_id=None)
 
 

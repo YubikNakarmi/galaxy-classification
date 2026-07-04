@@ -41,6 +41,12 @@ active_variant = cfg.active_variant
 def register_model(model,val_loader:DataLoader):
     sample_images, _ = next(iter(val_loader))
     sample_images = sample_images.to(dev)
+    logger.info(
+        "Registering model with MLflow | model_name={} | input_shape={} | device={}",
+        cfg.variant.mlflow.model_name,
+        tuple(sample_images.shape),
+        dev,
+    )
     
     # getting model signatures and sample for pt2 serialization
     with torch.no_grad():
@@ -56,28 +62,34 @@ def register_model(model,val_loader:DataLoader):
         registered_model_name=cfg.variant.mlflow.model_name,
         signature=signature,
     )
-    logger.info("Model logged to MLflow registry.")
+    logger.success("Model logged to MLflow registry as {}.", cfg.variant.mlflow.model_name)
  
 def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
     log_path = root / core_cfg["logging"]["ml"]["file"]
+    logger.info("Uploading artifacts for run {} from {}", run_id, log_path)
  
     url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=log_path)
     mlflow.set_tag("log_url", url)
+    logger.info("Uploaded training log to {}", url)
  
     try:
         report_path = cfg.storage.local.logs.reports_dir / f"{experiment_name}.md"
+        logger.info("Uploading training report from {}", report_path)
         url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=report_path)
         mlflow.set_tag("report_url", url)
+        logger.info("Uploaded training report to {}", url)
 
     except Exception as e:
-        logger.error(f"Could not upload report: {e}")
+        logger.exception(f"Could not upload report for run {run_id}: {e}")
  
     try:
         tb_run_dir = cfg.storage.local.logs.tensorboard_dir / experiment_name
+        logger.info("Uploading tensorboard artifacts from {}", tb_run_dir)
         for file in tb_run_dir.iterdir():
             if file.is_file():
                 url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=file)
                 mlflow.set_tag(f"tensorboard_{file.name}", url)
+                logger.info("Uploaded tensorboard file {} to {}", file.name, url)
 
     except Exception as e:
-        logger.error(f"Could not upload tensorboard logs: {e}")
+        logger.exception(f"Could not upload tensorboard logs for run {run_id}: {e}")

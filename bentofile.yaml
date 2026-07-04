@@ -4,7 +4,7 @@ description: "Galaxy Classification Service"
 
 labels:
   owner: "Yubik Nakarmi"
-  version: "0.2.0"
+  version: "0.6.0"
 
 include:
   - /src/

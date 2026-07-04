@@ -8,3 +8,4 @@ __pycache__
 galaxy_classification.egg-info
 /logs
 /models
+/.pytest_cache

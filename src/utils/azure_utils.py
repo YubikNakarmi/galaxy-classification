@@ -10,7 +10,7 @@ Example:
     
 """
 import os, uuid
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
@@ -114,6 +114,10 @@ class AzureBlobStorage:
         """
 
         container_name = name or self.container_name
+        if container_name is None:
+            raise RuntimeError(
+                "Container name must be specified either in the constructor or as an argument."
+            )
         client = self.blob_service_client.get_container_client(container_name)
         try:
             return client.exists()
@@ -135,22 +139,22 @@ class AzureBlobStorage:
         Example:
             >>> storage.create_container("datasets")
         """
-        if not name and not self.container_name:
+        container_name = name or self.container_name
+        if container_name is None:
             logger.exception("Container name must be specified either in the constructor or as an argument.")
-
-        elif not name:#fallback to constructor name
-            name = self.container_name
-            logger.info(f"Using default container name: {name}")
-
-        if self.check_container_exists(name):
-            logger.info(f"Container '{name}' already exists.")
             return
-        
-        if name:
-            self.container_name = name
-            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+
         if unique_suffix:
-            self.container_name = self.container_name + f"-{uuid.uuid4()}"
+            container_name = container_name + f"-{uuid.uuid4()}"
+
+        if self.check_container_exists(container_name):
+            self.container_name = container_name
+            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+            logger.info(f"Container '{container_name}' already exists.")
+            return
+
+        self.container_name = container_name
+        self.container_client = self.blob_service_client.get_container_client(self.container_name)
         try:
             self.container_client.create_container()
             logger.info(f"Container '{self.container_name}' created successfully.")
@@ -177,7 +181,8 @@ class AzureBlobStorage:
         """
 
         try:
-            blob_client = self.container_client.get_blob_client(blob_name)
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
 
 
             if isinstance(data, (str, Path)):
@@ -210,7 +215,8 @@ class AzureBlobStorage:
         '''
 
         try:
-            blob_client = self.container_client.get_blob_client(blob_name)
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
             with open(local_path, "wb") as f:
                 f.write(blob_client.download_blob().readall())
             logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
@@ -230,7 +236,8 @@ class AzureBlobStorage:
         """
 
         try:
-            blobs = self.container_client.list_blobs()
+            container_client = self._ensure_container_client()
+            blobs = container_client.list_blobs()
             blob_names = [blob.name for blob in blobs]
             return blob_names
         except Exception as e:
@@ -262,7 +269,8 @@ class AzureBlobStorage:
             blob_name: Name of the blob to delete.
         """
         try:
-            blob_client = self.container_client.get_blob_client(blob_name)
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
             blob_client.delete_blob()
             logger.info(f"Blob '{blob_name}' deleted successfully.")
         except Exception as e:
@@ -286,3 +294,13 @@ class AzureBlobStorage:
         if container_names is not None:
             for container in container_names:
                 logger.info(f"Container Name: {container}")
+                
+    #helpers
+    def _ensure_container_client(self) -> ContainerClient:
+        if self.container_client is None:
+            if not self.container_name:
+                raise RuntimeError(
+                    "AzureBlobStorage has no container configured. Pass container_name to the constructor or call create_container(name=...)."
+                )
+            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+        return self.container_client

@@ -1,0 +1,29 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt --break-system-packages
+      - run: pytest -m "not integration" -v
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports: ["10000:10000"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt -r requirements-dev.txt --break-system-packages
+      - run: pytest -m integration -v
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
