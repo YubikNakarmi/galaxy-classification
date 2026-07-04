@@ -235,7 +235,7 @@ def train_default():
             generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
 
             logger.info("Uploading artifacts to Azure Blob Storage")
-            upload_artifact(blob, run_id)
+            upload_artifact(blob, run_id,experiment_name=experiment_name)
 
         writer.close()
         logger.success("Training complete.")

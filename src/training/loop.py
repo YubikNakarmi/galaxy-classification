@@ -104,7 +104,6 @@ def validate_epoch(
                 m.update(preds, labels)
 
         #all metrics compute
-
         results = {
         "val_loss":             val_loss,
         "val_acc":              metrics["accuracy"].compute().item(),

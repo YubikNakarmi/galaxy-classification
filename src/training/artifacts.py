@@ -31,7 +31,6 @@ ml_yaml = load_yaml(file_config)
 cfg = load_and_validate_config(file_config)
 
 #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
-experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
 # normalize device to a torch.device once
 dev = torch.device(cfg.env.device)
 active_variant = cfg.active_variant
@@ -64,7 +63,7 @@ def register_model(model,val_loader:DataLoader):
     )
     logger.success("Model logged to MLflow registry as {}.", cfg.variant.mlflow.model_name)
  
-def upload_artifact(blob: AzureBlobStorage, run_id: str)-> None:
+def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> None:
     log_path = root / core_cfg["logging"]["ml"]["file"]
     logger.info("Uploading artifacts for run {} from {}", run_id, log_path)
  
