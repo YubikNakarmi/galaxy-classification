@@ -10,7 +10,6 @@ app.conf.update(backend='redis://localhost:6379/0', beat_schedule={
 
 
 @app.task
-
 def classify_image(image_path):
     # Placeholder for image classification logic
     # In a real implementation, you would load the image and run it through a model

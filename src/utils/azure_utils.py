@@ -15,16 +15,15 @@ from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
 from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_app_logging
+from src.utils.logging_config import setup_app_logging, setup_ml_logging
 from typing import BinaryIO,Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
 
-log_config = load_yaml(root / 'configs' / 'core.yaml')
+log_config = load_yaml(root / 'configs' / 'core.yaml')#deafult
 
-setup_app_logging(log_config)
 
 AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
 AZURE_STORAGE_ACCOUNT_URL = os.getenv('AZURE_STORAGE_ACCOUNT_URL') #default env var entries``
@@ -52,8 +51,10 @@ class AzureBlobStorage:
         >>> storage.list_blobs()
     """
 
-    def __init__(self , container_name:str|None=None, account_url = AZURE_STORAGE_ACCOUNT_URL,
-                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING):
+    def __init__(self , container_name:str|None=None, 
+                 account_url = AZURE_STORAGE_ACCOUNT_URL,
+                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING,
+                 logger_config:Optional[dict]= None,type:str = "app"):
         """
         Initialize an Azure Blob Storage client.
 
@@ -65,17 +66,32 @@ class AzureBlobStorage:
             Storage account URL.
         storage_connection_string : str
             Azure Storage connection string.
+        logger_config : dict, optional
+            Configuration for logging. If not provided, default logging is used.
+        type : str, optional
+            Type of logging to set up. Options are "app" for application logging
 
         Raises
         ------
         ValueError
             If the connection string is missing.
+        RuntimeError
+            If the container name is not provided when required.
         """
 
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
         
-        
+        if logger_config is None:
+            log_cfg = log_config
+
+        if type == "app":
+            setup_app_logging(log_cfg)
+            logger.info("AzureBlobStorage client initialized with app logging...")
+        elif type == "ml":
+            setup_ml_logging(log_cfg)
+            logger.info("AzureBlobStorage client initialized with ML logging...")
+
         self.storage_connection_string = storage_connection_string
         self.account_url = account_url
         self.container_name = container_name
@@ -162,7 +178,8 @@ class AzureBlobStorage:
             logger.exception(f"Error creating container: {e}")
 
 
-    def upload_blob(self, blob_name:str, data:bytes | BinaryIO | str | Path,
+    def upload_blob(self, blob_name:str, 
+                    data:bytes | BinaryIO | str | Path,
                     Overwrite:bool=True)-> Optional[str]:
 
         """Upload a blob to the current container.
@@ -200,7 +217,8 @@ class AzureBlobStorage:
             logger.exception(f"Error uploading blob: {e}")
             return None
         
-    def load_blob(self, blob_name:str, local_path: str | Path) -> Optional[str]:
+    def load_blob(self, blob_name:str, 
+                  local_path: str | Path) -> Optional[str]:
         '''Download a blob from the current container to a local file.
 
         Args:

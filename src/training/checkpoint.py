@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 
-from src.config import load_and_validate_config
 from src.config.schema import RootConfig
 from src.utils import setup_ml_logging
 from src.utils import load_yaml
@@ -26,8 +25,10 @@ class CheckpointManager:
 
 
     def __init__(self, checkpoint_dir_local: str|Path,checkpoint_dir_azure: 
-                 str,cfg:RootConfig,run_id:str | None = None):
+                 str,cfg:RootConfig,run_id:str | None = None,logging_config:Optional[dict]=None):
+        
 
+        
         self.checkpoint_dir = Path(checkpoint_dir_local) #local
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
