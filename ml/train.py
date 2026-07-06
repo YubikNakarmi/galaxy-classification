@@ -106,7 +106,7 @@ def train_default():
     )
     
     # checkpoint manager already handles the logic for getting config if you want to resume or not
-    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev)
+    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev,save_filename="tmp.pt")
     
     best_val_loss = chkpt_state.best_val_loss
 
@@ -129,22 +129,25 @@ def train_default():
             chkpt_state.start_epoch,
             chkpt_state.best_val_loss,
         )
- 
-        mlflow.log_params({
-            "epochs":          cfg.train.num_epochs,
-            "batch_size":      cfg.train.batch_size,
-            "lr":              cfg.train.learning_rate,
-            "weight_decay":    cfg.train.weight_decay,
-            "grad_clip":       cfg.train.grad_clip_max_norm,
-            "label_smoothing": cfg.train.label_smoothing,
-            "variant":         cfg.active_variant,
-            "num_classes":     cfg.variant.num_classes,
-            "optimizer":       cfg.train.optimizer,
-            "scheduler":       cfg.train.scheduler.type,
-            "T_0":             cfg.train.scheduler.warmup_epochs,
-            "T_mult":          2,
-            "seed":            cfg.env.seed,
-        })
+
+        if chkpt_state.resume_run_id is None:
+            mlflow.log_params({
+                "epochs":          cfg.train.num_epochs,
+                "batch_size":      cfg.train.batch_size,
+                "lr":              cfg.train.learning_rate,
+                "weight_decay":    cfg.train.weight_decay,
+                "grad_clip":       cfg.train.grad_clip_max_norm,
+                "label_smoothing": cfg.train.label_smoothing,
+                "variant":         cfg.active_variant,
+                "num_classes":     cfg.variant.num_classes,
+                "optimizer":       cfg.train.optimizer,
+                "scheduler":       cfg.train.scheduler.type,
+                "T_0":             cfg.train.scheduler.warmup_epochs,
+                "T_mult":          2,
+                "seed":            cfg.env.seed,
+            })
+        else:
+            logger.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
 
         global_step = 0
 
@@ -208,7 +211,7 @@ def train_default():
                 logger.info("Best checkpoint synced to Azure | url={}", ckpt_url)
         # after training   
         # 
-        with AzureBlobStorage() as blob:
+        with AzureBlobStorage(log_type="ml", logger_config=log_config) as blob:
             # ensure experiment container exists
             logger.info("Ensuring Azure artifact container exists: {}", cfg.storage.cloud.experiments.container)
             blob.create_container(name=cfg.storage.cloud.experiments.container)

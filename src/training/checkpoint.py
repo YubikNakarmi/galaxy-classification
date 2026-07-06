@@ -1,3 +1,7 @@
+''' Checkpoint management for model training.
+This module provides the CheckpointManager class, which handles saving and loading model checkpoints to/from local'''
+
+
 from __future__ import annotations
 from src.utils.azure_utils import AzureBlobStorage
 import torch
@@ -12,7 +16,7 @@ from loguru import logger
 
 root = Path(__file__).parent.parent.parent
 log_file = root / "configs" / "core.yaml"
-
+setup_ml_logging(load_yaml(log_file))  # Load logging configuration from core.yaml
 @dataclass
 class CheckpointState:
     start_epoch: int
@@ -25,10 +29,10 @@ class CheckpointManager:
 
 
     def __init__(self, checkpoint_dir_local: str|Path,checkpoint_dir_azure: 
-                 str,cfg:RootConfig,run_id:str | None = None,logging_config:Optional[dict]=None):
+                 str,cfg:RootConfig,run_id:str | None = None):
         
 
-        
+
         self.checkpoint_dir = Path(checkpoint_dir_local) #local
 
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -43,7 +47,7 @@ class CheckpointManager:
         self.run_id = run_id 
 
     def save(self, model, optimizer, scheduler, epoch: int, val_loss: float,
-             val_f1_macro: float, cfg_snapshot: dict,filename:str|Path) -> None:
+             val_f1_macro: float, cfg_snapshot: dict,filename:str|Path="best.pt") -> None:
         
         """Save checkpoint locally. Upload to Azure if run_id is set.
             Args:
@@ -82,7 +86,7 @@ class CheckpointManager:
 
         logger.success("Checkpoint saved locally at {}", target)
 
-    def upload_checkpoint_to_azure(self,filename:str| Path, blob_path:Optional[str|Path]=None)->str| None:
+    def upload_checkpoint_to_azure(self,filename:str| Path="best.pt", blob_path:Optional[str|Path]=None)->str| None:
         ''' Uploads the checkpoint file from local storage to Azure Blob Storage.  
         Args:
             filename: The name of the checkpoint file to upload.
@@ -106,7 +110,7 @@ class CheckpointManager:
 
         try:
 
-            with AzureBlobStorage(container_name=self.az_container) as az_:
+            with AzureBlobStorage(container_name=self.az_container,logger_config=load_yaml(log_file),log_type="ml") as az_:
                 # upload local checkpoint file to blob storage under a run-specific path
              
                 path = az_.upload_blob(blob_name=blob_name, 
@@ -128,7 +132,7 @@ class CheckpointManager:
 
  
 
-    def load_checkpoint(self, model, optimizer,scheduler, device,filename:str|Path="temp.pt", blob_name:Optional[str|Path]=None)-> CheckpointState:
+    def load_checkpoint(self, model, optimizer,scheduler, device,save_filename:str|Path="best.pt", blob_path:Optional[str|Path]=None)-> CheckpointState:
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
         and optimizer state from the checkpoint. 
 
@@ -137,7 +141,7 @@ class CheckpointManager:
             optimizer: The optimizer to load the checkpoint into.
             scheduler: The scheduler to load the checkpoint into.
             device: The device to map the model and optimizer to.
-            filename: The name of the checkpoint file to load.
+            save_filename: The name of the checkpoint file to save.
             blob_name: The name of the blob in Azure Blob Storage to load the checkpoint from.
 
         Returns:
@@ -149,8 +153,8 @@ class CheckpointManager:
             logger.info("Resume is disabled. Starting training from scratch.")
             return CheckpointState(start_epoch=0, best_val_loss=float('inf'), resume_run_id=None)
         
-        resolved_blob_name = str(Path(blob_name)) if blob_name else self._blob_path(filename) #use filename argument else create
-        local_path = self.checkpoint_dir / Path(filename)
+        resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path("best.pt") #use filename argument else create
+        local_path = self.checkpoint_dir / Path(save_filename)
         logger.warning(
             "Attempting to resume checkpoint | blob_name={} | local_path={} | container={}",
             resolved_blob_name,
@@ -159,7 +163,7 @@ class CheckpointManager:
         )
 
         try:
-            with AzureBlobStorage(container_name=self.az_container) as az_loader:
+            with AzureBlobStorage(container_name=self.az_container, logger_config=load_yaml(log_file), log_type="ml") as az_loader:
                 downloaded_url = az_loader.load_blob(blob_name=resolved_blob_name, local_path=local_path)
         except Exception as e:
             logger.exception(f"Unexpected error contacting Azure Blob Storage: {e}")

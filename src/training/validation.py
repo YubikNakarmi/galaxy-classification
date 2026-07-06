@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 import mlflow
 from loguru import logger
@@ -49,12 +51,21 @@ def validate_setup(
 
     # check mlflow
     try:
+        request = Request(
+            f"{mlflow_tracking_uri.rstrip('/')}/health",
+            headers={"User-Agent": "galaxy-classification-validator"},
+            method="GET",
+        )
+        with urlopen(request, timeout=2) as response:
+            if response.status >= 400:
+                raise RuntimeError(f"HTTP {response.status}")
+
         mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment("Connection Test")
         with mlflow.start_run(run_name="setup_validation"):
             mlflow.log_param("validation", "success")
         logger.info(f"MLflow connection OK ({mlflow_tracking_uri})")
-    except Exception as e:
+    except (URLError, HTTPError, TimeoutError, RuntimeError, OSError) as e:
         logger.error(f"MLflow not reachable: {e}")
         return False
 

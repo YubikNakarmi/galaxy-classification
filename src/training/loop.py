@@ -10,7 +10,7 @@ from src.utils.logging_config import setup_ml_logging
 from loguru import logger
 
 root = Path(__file__).parent.parent.parent
-log_config = load_yaml(root / "config" / "core.yaml")
+log_config = load_yaml(root / "configs" / "core.yaml")
 setup_ml_logging(log_config)
 
 def train_epoch(

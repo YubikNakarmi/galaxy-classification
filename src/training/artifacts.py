@@ -1,4 +1,6 @@
-
+''' Artifacts management for MLflow and Azure Blob Storage. 
+This module provides functions to register models with MLflow, upload training logs, reports, and tensorboard artifacts to Azure Blob Storage. 
+It also sets up logging configurations for both application and ML logging.'''
 
 import torch
 import mlflow
@@ -69,14 +71,14 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
  
     url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=log_path)
     mlflow.set_tag("log_url", url)
-    logger.info("Uploaded training log to {}", url)
+    logger.success("Uploaded training log to {}", url)
  
     try:
         report_path = cfg.storage.local.logs.reports_dir / f"{experiment_name}.md"
         logger.info("Uploading training report from {}", report_path)
         url = blob.upload_blob(blob_name=f"{run_id}/reports/report.md", data=report_path)
         mlflow.set_tag("report_url", url)
-        logger.info("Uploaded training report to {}", url)
+        logger.success("Uploaded training report to {}", url)
 
     except Exception as e:
         logger.exception(f"Could not upload report for run {run_id}: {e}")
@@ -88,7 +90,7 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
             if file.is_file():
                 url = blob.upload_blob(blob_name=f"{run_id}/tensorboard/{file.name}", data=file)
                 mlflow.set_tag(f"tensorboard_{file.name}", url)
-                logger.info("Uploaded tensorboard file {} to {}", file.name, url)
+                logger.success("Uploaded tensorboard file {} to {}", file.name, url)
 
     except Exception as e:
         logger.exception(f"Could not upload tensorboard logs for run {run_id}: {e}")

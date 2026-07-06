@@ -54,7 +54,7 @@ class AzureBlobStorage:
     def __init__(self , container_name:str|None=None, 
                  account_url = AZURE_STORAGE_ACCOUNT_URL,
                  storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING,
-                 logger_config:Optional[dict]= None,type:str = "app"):
+                 logger_config:Optional[dict]= None,log_type:str = "app"):
         """
         Initialize an Azure Blob Storage client.
 
@@ -68,7 +68,7 @@ class AzureBlobStorage:
             Azure Storage connection string.
         logger_config : dict, optional
             Configuration for logging. If not provided, default logging is used.
-        type : str, optional
+        log_type : str, optional
             Type of logging to set up. Options are "app" for application logging
 
         Raises
@@ -82,13 +82,12 @@ class AzureBlobStorage:
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
         
-        if logger_config is None:
-            log_cfg = log_config
+        log_cfg = logger_config if logger_config is not None else log_config
 
-        if type == "app":
+        if log_type == "app":
             setup_app_logging(log_cfg)
             logger.info("AzureBlobStorage client initialized with app logging...")
-        elif type == "ml":
+        elif log_type == "ml":
             setup_ml_logging(log_cfg)
             logger.info("AzureBlobStorage client initialized with ML logging...")
 

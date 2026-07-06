@@ -1,6 +1,5 @@
 from torch import nn
 
-
 class ResidualUnit(nn.Module):
 
     ''' Resudual unit for resnet architecture.'''
@@ -109,6 +108,7 @@ class GalaxyClassifier_ResNet(nn.Module):
         for m in self.modules():# he initializiing to help with convergence as per 
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
