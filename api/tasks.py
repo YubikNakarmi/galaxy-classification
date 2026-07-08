@@ -1,14 +1,8 @@
-from celery import Celery
+from celery import Celery, app
 import httpx
 
-app = Celery('api', broker='redis://localhost:6379/0')
-app.conf.update(backend='redis://localhost:6379/0', beat_schedule={
-    'classify-image-every-10-seconds': {
-        'task': 'api.queue.classify_image',
-        'schedule': 10.0
-    }
-})
-app.conf.task_track_started = True
+celery_app = Celery('api', broker='redis://localhost:6379/0',backend='redis://localhost:6379/1')#Host redis on docker compose first
+celery_app.conf.task_track_started = True
 
 
 BENTOML_ROUTES = {#preset routes in bentoml/services.py
@@ -18,7 +12,7 @@ BENTOML_ROUTES = {#preset routes in bentoml/services.py
 }
 
 
-@app.task(bind=True)
+@celery_app.task(bind=True)
 def classify_image(self,image_bytes_b64:str,variant:str="default"):
 
     variant_url = BENTOML_ROUTES[variant]
