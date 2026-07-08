@@ -83,3 +83,17 @@ pytest tests/test_checkpoint_manager.py
 
 pytsst -m integration -v
 ```
+
+# azurite test
+```py
+
+from src.utils.azure_utils import AzureBlobStorage
+from pathlib import Path
+
+
+blob = AzureBlobStorage(storage_connection_string = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;",
+)
+
+blob.container_name = "test"
+blob.print_info()
+```

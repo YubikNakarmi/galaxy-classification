@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       azurite:
-        image: mcr.microsoft.com/azure-storage/azurite
+        image: mcr.microsoft.com/azure-storage/azurite #simulation using local azurite on ci run
         ports: ["10000:10000"]
     steps:
       - uses: actions/checkout@v4
