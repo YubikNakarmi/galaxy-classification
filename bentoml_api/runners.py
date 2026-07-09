@@ -11,11 +11,9 @@ import numpy as np
 from PIL import Image
 import io
 import base64
-from torchvision import transforms
-import random
-from schemas import ClassificationResult
+from .schemas import ClassificationResult
 
-from consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES
+from .consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES
 
 root = Path(__file__).parent.parent
 file_config = root / 'configs' / 'core.yaml'

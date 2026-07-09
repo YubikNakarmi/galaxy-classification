@@ -1,8 +1,6 @@
 from torchvision import transforms
-import random
 from pathlib import Path
 from src.utils.yaml_utils import load_yaml
-import torch
 
 root = Path(__file__).parent.parent
 file_config = root / 'configs' / 'ml.yaml'

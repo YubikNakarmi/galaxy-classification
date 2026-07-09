@@ -1,4 +1,4 @@
-service: "bentoml.service:GalaxyClassification"
+service: "bentoml_api.service:GalaxyClassification"
 
 description: "Galaxy Classification Service"
 
@@ -12,7 +12,7 @@ include:
   - /requirements.txt
 
 python:
-  requirements_txt: ../requirements.txt
+  requirements_txt: ./requirements.txt
 
 docker:
   distro: debian
