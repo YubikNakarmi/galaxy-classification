@@ -29,10 +29,17 @@ services:
       restart: always
   
   bentoml:
-    build: ./bentoml
+    image: galaxy_classification:v0.6 #built bento container using bentoml build
+
+    env_file:
+      - .env
     volumes:
       - ./bentoml:/bentoml
-    command: bentoml serve bentoml.service:GalaxyClassification --reload
+
+    container_name: bentoml
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
     ports:
       - "3000:3000"
     depends_on:

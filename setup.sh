@@ -37,4 +37,12 @@ dvc_setup()
         
 }
 
+bentoml_build()
+{
+    echo "Building BentoML container..."
+    bentoml build --version 0.6.0
+    docker build -t galaxy_classification:v0.6 ./bentoml
+
+}
+
 dvc_setup

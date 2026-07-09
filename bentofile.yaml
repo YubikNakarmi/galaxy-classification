@@ -7,9 +7,10 @@ labels:
   version: "0.6.0"
 
 include:
-  - /src/
-  - /configs/
-  - /requirements.txt
+  - src/**
+  - configs/
+  - requirements.txt
+  - setup.py
 
 python:
   requirements_txt: ./requirements.txt
