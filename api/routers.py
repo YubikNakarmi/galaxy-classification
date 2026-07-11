@@ -10,7 +10,7 @@ router.post("/classify")
 async def classify_image_endpoint(
     request: ClassifyRequest
 ):
-    task = classify_image.delay(request.image_b64, request.variant)
+    task = classify_image.delay(request.image_b64, request.variant) #call celery
     return {"task_id": task.id}#returns the task id to the client for tracking from celery
 
 router.get("/task_status/{task_id}")
