@@ -29,10 +29,4 @@ def load_yaml(path: str | Path)-> dict:
             raise ValueError(f"Invalid YAML format in {path}: {e}")
         
         
-root = Path(__file__).resolve().parent.parent.parent
-load_dotenv(root / '.env') 
-
-log_config = load_yaml(root / 'configs' / 'core.yaml')
-
-setup_app_logging(log_config)
 

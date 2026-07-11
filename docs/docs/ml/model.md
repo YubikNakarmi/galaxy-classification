@@ -1,7 +1,10 @@
-## Architecture overview
+# Default model architecture
 
 `GalaxyClassifier_ResNet` is a wide pre-activation ResNet with bottleneck residual units,
 adapted for 128×128 galaxy images.
+
+### Image
+
 
 ### Key parameters (default)
 
@@ -37,3 +40,8 @@ adapted for 128×128 galaxy images.
 | Initialisation | Kaiming normal for conv layers; constant 1/0 for BN weight/bias |
 | Domain augmentation | `RandomRotation(180)` — galaxies have no canonical orientation |
 | Normalisation stats | GZ2-specific mean/std, not ImageNet |
+
+# Hubble variant
+Just training the head of the default model on Hubble images (with the same 5 classes) yields a model that performs poorly on Galaxy Zoo images. The `hubble` variant is a modified architecture that is more suitable for Hubble images, with a smaller width multiplier and fewer units per group.
+
+# Dirlichlet variant

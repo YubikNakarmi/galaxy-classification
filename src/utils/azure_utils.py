@@ -5,27 +5,24 @@ Provides a wrapper around the Azure Blob Storage SDK for creating
 containers, uploading files, listing blobs, and deleting blobs.
 
 Example:
-    >>> storage = AzureBlobStorage("images")
-    >>> storage.upload_blob("cat.jpg", image_bytes)
+    >>>with AzuleBlobStorage("images") as storage:
+    >>>    storage.create_container("images")
+    
 """
-
-
 import os, uuid
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
 from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_app_logging
+from src.utils.logging_config import setup_app_logging, setup_ml_logging
+from typing import BinaryIO,Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
 
-log_config = load_yaml(root / 'configs' / 'core.yaml')
-
-setup_app_logging(log_config)
-
+log_config = load_yaml(root / 'configs' / 'core.yaml')#deafult
 
 
 AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
@@ -54,8 +51,10 @@ class AzureBlobStorage:
         >>> storage.list_blobs()
     """
 
-    def __init__(self , container_name=None,account_url = AZURE_STORAGE_ACCOUNT_URL,
-                 storage_connection_string = AZURE_STORAGE_CONNECTION_STRING):
+    def __init__(self , container_name:str|None=None, 
+                 account_url = AZURE_STORAGE_ACCOUNT_URL,
+                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING,
+                 logger_config:Optional[dict]= None,log_type:str = "app"):
         """
         Initialize an Azure Blob Storage client.
 
@@ -67,17 +66,31 @@ class AzureBlobStorage:
             Storage account URL.
         storage_connection_string : str
             Azure Storage connection string.
+        logger_config : dict, optional
+            Configuration for logging. If not provided, default logging is used.
+        log_type : str, optional
+            Type of logging to set up. Options are "app" for application logging
 
         Raises
         ------
         ValueError
             If the connection string is missing.
+        RuntimeError
+            If the container name is not provided when required.
         """
 
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
         
-        
+        log_cfg = logger_config if logger_config is not None else log_config
+
+        if log_type == "app":
+            setup_app_logging(log_cfg)
+            logger.info("AzureBlobStorage client initialized with app logging...")
+        elif log_type == "ml":
+            setup_ml_logging(log_cfg)
+            logger.info("AzureBlobStorage client initialized with ML logging...")
+
         self.storage_connection_string = storage_connection_string
         self.account_url = account_url
         self.container_name = container_name
@@ -92,9 +105,18 @@ class AzureBlobStorage:
                 container_name
                 
             )
+    #context managers
+    def __enter__(self):
+        logger.info("AzureBlobStorage client initialized...")
 
+        return self
 
-    def check_container_exists(self, name=None):
+    def __exit__(self, exc_type, exc_value, traceback):
+        logger.info("Closing AzureBlobStorage client...")
+        self.blob_service_client.close()
+        
+    #Main methods
+    def check_container_exists(self, name:str):
             
         """Check whether a container exists.
 
@@ -107,6 +129,10 @@ class AzureBlobStorage:
         """
 
         container_name = name or self.container_name
+        if container_name is None:
+            raise RuntimeError(
+                "Container name must be specified either in the constructor or as an argument."
+            )
         client = self.blob_service_client.get_container_client(container_name)
         try:
             return client.exists()
@@ -114,7 +140,7 @@ class AzureBlobStorage:
             logger.exception(f"Error checking container existence: {e}")
             return False
      
-    def create_container(self,name=None,unique_suffix=False):
+    def create_container(self,name:Optional[str] = None,unique_suffix:bool=False):
         """Create a new container if it does not already exist.
 
         Args:
@@ -128,16 +154,22 @@ class AzureBlobStorage:
         Example:
             >>> storage.create_container("datasets")
         """
-
-        if self.check_container_exists(name):
-            logger.info(f"Container '{name}' already exists.")
+        container_name = name or self.container_name
+        if container_name is None:
+            logger.exception("Container name must be specified either in the constructor or as an argument.")
             return
-        
-        if name:
-            self.container_name = name
-            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+
         if unique_suffix:
-            self.container_name += f"-{uuid.uuid4()}"
+            container_name = container_name + f"-{uuid.uuid4()}"
+
+        if self.check_container_exists(container_name):
+            self.container_name = container_name
+            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+            logger.info(f"Container '{container_name}' already exists.")
+            return
+
+        self.container_name = container_name
+        self.container_client = self.blob_service_client.get_container_client(self.container_name)
         try:
             self.container_client.create_container()
             logger.info(f"Container '{self.container_name}' created successfully.")
@@ -145,13 +177,15 @@ class AzureBlobStorage:
             logger.exception(f"Error creating container: {e}")
 
 
-    def upload_blob(self, blob_name, data,Overwrite=False)-> str:
+    def upload_blob(self, blob_name:str, 
+                    data:bytes | BinaryIO | str | Path,
+                    Overwrite:bool=True)-> Optional[str]:
 
         """Upload a blob to the current container.
 
         Args:
             blob_name: Name of the destination blob.
-            data: Bytes or file-like object to upload.
+            data: Bytes, a file-like object, or a local file path.
             overwrite: Whether to overwrite an existing blob.
 
         Returns:
@@ -163,14 +197,50 @@ class AzureBlobStorage:
         """
 
         try:
-            blob_client = self.container_client.get_blob_client(blob_name)
-            blob_client.upload_blob(data, overwrite=Overwrite)
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
+
+
+            if isinstance(data, (str, Path)):
+                with open(data, "rb") as f:
+                    blob_client.upload_blob(f, overwrite=Overwrite)
+
+            else: #option to upload blob directly
+                blob_client.upload_blob(data, overwrite=Overwrite)
+
             logger.info(f"Blob '{blob_name}' uploaded successfully.")
 
-            return str(blob_client.url)
+            return str(blob_client.url) #returns uri of blob
         
         except Exception as e:
             logger.exception(f"Error uploading blob: {e}")
+            return None
+        
+    def load_blob(self, blob_name:str, 
+                  local_path: str | Path) -> Optional[str]:
+        '''Download a blob from the current container to a local file.
+
+        Args:
+            blob_name: Name of the blob to download.
+            local_path: Local file path to save the downloaded blob.
+
+        Returns:
+            The URL of the downloaded blob if successful; otherwise None.
+
+        Example:
+            >>> storage.load_blob("image.jpg", "local_image.jpg")
+        '''
+
+        try:
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
+            with open(local_path, "wb") as f:
+                f.write(blob_client.download_blob().readall())
+            logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
+            
+            return str(blob_client.url)  # Return the blob URL for reference
+        except Exception as e:
+            logger.exception(f"Error downloading blob: {e}")
             return None
 
     def list_blobs(self):
@@ -183,14 +253,15 @@ class AzureBlobStorage:
         """
 
         try:
-            blobs = self.container_client.list_blobs()
+            container_client = self._ensure_container_client()
+            blobs = container_client.list_blobs()
             blob_names = [blob.name for blob in blobs]
             return blob_names
         except Exception as e:
             logger.exception(f"Error listing blobs: {e}")
             return []
     
-    def list_containers(self):
+    def list_containers(self)->Optional[list[str]]:
 
         """List all blobs in the current container.
 
@@ -205,9 +276,9 @@ class AzureBlobStorage:
             return container_names
         except Exception as e:
             logger.exception(f"Error listing containers: {e}")
-            return []
+            return None
 
-    def delete_blob(self, blob_name):
+    def delete_blob(self, blob_name:str):
 
         """Delete a blob from the current container.
 
@@ -215,7 +286,8 @@ class AzureBlobStorage:
             blob_name: Name of the blob to delete.
         """
         try:
-            blob_client = self.container_client.get_blob_client(blob_name)
+            container_client = self._ensure_container_client()
+            blob_client = container_client.get_blob_client(blob_name)
             blob_client.delete_blob()
             logger.info(f"Blob '{blob_name}' deleted successfully.")
         except Exception as e:
@@ -235,7 +307,17 @@ class AzureBlobStorage:
         for blob in self.list_blobs():
             logger.info(f"Blob Name: {blob}")
         
-        for container in self.list_containers():
-            logger.info(f"Container Name: {container}")
-
-    
+        container_names = self.list_containers()
+        if container_names is not None:
+            for container in container_names:
+                logger.info(f"Container Name: {container}")
+                
+    #helpers
+    def _ensure_container_client(self) -> ContainerClient:
+        if self.container_client is None:
+            if not self.container_name:
+                raise RuntimeError(
+                    "AzureBlobStorage has no container configured. Pass container_name to the constructor or call create_container(name=...)."
+                )
+            self.container_client = self.blob_service_client.get_container_client(self.container_name)
+        return self.container_client

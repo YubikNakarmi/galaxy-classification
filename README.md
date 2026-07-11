@@ -2,6 +2,7 @@
 
 # need to add stack 
 - hydra or omegaconf for config management.
+- I insted made by custom parser cuz I was too focuesed on the proj. 
 
 
 # DVC setup
@@ -65,4 +66,34 @@ do nvdia-smi
 ```
 pip uninstall torch torchvision -y
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@20.204.16.165
+```
+
+
+
+# configs need to improve 
+- prevalidation of paths instead of sepearte on training
+
+
+# tests
+
+```
+pytest tests/test_checkpoint_manager.py
+
+pytsst -m integration -v
+```
+
+# azurite test
+```py
+
+from src.utils.azure_utils import AzureBlobStorage
+from pathlib import Path
+
+
+blob = AzureBlobStorage(storage_connection_string = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;",
+)
+
+blob.container_name = "test"
+blob.print_info()
 ```

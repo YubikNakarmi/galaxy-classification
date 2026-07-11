@@ -233,11 +233,11 @@ Used for dataset versioning.
 ```yaml
 storage:
   dvc:
-    container: galaxy-dvc
+    container: dvc-storage
 ```
 
 ```
-galaxy-dvc/
+dvc-storage/
 └── DVC-managed datasets
 ```
 
@@ -469,12 +469,18 @@ Storage Account
 │   └── datasets
 │
 └── galaxy-experiments
-    └── Default_20260605_153000
+    └── <run_id> 
         ├── checkpoints/
         ├── logs/
         ├── tensorboard/
-        └── predictions/
+        └── models
+       
 ```
 
 !!! tip
     This separation keeps datasets versioned through DVC while storing experiment artifacts independently, enabling efficient experiment management without polluting your data version history.
+
+
+# Parsing
+
+Parsing is done trough `src.config` module. 

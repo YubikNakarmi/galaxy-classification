@@ -1,0 +1,20 @@
+service: "bentoml_api.service:GalaxyClassification"
+
+description: "Galaxy Classification Service"
+
+labels:
+  owner: "Yubik Nakarmi"
+  version: "0.6.0"
+
+include:
+  - src/**
+  - configs/
+  - requirements.txt
+  - setup.py
+
+python:
+  requirements_txt: ./requirements.txt
+
+docker:
+  distro: debian
+  python_version: "3.12"

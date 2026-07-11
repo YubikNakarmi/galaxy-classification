@@ -1,12 +1,11 @@
 from torch import nn
 
-
 class ResidualUnit(nn.Module):
 
     ''' Resudual unit for resnet architecture.'''
 
 
-    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.5):
+    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.8):
         super(ResidualUnit, self).__init__()
 
         #block 1
@@ -109,6 +108,7 @@ class GalaxyClassifier_ResNet(nn.Module):
         for m in self.modules():# he initializiing to help with convergence as per 
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -126,6 +126,3 @@ class GalaxyClassifier_ResNet(nn.Module):
         out = self.fc(out)              
         return out
 
-def model():
-
-    model = GalaxyClassifier_ResNet(N=2, k=2, num_classes=5)

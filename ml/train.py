@@ -1,8 +1,6 @@
 import click
 import torch
 import pandas as pd
-from src.dataset.dataset import GalaxyDataset
-from torchvision import transforms
 import mlflow
 import random
 from dotenv import load_dotenv
@@ -10,454 +8,267 @@ from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from torch.utils.data import DataLoader
 import os
+from loguru import logger
+import datetime
+
+from src.dataset.utils import generate_report
+from src.utils.azure_utils import AzureBlobStorage
 from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
-from loguru import logger
-from torchmetrics import Accuracy, Precision, Recall, F1Score, AUROC
-from tqdm import tqdm
-from src.utils.azure_utils import AzureBlobStorage
-import datetime
-from mlflow.models.signature import infer_signature
-from src.dataset.utils import generate_report
-from src.dataset.utils import RandomCenterCrop
+from src.dataset.dataset import GalaxyDataset
+from src.training import train_epoch,validate_epoch
+from src.config import load_and_validate_config
+from src.training import CheckpointManager,validate_setup,upload_artifact,register_model,make_metrics, raw_transforms, val_transforms
 
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
 
 log_config = load_yaml(root / 'configs' / 'core.yaml')
 setup_ml_logging(log_config)
 
+core_cfg = load_yaml(root / 'configs' / 'core.yaml')
 
 file_config = root / 'configs' / 'ml.yaml'
 ml_yaml = load_yaml(file_config)
+cfg = load_and_validate_config(file_config)
 
-
-dev = ml_yaml["env"]["device"]
-
-device = torch.device(dev)
-seed = ml_yaml["env"]["seed"]
-
-
-epoch = int(ml_yaml["train"]["num_epochs"])
-image_dir = root / ml_yaml["data"]["img_dir"]
-batch_size = int(ml_yaml["train"]["batch_size"])
-
-train_path = root /ml_yaml["data"]["train_path"]
-val_path = root / ml_yaml["data"]["val_path"] 
-
-active = str(ml_yaml["active_variant"])
-
-experiment_root = ml_yaml["variants"][ml_yaml["active_variant"]]["experiment"]["root"] #top level experiment name
-experiment_name = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + "_" + active #used throughout all loggings runs
-checkpoint_dir = root / ml_yaml["storage"]["local"]["checkpoints"]["dir"] / experiment_name
-checkpoint_dir.mkdir(parents=True, exist_ok=True)
-log_dir = root / log_config["logging"]["ml"]["file"]
-reports_dir = root / ml_yaml["storage"]["local"]["logs"]["reports_dir"]
-
-
-tensorboard_dir = root / ml_yaml["storage"]["local"]["logs"]["tensorboard_dir"]
-tensorboard_path = tensorboard_dir / experiment_name
-
-num_class = ml_yaml["variants"][active]["num_classes"]
-lr = ml_yaml["train"]["learning_rate"]
-eta_min = ml_yaml["train"]["scheduler"]["min_lr"]
-warmup_epochs = ml_yaml["train"]["scheduler"]["warmup_epochs"]
-optimizer = ml_yaml["train"]["optimizer"]
-grad_clip = ml_yaml["train"]["grad_clip_max_norm"]
-
-model_registry_name = ml_yaml["variants"][active]["mlflow"]["model_name"]
-
-writer = SummaryWriter(log_dir=tensorboard_path)
-
-
-
-best_val_loss = float('inf')
-best_val_model = None
- 
-
-raw_transforms = transforms.Compose([
-    RandomCenterCrop(170, 240), 
-    transforms.Resize(160),                            
-    transforms.RandomCrop(128),                        
-    transforms.RandomRotation(degrees = [0, 360]),
-    transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(brightness=0.2, contrast=0.5, saturation=0.4, hue=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
-                         std= [0.1728, 0.1586, 0.1488])    
-])
-
-val_transforms = transforms.Compose([
-    RandomCenterCrop(170, 240),
-    transforms.Resize(128),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.1376, 0.1276, 0.1187],
-        std=[0.1728, 0.1586, 0.1488]
-    )
-])
-
-
-def validate_setup(create_dirs:bool=False) -> bool:
-    missing = []
-    for p in [train_path, val_path, image_dir, checkpoint_dir, log_dir, tensorboard_dir]:
-        if not Path(p).exists():
-            missing.append(str(p))
-
-    if missing:
-        logger.warning(f"Missing paths: {', '.join(missing)}")
-        return False
-    try:
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment("Connection Test")
-        with mlflow.start_run(run_name="setup_validation"):
-            mlflow.log_param("validation", "success")
-        logger.info("MLflow connection OK")
-    except Exception as e:
-        logger.error(f"MLflow not reachable: {e}")
-        return False
-    logger.info("All setup checks passed.")
-    return True
-
-
-def make_metrics(num_classes, device):
-    return {
-        "accuracy":           Accuracy(task="multiclass", num_classes=num_classes).to(device),
-        "f1_micro":           F1Score(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "f1_macro":           F1Score(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "f1_classwise":       F1Score(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "precision_micro":    Precision(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "precision_macro":    Precision(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "precision_classwise":Precision(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "recall_micro":       Recall(task="multiclass", average="micro", num_classes=num_classes).to(device),
-        "recall_macro":       Recall(task="multiclass", average="macro", num_classes=num_classes).to(device),
-        "recall_classwise":   Recall(task="multiclass", average="none", num_classes=num_classes).to(device),
-        "roc_auc":            AUROC(task="multiclass", num_classes=num_classes).to(device),
-    }
-
-def reset_metrics(metrics: dict): #reset all metrics at the end of each epoch
-    for m in metrics.values():
-        m.reset()
+#used throughout all loggings runs for local saves, cloud saves use mlflow run_id
+experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
+# normalize device to a torch.device once
+dev = torch.device(cfg.env.device)
+active_variant = cfg.active_variant
 
 
 def train_default():
 
-    #setting seed 
-    random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
+    logger.info(
+        "Training configuration | device={} | seed={} | batch_size={} | num_epochs={} | train_path={} | val_path={}",
+        cfg.env.device,
+        cfg.env.seed,
+        cfg.train.batch_size,
+        cfg.train.num_epochs,
+        cfg.data.train_path,
+        cfg.data.val_path,
+    )
+    random.seed(cfg.env.seed)
+    torch.manual_seed(cfg.env.seed)
+    torch.cuda.manual_seed_all(cfg.env.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
     
-    metrics = make_metrics(num_class, device) #cleaner version of metrics setup
-
-    
-    #load data and samplers
-    train_label_df = pd.read_csv(train_path)
-    val_label_df = pd.read_csv(val_path)
-
-    train_dataset = GalaxyDataset(labels_df=train_label_df, img_dir=image_dir, transform=raw_transforms)
-    val_dataset = GalaxyDataset(labels_df=val_label_df, img_dir=image_dir, transform=val_transforms)
+    train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), img_dir=cfg.data.img_dir, transform=raw_transforms)
+    val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), img_dir=cfg.data.img_dir, transform=val_transforms)
+    logger.info(
+        "Loaded datasets | train_samples={} | val_samples={} | image_dir={}",
+        len(train_dataset),
+        len(val_dataset),
+        cfg.data.img_dir,
+    )
 
     train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
+    logger.info("Weighted sampler prepared | class_weights={}", train_class_weights)
 
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False,sampler=train_sampler)
-    val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_dataloader = DataLoader(train_dataset, batch_size=cfg.train.batch_size, shuffle=False,sampler=train_sampler)
+    val_dataloader = DataLoader(val_dataset, batch_size=cfg.train.batch_size, shuffle=False)
     
     #load models and optimizers
-    model = GalaxyClassifier_ResNet(num_classes=num_class)
-    model.to(device)
+    assert cfg.variant.num_classes is not None, \
+    f"variant '{cfg.active_variant}' has num_classes=null, cannot use classification model"
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr) #weight decay
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=warmup_epochs,eta_min = eta_min ,T_mult=2)
-    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(device))
+    model = GalaxyClassifier_ResNet(num_classes=cfg.variant.num_classes)
+    model.to(dev)
 
-    best_val_loss = float("inf")
-    best_checkpoint_path = checkpoint_dir / "best.pt"
+    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate) #weight decay
 
-    global_step = 0 #for scheeduler 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg.train.scheduler.warmup_epochs,eta_min =
+                                                                      cfg.train.scheduler.min_lr 
+                                                                     ,T_mult=2)
+    
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
+    metrics   = make_metrics(cfg.variant.num_classes, dev)
+    writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
+    
+    az_checkpoint_dir = cfg.train.checkpoints.checkpoint_restore_path
+    chkpt_local_path = Path(cfg.train.checkpoints.local_checkpoint_path) / experiment_name   
 
-  
+    chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=chkpt_local_path,
+                                   checkpoint_dir_azure=az_checkpoint_dir,
+                                   run_id=cfg.train.checkpoints.run_id)
+    logger.info(
+        "Checkpoint manager initialized | local_dir={} | azure_dir={} | resume_enabled={}",
+        chkpt_local_path,
+        az_checkpoint_dir,
+        cfg.train.checkpoints.resume_from_checkpoint,
+    )
+    
+    # checkpoint manager already handles the logic for getting config if you want to resume or not
+    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev,save_filename="tmp.pt")
+    
+    best_val_loss = chkpt_state.best_val_loss
+
+    cfg_snapshot = {
+        "variant":     cfg.active_variant,
+        "num_classes": cfg.variant.num_classes,
+        "lr":          cfg.train.learning_rate,
+        "batch_size":  cfg.train.batch_size,
+    }# to log in mlfow
+
     mlflow.enable_system_metrics_logging()
-    
-    with mlflow.start_run(run_name=experiment_name) as run:
 
-    
-
+    with mlflow.start_run(run_name=experiment_name,run_id=chkpt_state.resume_run_id) as run:
         run_id = run.info.run_id
-        logger.info(f"MLflow run started: {run_id}")
+        chkpt.run_id = run_id #resuign same functino to update the run_id incase of new run
+        logger.info(
+            "MLflow run started | run_id={} | resume_run_id={} | start_epoch={} | best_val_loss={}",
+            run_id,
+            chkpt_state.resume_run_id,
+            chkpt_state.start_epoch,
+            chkpt_state.best_val_loss,
+        )
 
-        mlflow.log_params({
-            "epochs": epoch,
-            "batch_size": batch_size,
-            "lr": lr,
-            "grad_clip": grad_clip,
-            "variant": active,
-            "num_classes": num_class,
-            "optimizer": "AdamW",
-            "scheduler": "CosineAnnealingWarmRestarts",
-            "T_0": warmup_epochs,
-            "T_mult": 2,
-            "label_smoothing": 0.1,
-            "batch_size": batch_size,
-            "variant": active,
-            "num_classes": num_class,
-            "seed": seed
+        if chkpt_state.resume_run_id is None:
+            mlflow.log_params({
+                "epochs":          cfg.train.num_epochs,
+                "batch_size":      cfg.train.batch_size,
+                "lr":              cfg.train.learning_rate,
+                "weight_decay":    cfg.train.weight_decay,
+                "grad_clip":       cfg.train.grad_clip_max_norm,
+                "label_smoothing": cfg.train.label_smoothing,
+                "variant":         cfg.active_variant,
+                "num_classes":     cfg.variant.num_classes,
+                "optimizer":       cfg.train.optimizer,
+                "scheduler":       cfg.train.scheduler.type,
+                "T_0":             cfg.train.scheduler.warmup_epochs,
+                "T_mult":          2,
+                "seed":            cfg.env.seed,
+            })
+        else:
+            logger.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
+
+        global_step = 0
+
+        for ep in range(chkpt_state.start_epoch, cfg.train.num_epochs):
+            train_loss, global_step = train_epoch(
+                model, train_dataloader, optimizer, scheduler, criterion,
+                writer, ep, cfg.train.num_epochs, global_step,
+                cfg.train.grad_clip_max_norm, dev,
+            )
             
-        })
-
-        for ep in range(epoch):
-            model.train()
-            train_loss = 0.0
-
-            pbar = tqdm(train_dataloader, desc=f"Epoch {ep+1}/{epoch} [train]")
-
-            ''' Training'''
-            for images, labels in pbar:
-
-                images, labels = images.to(device), labels.to(device)
-                optimizer.zero_grad()
-                outputs = model(images)
-                loss = criterion(outputs, labels)
-                train_loss += loss.item() * images.size(0)
-                
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)# Gradient clipping to prevent exploding gradients
-
-
-                optimizer.step()
-                scheduler.step(ep+ global_step/len(train_dataloader)) # Update scheduler with epoch and batch progress
-                
-                global_step += 1
-
-                #tensorboard loggings
-                writer.add_scalar("Loss/train", loss.item(), global_step)
-                writer.add_scalar("LearningRate", optimizer.param_groups[0]['lr'], global_step)
-                
-                #cli visual
-                pbar.set_postfix({
-                    "loss": f"{loss.item():.4f}",
-                    "lr": f"{optimizer.param_groups[0]['lr']:.2e}"
-                })
- 
-            train_loss /= len(train_dataset)
-
-            
-            ''' Evaluation'''
-            model.eval()
-            val_loss = 0.0
-            with torch.no_grad():
-
-                for images, labels in tqdm(val_dataloader, desc=f"Epoch {ep+1}/{epoch} [val]"):
-                    images, labels = images.to(device), labels.to(device)
-
-                    
-                    outputs = model(images)
-                    loss = criterion(outputs, labels)
-                    val_loss += loss.item() * images.size(0)
-
-                    preds = torch.softmax(outputs, dim=1)
-
-                    #all metrics
-                    metrics["accuracy"].update(preds, labels)
-                    metrics["f1_micro"].update(preds, labels)
-                    metrics["f1_macro"].update(preds, labels)
-                    metrics["f1_classwise"].update(preds, labels)
-                    metrics["precision_micro"].update(preds, labels)
-                    metrics["precision_macro"].update(preds, labels)
-                    metrics["precision_classwise"].update(preds, labels)
-                    metrics["recall_micro"].update(preds, labels)
-                    metrics["recall_macro"].update(preds, labels)
-                    metrics["recall_classwise"].update(preds, labels)
-                    metrics["roc_auc"].update(preds, labels)
-
-                val_loss /= len(val_dataset)
-
-
-
-            val_acc = metrics["accuracy"].compute().item()
-            val_f1_micro = metrics["f1_micro"].compute().item()
-            val_f1_macro = metrics["f1_macro"].compute().item()
-            val_f1_classwise = metrics["f1_classwise"].compute().tolist()
-            val_prec_micro = metrics["precision_micro"].compute().item()
-            val_prec_macro = metrics["precision_macro"].compute().item()
-            val_prec_classwise = metrics["precision_classwise"].compute().tolist()
-            val_recall_micro = metrics["recall_micro"].compute().item()
-            val_recall_macro = metrics["recall_macro"].compute().item()
-            val_recall_classwise = metrics["recall_classwise"].compute().tolist()
-            val_roc_auc = metrics["roc_auc"].compute().item()
- 
-            reset_metrics(metrics)
-
-            #per epoch mlflow log
-            mlflow.log_metrics({
-                "train_loss": train_loss,
-                "val_loss": val_loss,
-                "val_acc": val_acc,
-                "val_f1_micro": val_f1_micro,
-                "val_f1_macro": val_f1_macro,
-                "val_precision_micro": val_prec_micro,
-                "val_precision_macro": val_prec_macro,
-                "val_recall_micro": val_recall_micro,
-                "val_recall_macro": val_recall_macro,
-                "val_roc_auc": val_roc_auc,
-                "lr": optimizer.param_groups[0]["lr"],
-            }, step=ep)
-
-            #class wise metrics logging
-            for i, (f1, prec, rec) in enumerate(zip(val_f1_classwise, val_prec_classwise, val_recall_classwise)):
-                mlflow.log_metrics({
-                    f"val_f1_class_{i}": f1,
-                    f"val_precision_class_{i}": prec,
-                    f"val_recall_class_{i}": rec,
-                }, step=ep)
-    
-           # TensorBoard loggings
-            writer.add_scalar("Loss/val", val_loss, ep)
-            writer.add_scalar("Accuracy/val", val_acc, ep)
-            writer.add_scalar("F1/val_macro", val_f1_macro, ep)
-
-            logger.info(
-                f"Epoch {ep+1}/{epoch} | "
-                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
-                f"val_acc={val_acc:.4f} | val_f1_macro={val_f1_macro:.4f}"
+            val_loss, val_metrics = validate_epoch(
+                model, val_dataloader, criterion, metrics,
+                ep, cfg.train.num_epochs, dev,
             )
 
-            
-            # checkpoints with best val models
+            mlflow.log_metrics({
+                "train_loss":          train_loss,
+                "val_loss":            val_loss,
+                "val_acc":             val_metrics["val_acc"],
+                "val_f1_micro":        val_metrics["val_f1_micro"],
+                "val_f1_macro":        val_metrics["val_f1_macro"],
+                "val_precision_micro": val_metrics["val_precision_micro"],
+                "val_precision_macro": val_metrics["val_precision_macro"],
+                "val_recall_micro":    val_metrics["val_recall_micro"],
+                "val_recall_macro":    val_metrics["val_recall_macro"],
+                "val_roc_auc":         val_metrics["val_roc_auc"],
+                "lr":                  optimizer.param_groups[0]["lr"],
+            }, step=global_step)
+
+            # Log classwise metrics to MLflow
+            for i, (f1, prec, rec) in enumerate(zip(
+                val_metrics["val_f1_classwise"],
+                val_metrics["val_precision_classwise"],
+                val_metrics["val_recall_classwise"],
+            )):
+                mlflow.log_metrics({
+                    f"val_f1_class_{i}":        f1,
+                    f"val_precision_class_{i}": prec,
+                    f"val_recall_class_{i}":    rec,
+                }, step=global_step)
+
+            # handle tensorbaord checkpointing
+            writer.add_scalar("Loss/val",     val_loss,                    ep)
+            writer.add_scalar("Accuracy/val", val_metrics["val_acc"],      ep)
+            writer.add_scalar("F1/val_macro", val_metrics["val_f1_macro"], ep)
+ 
+            logger.info(
+                f"Epoch {ep+1}/{cfg.train.num_epochs} | "
+                f"train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | "
+                f"val_acc={val_metrics['val_acc']:.4f} | val_f1_macro={val_metrics['val_f1_macro']:.4f}"
+            )
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
-                torch.save({
-                    "epoch": ep,
-                    "model_state_dict": model.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "scheduler_state_dict": scheduler.state_dict(),
-                    "val_loss": val_loss,
-                    "val_f1_macro": val_f1_macro,
-                    "run_id": run_id,
-                    "config": {
-                        "variant": active,
-                        "num_classes": num_class,
-                        "lr": lr,
-                        "batch_size": batch_size,
-                    }
-                }, best_checkpoint_path)
-                logger.info(f"New best checkpoint saved (val_loss={val_loss:.4f})")
+                logger.info("New best validation loss {:.4f} at epoch {}", val_loss, ep + 1)
 
+                chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], cfg_snapshot, filename="best.pt")
+                ckpt_url =chkpt.upload_checkpoint_to_azure(filename="best.pt")#upload immediately after improvement for better restore
+                mlflow.set_tag("checkpoint_url", ckpt_url)
+                mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
+                logger.info("Best checkpoint synced to Azure | url={}", ckpt_url)
+        # after training   
+        # 
+        with AzureBlobStorage(log_type="ml", logger_config=log_config) as blob:
+            # ensure experiment container exists
+            logger.info("Ensuring Azure artifact container exists: {}", cfg.storage.cloud.experiments.container)
+            blob.create_container(name=cfg.storage.cloud.experiments.container)
 
-        ''' after training steps'''        
+            # load best checkpoint (support either file path or directory containing best.pt)
+            best_candidate = Path(chkpt.checkpoint_dir)
+            if best_candidate.is_file():
+                best_ckpt_path = best_candidate
+            else:
+                best_ckpt_path = best_candidate / "best.pt"
 
-        logger.info("Training complete. Uploading checkpoint to Azure Blob...")
-        blob_path = f"checkpoints/{run_id}/best.pt"
+            best_ckpt = torch.load(best_ckpt_path, map_location=dev)
+            model.load_state_dict(best_ckpt["model_state_dict"])
+            logger.info(
+                "Loaded best weights | epoch={} | checkpoint_path={}",
+                best_ckpt["epoch"] + 1,
+                best_ckpt_path,
+            )
 
-        blob_helper = AzureBlobStorage(container_name=ml_yaml["storage"]["cloud"]["experiments"]["container"])
+            logger.info("Registering model to mlflow")
+            register_model(model, val_dataloader)
 
-        #uploading best checkpoint to azure
-        blob_helper.create_container() 
+            logger.info("Generating training report")
+            generate_report(run_id=run_id, output_path=cfg.storage.local.logs.reports_dir / f"{experiment_name}.md")
 
-        with open(best_checkpoint_path, "rb") as f:
-            blob_url = blob_helper.upload_blob(blob_name=blob_path, data=f)
-            
-        mlflow.set_tag("checkpoint_url", blob_url)
-        mlflow.set_tag("checkpoint_blob_path", blob_path)
+            logger.info("Uploading artifacts to Azure Blob Storage")
+            upload_artifact(blob, run_id,experiment_name=experiment_name)
 
-
-
-        # Load best weights before logging to registry 
-        best_ckpt = torch.load(best_checkpoint_path, map_location=device)
-        model.load_state_dict(best_ckpt["model_state_dict"])
-        logger.info(f"Loaded best weights from epoch {best_ckpt['epoch']+1}")
-
-
-        #infer signatures for mlflow registry 
-        sample_images, _ = next(iter(val_dataloader))
-        sample_images = sample_images.to(device)
-
-        with torch.no_grad():
-            sample_preds = model(sample_images)
-            sample_preds_np = torch.softmax(sample_preds, dim=1).cpu().numpy()
-
-        signature = infer_signature(
-            sample_images.cpu().numpy(),
-            sample_preds_np
-        )
-        
-
-        #logging to mlflwo registry
-
-
-        mlflow.pytorch.log_model(
-            model,
-            serialization_format="pt2", #most stable one
-            input_example=sample_images.cpu(),
-            name="model",
-            registered_model_name=ml_yaml["variants"][active].get("mlflow", {}).get("model_name"),
-            signature=signature,
-        )
-        logger.info("Model logged to MLflow registry.")
-
-        generate_report(run_id=run_id, output_path=reports_dir / f"{experiment_name}.md")
-
-
-          #uploading logs to azure
-        log_system = AzureBlobStorage(container_name = log_config["logging"]["cloud"]["logs"]["container"])
-        log_blob_path = f"logs/{run_id}/training.log"
-        log_system.create_container()
-
-        with open(str(log_dir), "rb") as f:
-            blob_log_url= log_system.upload_blob(blob_name=log_blob_path, data=f)
-         
-        mlflow.set_tag("log_url", blob_log_url)
-
-
-        with open(reports_dir / f"{experiment_name}.md", "rb") as f:
-            report_blob_path = f"reports/{run_id}/report.md"
-            report_blob_url = log_system.upload_blob(blob_name=report_blob_path, data=f) #same container as logs
-
-        mlflow.set_tag("report_url", report_blob_url)
-
-        try:
-            for path in Path(tensorboard_dir).iterdir():
-                if path.is_dir() and path.name == experiment_name:
-                    for file in path.iterdir():
-                        if file.is_file():
-                            tb_blob_path = f"tensorboard/{run_id}/{file.name}"
-                            with open(file, "rb") as f:
-                                tb_blob_url = log_system.upload_blob(blob_name=tb_blob_path, data=f)
-                            mlflow.set_tag(f"tensorboard_{file.name}", tb_blob_url)
-                            
-        except Exception as e:
-            logger.error(f"Error uploading TensorBoard logs: {e}")
-
-        logger.info(f"report generated at {reports_dir / f'{experiment_name}.md'}")
         writer.close()
-        logger.info("Training Completed")
-
-    
+        logger.success("Training complete.")
 
 
-        
+def train_hubble():
+    pass
+
+def train_dirilchled():
+    pass
+# CLI entry
 @click.command()
-@click.option("--variant", type=str, default="default", help="Training variant to use",options=["default","hubble","dirilichet"])
-
+@click.option("--variant", type=str, default="Default", help="Training variant to use")
 def main(variant):
+
+    if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
+               mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+               
+            create_dirs =   [cfg.storage.local.checkpoints.dir,
+            cfg.storage.local.logs.reports_dir,
+            cfg.storage.local.logs.tensorboard_dir]):
+        
+        logger.error("Setup validation failed. Exiting.")
+        return
+        
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    if variant == "Default":
+        mlflow.set_experiment(cfg.variant.experiment.root)
+        train_default()
     
-
-
-    if validate_setup():
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-        if variant == "default":
-            mlflow.set_experiment(experiment_root)
-            train_default()
-        #need to test centercrop images 
-
-
-
+ 
 if __name__ == "__main__":
     main()

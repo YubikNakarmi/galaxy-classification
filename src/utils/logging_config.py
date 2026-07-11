@@ -1,12 +1,22 @@
+''' Parser and overwritting default logging with file stream configuration
+- setup_app_logging: for application logs
+- setup_ml_logging: for machine learning logs
+
+Example:
+    from src.utils.logging_config import setup_app_logging, setup_ml_logging
+    setup_app_logging(config)
+'''
+
 from loguru import logger
 from pathlib import Path
 import sys
 
-''' Parser and overwritting default logging with file stream configuration'''
 
 root = Path(__file__).resolve().parent.parent.parent
 
-def setup_app_logging(config):
+def setup_app_logging(config: dict):
+    '''Sets up logging for the application based on the provided configuration.'''
+
     logger.remove()
 
     app = config["logging"]["app"]
@@ -25,7 +35,8 @@ def setup_app_logging(config):
     )
 
 
-def setup_ml_logging(config):
+def setup_ml_logging(config: dict):
+    '''Sets up logging for machine learning activities based on the provided configuration.'''
     logger.remove()
 
     ml = config["logging"]["ml"]

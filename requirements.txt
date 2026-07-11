@@ -1,3 +1,4 @@
+-e .
 a2wsgi==1.10.10
 absl-py==2.4.0
 adlfs==2026.5.0
@@ -212,7 +213,6 @@ python-dotenv==1.2.2
 python-json-logger==4.1.0
 python-multipart==0.0.32
 pytz==2026.2
-pywin32==311
 PyYAML==6.0.3
 pyyaml_env_tag==1.1
 pyzmq==27.1.0

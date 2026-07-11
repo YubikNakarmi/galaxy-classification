@@ -1,3 +1,4 @@
+#core.yaml
 system:
   name: galaxy-classifier
   version: 1.0
