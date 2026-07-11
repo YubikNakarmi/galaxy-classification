@@ -110,7 +110,9 @@ def validate_epoch(
             for m in metrics.values():#update at each batch
                 m.update(preds, labels)
 
-        #all metrics compute
+        # compute loss once, then build results from it
+        val_loss = running_loss / num_samples if num_samples > 0 else 0.0
+
         results = {
         "val_loss":             val_loss,
         "val_acc":              metrics["accuracy"].compute().item(),
@@ -128,7 +130,5 @@ def validate_epoch(
         
         for m in metrics.values():
             m.reset()
-    
 
-        val_loss = running_loss / num_samples if num_samples > 0 else 0
         return val_loss, results
