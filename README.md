@@ -1,4 +1,4 @@
-
+[![Deploy Documentation](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml)
 
 # need to add stack 
 - hydra or omegaconf for config management.
