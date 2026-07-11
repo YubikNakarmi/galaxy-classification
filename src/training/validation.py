@@ -33,10 +33,10 @@ def validate_setup(
     ok = True
 
 
-    #paths
+    # paths that must already exist
     for p in required_paths:
-        if not Path(p).exists():
-            Path(p).mkdir(parents=True, exist_ok=True)
+        p = Path(p)
+        if not p.exists():
             logger.error(f"Required path missing: {p}")
             ok = False
 
