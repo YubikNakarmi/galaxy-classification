@@ -1,17 +1,22 @@
 import mlflow
 import bentoml
-from src.utils.yaml_utils import load_yaml
 from pathlib import Path
 from dotenv import load_dotenv
 import os
-from .runners import load_best_model
+import sys
 from PIL import Image
-from .runners import run_default_model,run_dirichlet_model,run_hubble_model,build_gradcam
-from .consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 from prometheus_client import Counter, Histogram
 import time
 
 root = Path(__file__).parent.parent
+
+if str(root) not in sys.path:
+    sys.path.insert(0, str(root))
+
+from src.utils.yaml_utils import load_yaml
+from bentoml_api.runners import load_best_model
+from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubble_model, build_gradcam
+from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 
 load_dotenv(root / '.env')
 
@@ -28,11 +33,11 @@ class GalaxyClassification:
     def __init__(self):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-        self.default_model = load_best_model(experiment_name=experiment_root_default).eval().to(DEVICE)
-        self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
-        self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
+        self.default_model = load_best_model(experiment_name=experiment_root_default).module().eval().to(DEVICE)
+        #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
+        #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
         self.gradcam_default = build_gradcam(self.default_model)
-        self.gradcam_hubble = build_gradcam(self.hubble_model)
+        #self.gradcam_hubble = build_gradcam(self.hubble_model)
 
     @bentoml.api(route = "/default",batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):

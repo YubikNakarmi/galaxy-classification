@@ -14,6 +14,8 @@ import base64
 from .schemas import ClassificationResult
 from prometheus_client import Counter, Histogram
 import time
+from typing import cast
+from torch.export import ExportedProgram
 
 from .consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES
 
@@ -48,7 +50,14 @@ def load_best_model(experiment_name: str) -> torch.nn.Module:
 
     best_run = runs[0]
     model_uri = f"runs:/{best_run.info.run_id}/model"
-    return mlflow.pytorch.load_model(model_uri) #preload while return
+    model =  mlflow.pytorch.load_model(model_uri) #preload while return
+
+    if isinstance(model, ExportedProgram):
+        model = model.module()
+        logger.info(f"Loaded model from run {best_run.info.run_id} in experiment '{experiment_name}'")
+        return cast(torch.nn.Module, model)
+
+    return model
 
 def build_gradcam(model: torch.nn.Module) -> GradCAM:
 

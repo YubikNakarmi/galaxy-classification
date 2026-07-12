@@ -9,13 +9,15 @@ labels:
 include:
   - src/**
   - configs/
-  - requirements.txt
+  - ./bentoml_api/requirements.bentoml.txt
+  - ./bentoml_api/setup_package.sh
   - setup.py
 
 python:
-  requirements_txt: ./requirements.bentoml.txt
+  requirements_txt: ./bentoml_api/requirements.bentoml.txt
   lock_packages: false
 
 docker:
   distro: debian
   python_version: "3.12"
+  setup_script: ./bentoml_api/setup_package.sh

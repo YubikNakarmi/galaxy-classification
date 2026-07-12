@@ -57,7 +57,7 @@ services:
       restart: always
   
   bentoml:
-    image: galaxy_classification:v0.6 #built bento container using bentoml build
+    image: galaxy_classification:0.6.0 #built bento container using bentoml build
 
     env_file:
       - .env
