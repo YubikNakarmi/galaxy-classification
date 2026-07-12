@@ -12,6 +12,8 @@ from PIL import Image
 import io
 import base64
 from .schemas import ClassificationResult
+from prometheus_client import Counter, Histogram
+import time
 
 from .consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES
 
@@ -90,12 +92,15 @@ def run_default_model(model: torch.nn.Module, cam: GradCAM, orig_img: list[Image
 
     for i,(prob, img) in enumerate(zip(probabilities, orig_img)): #enumerate over each image and its corresponding probabilities
         pred_class = np.argmax(prob)
+        heat_start = time.perf_counter()
         heatmap_b64 = run_gradcam(cam, tensor[i], img)
+        heat_end = time.perf_counter()
         
         results.append(ClassificationResult(
                 object_type = DEFAULT_CLASS_NAMES[pred_class],
                 confidence_scores = float(prob[pred_class]),
-                heatmap_b64 = heatmap_b64
+                heatmap_b64 = heatmap_b64,
+                heatmap_latency = heat_end - heat_start
         ))
     return results
 

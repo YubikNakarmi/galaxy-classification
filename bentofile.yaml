@@ -13,7 +13,8 @@ include:
   - setup.py
 
 python:
-  requirements_txt: ./requirements.txt
+  requirements_txt: ./requirements.bentoml.txt
+  lock_packages: false
 
 docker:
   distro: debian
