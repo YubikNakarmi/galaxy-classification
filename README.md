@@ -98,3 +98,6 @@ blob.container_name = "test"
 blob.print_info()
 ```
 Total parameters: 61,187,525
+
+# improvements
+add cache for model instead of always loading

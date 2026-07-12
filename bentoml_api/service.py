@@ -5,8 +5,11 @@ from dotenv import load_dotenv
 import os
 import sys
 from PIL import Image
+from src.models import GalaxyClassifier_ResNet
 from prometheus_client import Counter, Histogram
 import time
+from src.utils.cached_models import ModelLoader
+
 
 root = Path(__file__).parent.parent
 
@@ -14,7 +17,6 @@ if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
 from src.utils.yaml_utils import load_yaml
-from bentoml_api.runners import load_best_model
 from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubble_model, build_gradcam
 from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 
@@ -32,11 +34,15 @@ class GalaxyClassification:
     
     def __init__(self):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        modelloader_default = ModelLoader(experiment_name=experiment_root_default, 
+                                          local_cache=True, local_cache_dir=root / "models/cached")
 
-        self.default_model = load_best_model(experiment_name=experiment_root_default).to(DEVICE)
+        self.default_model = modelloader_default.load_best_model().eval().to(DEVICE)
+
         #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
         #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
-        self.gradcam_default = build_gradcam(self.default_model)
+        synced_deault_model = modelloader_default.sync_model_context(GalaxyClassifier_ResNet(), self.default_model)
+        self.gradcam_default = build_gradcam(synced_deault_model)
         #self.gradcam_hubble = build_gradcam(self.hubble_model)
 
     @bentoml.api(route = "/default",batchable=True, max_batch_size=16, max_latency_ms=300)
