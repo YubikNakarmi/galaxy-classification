@@ -1,3 +1,6 @@
+from xml.parsers.expat import model
+import re
+from babel.util import missing
 from pytorch_grad_cam import GradCAM
 from src.utils.logging_config import setup_app_logging
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -11,13 +14,15 @@ import numpy as np
 from PIL import Image
 import io
 import base64
-from .schemas import ClassificationResult
+from schemas import ClassificationResult
 from prometheus_client import Counter, Histogram
 import time
 from typing import cast
 from torch.export import ExportedProgram
+from src.utils.azure_utils import AzureBlobStorage
 
-from .consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES
+from consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
+experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 
 root = Path(__file__).parent.parent
 file_config = root / 'configs' / 'core.yaml'
@@ -51,13 +56,30 @@ def load_best_model(experiment_name: str) -> torch.nn.Module:
     best_run = runs[0]
     model_uri = f"runs:/{best_run.info.run_id}/model"
     model =  mlflow.pytorch.load_model(model_uri) #preload while return
-
-    if isinstance(model, ExportedProgram):
-        model = model.module()
-        logger.info(f"Loaded model from run {best_run.info.run_id} in experiment '{experiment_name}'")
-        return cast(torch.nn.Module, model)
+    logger.info(f"Loaded best model from experiment '{experiment_name}' with run ID '{best_run.info.run_id}'")
 
     return model
+
+
+
+def sync_model_context(model: torch.nn.Module, exported_model: torch.nn.Module,):
+    """
+    Synchronize the context of the exported model with the original model structure.
+    
+    Args:
+        model: The original PyTorch model.
+        exported_model: The exported PyTorch model (ExportedProgram).
+    """
+    state_dict = exported_model.state_dict()
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+
+    if missing or unexpected is not None: #remap properly to avoid missing keys
+        logger.critical(f"Missing keys in state_dict: {missing}")
+        logger.critical(f"Unexpected keys in state_dict: {unexpected}")
+        return
+       
+
+    return model.eval()  # Ensure the model is in evaluation mode after loading weights
 
 def build_gradcam(model: torch.nn.Module) -> GradCAM:
 
@@ -118,3 +140,5 @@ def run_hubble_model():
 
 def run_dirichlet_model():
     pass 
+
+

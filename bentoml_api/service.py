@@ -33,7 +33,7 @@ class GalaxyClassification:
     def __init__(self):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-        self.default_model = load_best_model(experiment_name=experiment_root_default).module().eval().to(DEVICE)
+        self.default_model = load_best_model(experiment_name=experiment_root_default).to(DEVICE)
         #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
         #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
         self.gradcam_default = build_gradcam(self.default_model)

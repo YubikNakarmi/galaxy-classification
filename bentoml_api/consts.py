@@ -44,3 +44,4 @@ experiment_root_hubble = ml_yaml["variants"]["Hubble"]["experiment"]["root"]
 experiment_root_dirichlet = ml_yaml["variants"]["Dirichlet"]["experiment"]["root"]
 device = ml_yaml["env"]["device"]
 
+container_name = ml_yaml["storage"]["cloud"]["experiments"]["container"]

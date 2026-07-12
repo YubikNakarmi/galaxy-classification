@@ -217,7 +217,7 @@ class AzureBlobStorage:
             return None
         
     def load_blob(self, blob_name:str, 
-                  local_path: str | Path) -> Optional[str]:
+                  local_path:Optional[str | Path] = None) -> Optional[str|bytes|BinaryIO]:
         '''Download a blob from the current container to a local file.
 
         Args:
@@ -232,13 +232,22 @@ class AzureBlobStorage:
         '''
 
         try:
+           
             container_client = self._ensure_container_client()
             blob_client = container_client.get_blob_client(blob_name)
-            with open(local_path, "wb") as f:
-                f.write(blob_client.download_blob().readall())
-            logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
+
+            if local_path is None:
+                logger.warning("No local path provided. just returning blob")
+                return blob_client.download_blob().readall()
             
-            return str(blob_client.url)  # Return the blob URL for reference
+            else:
+                with open(local_path, "wb") as f:
+                    f.write(blob_client.download_blob().readall())
+                logger.info(f"Blob '{blob_name}' downloaded to {local_path}")
+
+                return str(blob_client.url) 
+         
+             # Return the blob URL for reference
         except Exception as e:
             logger.exception(f"Error downloading blob: {e}")
             return None

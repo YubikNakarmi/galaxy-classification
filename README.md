@@ -97,3 +97,4 @@ blob = AzureBlobStorage(storage_connection_string = "DefaultEndpointsProtocol=ht
 blob.container_name = "test"
 blob.print_info()
 ```
+Total parameters: 61,187,525
