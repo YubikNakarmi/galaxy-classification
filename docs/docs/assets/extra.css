@@ -9,12 +9,6 @@ code, pre code {
   font-size: 0.95rem;
 }
 
-pre.md-typeset, .md-typeset pre {
-  background-color: #0b1220; /* dark background for code blocks */
-  color: #e6eef6;
-  border-radius: 8px;
-  padding: 1rem;
-}
 
 /* Make page meta (dates) stand out */
 .page-meta {

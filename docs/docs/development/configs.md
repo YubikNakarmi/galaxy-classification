@@ -21,7 +21,22 @@ The configuration file is divided into the following sections:
 
 Each section controls a specific part of the machine learning pipeline.
 
+## Usage
+The  `ml.yaml` file can be parsed using the `src.config` module. The configuration values can be accessed as a dictionary or as an object with attribute-style access. The configs are mapped to a class style structure, allowing for easy access to nested parameters.
+
+``` py
+from src.config import load_and_validate_config
+  
+config = load_and_validate_config("ml.yaml")
+
+print(config.env.name)  # Access environment name
+print(config.train.batch_size)  # Access training batch size
+
+```
+
 ---
+
+
 
 ## Environment Configuration
 

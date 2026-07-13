@@ -1,6 +1,7 @@
-# Logging
 
-Logging is done through loguru library. The logging configuration is defined in `core.yaml` file under the `logging` section. There are two loggers defined, one for the application logs and another for the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings.
+Logging is done through loguru library. The logging configuration is defined in `core.yaml` file under the `logging` section. There are two loggers defined, one for the application logs and another for the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings. 
+
+Furthermore stderr and stdout can be configured to log a docker container. Services like **Bentoml** and **Fastapi** containers utilize this to log to the container. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config).
 
 ## Configs
 

@@ -1,5 +1,17 @@
 FROM python:3.12-slim
-WORKDIR /api
-COPY . .
+WORKDIR /app
+COPY api/ ./api/
+COPY src/ ./src/
+COPY configs/ ./configs/
+COPY setup.py .
 
-RUN pip install --no-cache-dir fastapi uvicorn azure-storage-blob mlflow redis pymysql
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    azure-storage-blob \
+    mlflow \
+    redis \
+    pymysql
+
+RUN pip install --no-cache-dir -e .
+

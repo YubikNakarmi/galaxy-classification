@@ -2,15 +2,24 @@
 services:
 
   api:
-    build: .
-    container_name: /infra/docker/Dockerfile.api
+    build: 
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+      
+    container_name: api
+    volumes: 
+      - ./api:/api
+      - ./src:/src
+      - ./configs:/configs
+      - ./logs/api:/logs/system
+      
     ports:
-      - "8000:8000"
+      - "8001:8000"
     env_file:
       - .env
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    command: uvicorn api/main:app --host
+    command: uvicorn api/main:app --host 0.0.0.0
 
   grafana:
     image: grafana/grafana:13.1.0
@@ -67,6 +76,7 @@ services:
       - ./src:/home/bentoml/bento/src/src #mount for editable files without building
       - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
       - ./models/cached:/home/bentoml/bento/src/models/cached #mount cached for presistance
+      - ./configs:/home/bentoml/bento/src/configs
 
     container_name: bentoml
 

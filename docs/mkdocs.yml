@@ -43,7 +43,6 @@ theme:
     - search.suggest
     - search.highlight
     - search.share
-    - content.code.copy
     - content.code.annotate
     - content.tabs.link
     - content.tooltips
@@ -80,9 +79,6 @@ markdown_extensions:
   - def_list
   - footnotes
   - md_in_html
-  - toc:
-      permalink: true
-      title: On this page
   - tables
   - pymdownx.arithmatex:
       generic: true
@@ -95,6 +91,8 @@ markdown_extensions:
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
   - pymdownx.keys
   - pymdownx.magiclink
   - pymdownx.mark
