@@ -85,10 +85,10 @@ class AzureBlobStorage:
         log_cfg = logger_config if logger_config is not None else log_config
 
         if log_type == "app":
-            setup_app_logging(log_cfg)
+            setup_app_logging(log_cfg,service = "AzureBlobStorage")
             logger.info("AzureBlobStorage client initialized with app logging...")
         elif log_type == "ml":
-            setup_ml_logging(log_cfg)
+            setup_ml_logging(log_cfg,service = "AzureBlobStorage")
             logger.info("AzureBlobStorage client initialized with ML logging...")
 
         self.storage_connection_string = storage_connection_string

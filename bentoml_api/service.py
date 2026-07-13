@@ -7,22 +7,31 @@ import sys
 from PIL import Image
 from prometheus_client import Counter, Histogram
 import time
+
 from src.utils.cached_models import ModelLoader
+from src.utils.yaml_utils import load_yaml
+from src.utils.logging_config import intercept_stdlib_logging, setup_app_logging
+from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubble_model, build_gradcam
+from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
+from loguru import logger
 
 
 root = Path(__file__).parent.parent
+load_dotenv(root / '.env')
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-from src.utils.yaml_utils import load_yaml
-from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubble_model, build_gradcam
-from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
+# loggings
+file_config = root / 'configs' / 'core.yaml'
+log_yaml = load_yaml(file_config)
+log_json = os.getenv("LOG_JSON", "True").lower() in ("true", "1", "yes")
 
-load_dotenv(root / '.env')
+setup_app_logging(log_yaml,service = "Bentoml",json_logs = log_json)
+intercept_stdlib_logging() # logs stdlib to loguru in container logs
 
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
-
+# Prometheus metrics
 h = Histogram('request_latency_seconds', 'Request latency in seconds', ['endpoint'])
 h_gradcam = Histogram('gradcam_latency_seconds', 'GradCAM latency in seconds', ['endpoint'])
 number_requests = Counter('number_of_requests', 'Number of requests received', ['endpoint'])
@@ -42,15 +51,19 @@ class GalaxyClassification:
         #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
         self.gradcam_default = build_gradcam(self.default_model)
         #self.gradcam_hubble = build_gradcam(self.hubble_model)
+        logger.bind(component = "startup").info("GalaxyClassification service initialized successfully")
 
     @bentoml.api(route = "/default",batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_default(self,images:list[Image.Image]):
+
 
         start = time.perf_counter()
         response = run_default_model(model = self.default_model,cam=self.gradcam_default,orig_img=images)
 
         end = time.perf_counter()
         h.labels(endpoint="/default").observe(end - start)
+
+        logger.bind(endpoint="/default",ms = (end - start) * 1000).info(f"Processed {len(images)} images in {end - start:.4f} seconds")
         number_requests.labels(endpoint="/default").inc()
 
         if response:
@@ -66,6 +79,7 @@ class GalaxyClassification:
     @bentoml.api(route = "/hubble",batchable=True, max_batch_size=16, max_latency_ms=300)
     def classify_hubble(self,images:list[Image.Image]):
         start = time.perf_counter()
+
 
         #inferecne .....
         

@@ -65,12 +65,15 @@ services:
       - ./bentoml:/bentoml
       - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
       - ./src:/home/bentoml/bento/src/src #mount for editable files without building
-      - ./logs:/home/bentoml/bento/logs
+      - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
+      - ./models/cached:/home/bentoml/bento/src/models/cached #mount cached for presistance
+
 
     container_name: bentoml
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      LOG_JSON: ${LOG_JSON}
     ports:
       - "3000:3000"
     depends_on:

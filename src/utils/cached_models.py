@@ -10,7 +10,7 @@ from pathlib import Path
 
 root = Path(__file__).parent.parent.parent
 cfg_file = root / 'configs' / 'core.yaml'
-setup_app_logging(load_yaml(cfg_file))
+setup_app_logging(load_yaml(cfg_file),service = "Bentoml_Cache_handler")
 
 class ModelLoader:
 
