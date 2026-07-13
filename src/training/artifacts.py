@@ -23,10 +23,6 @@ root = Path(__file__).parent.parent.parent
 load_dotenv(root / ".env")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
 
-log_config = load_yaml(root / 'configs' / 'core.yaml')
-setup_ml_logging(log_config)
-
-core_cfg = load_yaml(root / 'configs' / 'core.yaml')
 
 file_config = root / 'configs' / 'ml.yaml'
 ml_yaml = load_yaml(file_config)

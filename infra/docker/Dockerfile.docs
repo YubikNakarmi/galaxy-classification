@@ -3,5 +3,5 @@ WORKDIR /docs
 COPY . .
 RUN pip install --no-cache-dir mkdocs-material pymdown-extensions mkdocs-minify-plugin mkdocs-git-revision-date-localized mkdocs-awesome-pages-plugin mike
 
-EXPOSE 8000
-CMD ["mkdocs", "serve", "-a", "0.0.0.0:8000"]
+EXPOSE 8050:8050
+CMD ["mkdocs", "serve", "-a", "0.0.0.0:8050"]

@@ -1,7 +1,5 @@
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
-from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_app_logging, intercept_stdlib_logging
 
 from loguru import logger
 from pathlib import Path
@@ -19,14 +17,6 @@ from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
 experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 
 root = Path(__file__).parent.parent
-file_config = root / 'configs' / 'core.yaml'
-log_yaml = load_yaml(file_config)
-log_json = os.getenv("LOG_JSON", "True").lower() in ("true", "1", "yes")
-
-
-setup_app_logging(log_yaml,service = "Bentoml",json_logs = log_json)
-intercept_stdlib_logging() # logs stdlib to loguru in container logs
-
 
 def build_gradcam(model: torch.nn.Module) -> Optional[GradCAM]:
     
@@ -95,7 +85,7 @@ def run_default_model(model: torch.nn.Module, cam: GradCAM, orig_img: list[Image
                 heatmap_b64 = heatmap_b64,
                 heatmap_latency = heat_end - heat_start
         ))
-    
+
     return results
 
 def run_hubble_model():

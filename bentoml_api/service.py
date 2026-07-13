@@ -15,7 +15,6 @@ from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubb
 from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 from loguru import logger
 
-
 root = Path(__file__).parent.parent
 load_dotenv(root / '.env')
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
@@ -23,7 +22,7 @@ MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-# loggings
+# loggings (no down stream setup)
 file_config = root / 'configs' / 'core.yaml'
 log_yaml = load_yaml(file_config)
 log_json = os.getenv("LOG_JSON", "True").lower() in ("true", "1", "yes")
@@ -63,7 +62,7 @@ class GalaxyClassification:
         end = time.perf_counter()
         h.labels(endpoint="/default").observe(end - start)
 
-        logger.bind(endpoint="/default",ms = (end - start) * 1000).info(f"Processed {len(images)} images in {end - start:.4f} seconds")
+        logger.bind(endpoint="/default",ms = ).info(f"Processed {len(images)} images in {end - start:.4f} seconds")
         number_requests.labels(endpoint="/default").inc()
 
         if response:

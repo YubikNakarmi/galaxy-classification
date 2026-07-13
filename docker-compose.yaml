@@ -68,16 +68,18 @@ services:
       - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
       - ./models/cached:/home/bentoml/bento/src/models/cached #mount cached for presistance
 
-
     container_name: bentoml
+
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
       LOG_JSON: ${LOG_JSON}
+
     ports:
       - "3000:3000"
     depends_on:
       - mlflow
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -97,7 +99,6 @@ services:
         MYSQLURL_REMOTE: ${MYSQLURL_REMOTE}
         MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT}
     
-      
     command: >    #mlflow db upgrade \"${MYSQLURL_REMOTE}\" &&
          mlflow server
           --backend-store-uri ${MYSQLURL_REMOTE}

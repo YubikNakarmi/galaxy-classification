@@ -22,7 +22,6 @@ from typing import BinaryIO,Optional
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
 
-log_config = load_yaml(root / 'configs' / 'core.yaml')#deafult
 
 
 AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
@@ -53,8 +52,7 @@ class AzureBlobStorage:
 
     def __init__(self , container_name:str|None=None, 
                  account_url = AZURE_STORAGE_ACCOUNT_URL,
-                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING,
-                 logger_config:Optional[dict]= None,log_type:str = "app"):
+                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING):
         """
         Initialize an Azure Blob Storage client.
 
@@ -81,16 +79,7 @@ class AzureBlobStorage:
 
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
-        
-        log_cfg = logger_config if logger_config is not None else log_config
-
-        if log_type == "app":
-            setup_app_logging(log_cfg,service = "AzureBlobStorage")
-            logger.info("AzureBlobStorage client initialized with app logging...")
-        elif log_type == "ml":
-            setup_ml_logging(log_cfg,service = "AzureBlobStorage")
-            logger.info("AzureBlobStorage client initialized with ML logging...")
-
+       
         self.storage_connection_string = storage_connection_string
         self.account_url = account_url
         self.container_name = container_name

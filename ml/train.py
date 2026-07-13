@@ -211,7 +211,7 @@ def train_default():
                 logger.info("Best checkpoint synced to Azure | url={}", ckpt_url)
         # after training   
         # 
-        with AzureBlobStorage(log_type="ml", logger_config=log_config) as blob:
+        with AzureBlobStorage() as blob:
             # ensure experiment container exists
             logger.info("Ensuring Azure artifact container exists: {}", cfg.storage.cloud.experiments.container)
             blob.create_container(name=cfg.storage.cloud.experiments.container)

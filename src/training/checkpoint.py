@@ -16,7 +16,6 @@ from loguru import logger
 
 root = Path(__file__).parent.parent.parent
 log_file = root / "configs" / "core.yaml"
-setup_ml_logging(load_yaml(log_file))  # Load logging configuration from core.yaml
 @dataclass
 class CheckpointState:
     start_epoch: int
@@ -110,7 +109,7 @@ class CheckpointManager:
 
         try:
 
-            with AzureBlobStorage(container_name=self.az_container,logger_config=load_yaml(log_file),log_type="ml") as az_:
+            with AzureBlobStorage(container_name=self.az_container) as az_:
                 # upload local checkpoint file to blob storage under a run-specific path
              
                 path = az_.upload_blob(blob_name=blob_name, 
@@ -163,7 +162,7 @@ class CheckpointManager:
         )
 
         try:
-            with AzureBlobStorage(container_name=self.az_container, logger_config=load_yaml(log_file), log_type="ml") as az_loader:
+            with AzureBlobStorage(container_name=self.az_container) as az_loader:
                 downloaded_url = az_loader.load_blob(blob_name=resolved_blob_name, local_path=local_path)
         except Exception as e:
             logger.exception(f"Unexpected error contacting Azure Blob Storage: {e}")

@@ -3,14 +3,10 @@ from mlflow.tracking import MlflowClient
 import torch
 from typing import Optional
 from loguru import logger
-from src.utils.logging_config import setup_app_logging
-from src.utils.yaml_utils import load_yaml
 
 from pathlib import Path
 
 root = Path(__file__).parent.parent.parent
-cfg_file = root / 'configs' / 'core.yaml'
-setup_app_logging(load_yaml(cfg_file),service = "Bentoml_Cache_handler")
 
 class ModelLoader:
 
