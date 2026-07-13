@@ -57,12 +57,15 @@ services:
       restart: always
   
   bentoml:
-    image: galaxy_classification:0.6.0 #built bento container using bentoml build
+    image: galaxy_classification:v0.6.0 #built bento container using bentoml build
 
     env_file:
       - .env
     volumes:
       - ./bentoml:/bentoml
+      - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
+      - ./src:/home/bentoml/bento/src/src #mount for editable files without building
+      - ./logs:/home/bentoml/bento/logs
 
     container_name: bentoml
     environment:
@@ -101,11 +104,11 @@ services:
           --allowed-hosts "*"
           
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s
-      timeout: 30s
-      retries: 50
-      start_period: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
   
   azureite:
     image: mcr.microsoft.com/azure-storage/azurite

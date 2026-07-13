@@ -1,7 +1,8 @@
 from pytorch_grad_cam import GradCAM
-from src.utils.logging_config import setup_app_logging
 from pytorch_grad_cam.utils.image import show_cam_on_image
 from src.utils.yaml_utils import load_yaml
+from src.utils.logging_config import setup_app_logging
+
 from loguru import logger
 from pathlib import Path
 import torch
@@ -9,12 +10,12 @@ import numpy as np
 from PIL import Image
 import io
 import base64
-from schemas import ClassificationResult
 import time
 from typing import Optional
 
+from bentoml_api.schemas import ClassificationResult
 
-from consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
+from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
 experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
 
 root = Path(__file__).parent.parent

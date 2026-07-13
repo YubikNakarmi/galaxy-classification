@@ -7,17 +7,25 @@ labels:
   version: "0.6.0"
 
 include:
-  - src/**
+  - src/
+  - bentoml_api/
   - configs/
-  - ./bentoml_api/requirements.bentoml.txt
-  - ./bentoml_api/setup_package.sh
-  - setup.py
+  - bentoml_api/requirements.bentoml.txt
+  - bentoml_api/setup_package.sh
 
 python:
-  requirements_txt: ./bentoml_api/requirements.bentoml.txt
+  requirements_txt: bentoml_api/requirements.bentoml.txt
   lock_packages: false
 
 docker:
   distro: debian
   python_version: "3.12"
-  setup_script: ./bentoml_api/setup_package.sh
+
+  system_packages:
+    - libxcb1
+    - libglib2.0-0
+    - libgl1
+
+  env:
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    PYTHONPATH: /home/bentoml/bento #make /bentoml_api the working directory for the container

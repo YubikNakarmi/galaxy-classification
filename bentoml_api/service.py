@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 import os
 import sys
 from PIL import Image
-from src.models import GalaxyClassifier_ResNet
 from prometheus_client import Counter, Histogram
 import time
 from src.utils.cached_models import ModelLoader
@@ -22,7 +21,7 @@ from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_
 
 load_dotenv(root / '.env')
 
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 h = Histogram('request_latency_seconds', 'Request latency in seconds', ['endpoint'])
 h_gradcam = Histogram('gradcam_latency_seconds', 'GradCAM latency in seconds', ['endpoint'])
@@ -41,8 +40,7 @@ class GalaxyClassification:
 
         #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
         #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)
-        synced_deault_model = modelloader_default.sync_model_context(GalaxyClassifier_ResNet(), self.default_model)
-        self.gradcam_default = build_gradcam(synced_deault_model)
+        self.gradcam_default = build_gradcam(self.default_model)
         #self.gradcam_hubble = build_gradcam(self.hubble_model)
 
     @bentoml.api(route = "/default",batchable=True, max_batch_size=16, max_latency_ms=300)

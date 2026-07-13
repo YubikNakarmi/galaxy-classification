@@ -1,5 +1,4 @@
 bentoml==1.4.39
-celery==5.6.3
 torch==2.12.0
 torchmetrics==1.9.0
 torchvision==0.27.0
@@ -7,3 +6,10 @@ grad-cam==1.5.5
 mlflow==3.13.0
 loguru==0.7.3
 numpy==2.4.6
+azure-core==1.41.0
+azure-identity==1.25.3
+azure-storage-blob==12.29.0
+matplotlib==3.10.9
+matplotlib-inline==0.2.2
+matplotlib-venn==1.1.2
+pandas==2.3.3

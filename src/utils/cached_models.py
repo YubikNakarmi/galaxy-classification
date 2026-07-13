@@ -3,11 +3,20 @@ from mlflow.tracking import MlflowClient
 import torch
 from typing import Optional
 from loguru import logger
+from src.utils.logging_config import setup_app_logging
+from src.utils.yaml_utils import load_yaml
+
 from pathlib import Path
+
+root = Path(__file__).parent.parent.parent
+cfg_file = root / 'configs' / 'core.yaml'
+setup_app_logging(load_yaml(cfg_file))
 
 class ModelLoader:
 
-    def __init__(self,experiment_name: str,local_cache: bool = True,local_cache_dir: Optional[str| Path] = None):
+    def __init__(self,experiment_name: str,local_cache: bool = True,
+                 local_cache_dir: Optional[str| Path] = None,
+                 num_classes: int = 5):
         """
         Initialize the ModelLoader.
 
@@ -21,6 +30,7 @@ class ModelLoader:
         self.experiment_name = experiment_name
         self.local_cache = local_cache
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
+        self.num_classes = num_classes
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -43,26 +53,37 @@ class ModelLoader:
 
         return runs[0]
     
+    def _init_model(self) -> torch.nn.Module:
+        from src.models.model import GalaxyClassifier_ResNet
+        return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
 
     def _cache_path(self, run_id: str) -> Path:
-        return self.local_cache_dir / f"model_{run_id}.pt"
+        return self.local_cache_dir / f"{run_id}.pt"
     
     def check_cache(self, run_id: str) -> torch.nn.Module:
-        ''' Checks local file dir if there is any present model for the best run_id or run_id provided'''
         cache_path = self._cache_path(run_id)
 
         if self.local_cache and self.local_cache_dir and cache_path.exists():
-            logger.info(f"Loading model from local cache: {cache_path}")
-            return torch.load(cache_path, weights_only=False)
+            logger.info(f"Loading state_dict from cache: {cache_path}")
+            state_dict = torch.load(cache_path, map_location="cpu", weights_only=True)
+            model = self._init_model()
+            model.load_state_dict(state_dict)
+            return model
 
         logger.info(f"Cache miss for run '{run_id}', pulling from MLflow")
-        model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
+        mlflow_model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
+
+        # extract state_dict from ExportedProgram and load into fresh model
+        model = self._init_model()
+        missing, unexpected = model.load_state_dict(mlflow_model.state_dict(), strict=False)
+        if missing or unexpected:
+            logger.warning(f"Missing: {missing}, Unexpected: {unexpected}")
 
         if self.local_cache and self.local_cache_dir:
-            torch.save(model, cache_path)
-            logger.info(f"Cached model to {cache_path}")
+            torch.save(model.state_dict(), cache_path)
+            logger.info(f"Cached state_dict to {cache_path}")
 
-        return model
+        return model  
 
     def load_best_model(self) -> torch.nn.Module:
         ''' Wraps around check_cache and best run to load the best model from mlflow or local cache'''
@@ -75,21 +96,4 @@ class ModelLoader:
 
         return model
     
-    def sync_model_context(self, model: torch.nn.Module, exported_model: torch.nn.Module) -> Optional[torch.nn.Module]:
-        """
-        Synchronize the context of the exported model with the original model structure.
-        
-        Args:
-            model: The original PyTorch model.
-            exported_model: The exported PyTorch model (ExportedProgram).
-        """
-        state_dict = exported_model.state_dict()
-        missing, unexpected = model.load_state_dict(state_dict, strict=False)
-
-        if missing or unexpected : #remap properly to avoid missing keys
-            logger.critical(f"Missing keys in state_dict: {missing}")
-            logger.critical(f"Unexpected keys in state_dict: {unexpected}")
-            return None
-        
-
-        return model.eval()  # Ensure the model is in evaluation mode after loading weights
+  
