@@ -27,6 +27,7 @@ class ModelLoader:
         self.local_cache = local_cache
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
+        self.best_run_id = None  # Store the best run ID for later use
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -46,15 +47,17 @@ class ModelLoader:
 
         if not runs:
             raise ValueError(f"No finished runs in experiment '{self.experiment_name}'")
+        
+        self.best_run_id = runs[0].info.run_id  # Store the best run ID
 
-        return runs[0]
+        return runs[ 0]
     
     def _init_model(self) -> torch.nn.Module:
         from src.models.model import GalaxyClassifier_ResNet
         return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
 
     def _cache_path(self, run_id: str) -> Path:
-        return self.local_cache_dir / f"{run_id}.pt"
+        return self.local_cache_dir / f"{run_id}.pt" 
     
     def check_cache(self, run_id: str) -> torch.nn.Module:
         cache_path = self._cache_path(run_id)

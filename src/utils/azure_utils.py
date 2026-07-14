@@ -14,18 +14,15 @@ from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
-from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_app_logging, setup_ml_logging
 from typing import BinaryIO,Optional
+from typing import Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
 
 
-
-AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-AZURE_STORAGE_ACCOUNT_URL = os.getenv('AZURE_STORAGE_ACCOUNT_URL') #default env var entries``
+_AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING') #default env var entries``
 
 class AzureBlobStorage:
 
@@ -50,9 +47,8 @@ class AzureBlobStorage:
         >>> storage.list_blobs()
     """
 
-    def __init__(self , container_name:str|None=None, 
-                 account_url = AZURE_STORAGE_ACCOUNT_URL,
-                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING):
+    def __init__(self , container_name:Optional[str] = None, 
+                 storage_connection_string:Optional[str] = _AZURE_STORAGE_CONNECTION_STRING):
         """
         Initialize an Azure Blob Storage client.
 
@@ -80,12 +76,11 @@ class AzureBlobStorage:
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
        
-        self.storage_connection_string = storage_connection_string
-        self.account_url = account_url
+        self.__storage_connection_string = storage_connection_string
         self.container_name = container_name
 
         #connect
-        self.blob_service_client = BlobServiceClient.from_connection_string(conn_str = self.storage_connection_string)
+        self.blob_service_client = BlobServiceClient.from_connection_string(conn_str = self.__storage_connection_string)
 
         self.container_client = None #None client
 

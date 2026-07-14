@@ -68,6 +68,7 @@ def _parse_data(raw: dict, root: Path) -> DataConfig:
         split_dir=root / d["split_dir"],
         train_path=root / d["train_path"],
         val_path=root / d["val_path"],
+        eval_path=root / d["eval_path"],
         input_size=int(d.get("input_size", 128)),
 
         normalize=NormalizeConfig(
@@ -92,6 +93,7 @@ def _parse_storage(raw: dict, root: Path) -> StorageConfig:
             ),
             checkpoints=LocalCheckpointsConfig(
                 dir=root / loc["checkpoints"]["dir"],
+                model_cache_dir=root / loc["checkpoints"]["model_cache_dir"]
             ),
         ),
         cloud=CloudStorageConfig(
