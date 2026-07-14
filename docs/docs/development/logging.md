@@ -3,6 +3,10 @@ Logging is done through loguru library. The logging configuration is defined in 
 
 Furthermore stderr and stdout can be configured to log a docker container. Services like **Bentoml** and **Fastapi** containers utilize this to log to the container. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config).
 
+```sh title="view logs in docker container"
+docker logs <container_id> 
+```
+
 ## Configs
 
 ``` yaml title="Logging snippet of core.yaml"
@@ -31,6 +35,7 @@ The loggin can be configured in `core.yaml` as shown above. The `app` logger is 
 
 `src/utils/logging_config.py` parses the yaml and setups local file stream in `logs/system`. To utilize logging: 
 
+### Normal Usage
 ``` py hl_lines="6 7"
 from loguru import logger
 from src.utils.yaml_utils import load_yaml
@@ -40,12 +45,29 @@ from src.utils.logging_config import setup_app_logging
 log_config = config = load_yaml(root / 'configs' / 'core.yaml') # loads config yaml file 
 setup_app_logging(log_config) #pass yaml file to parser and setup app mode logging
 
-logger.info("Hello :)") # example log message
+logger.bind.info("Hello :)") # example log message
 ```
 
 Result in `logs/system/app.log`:
 
 ``` txt title="Example log message in app.log"
-2026-06-04 20:42:36.542 | INFO     | __main__:<module>:122 - Hello :)
-
+2026-06-04 20:42:36.542 | INFO   | __main__:<module>:9- Hello :)
 ```
+### Using Binds
+```py title="fastapi logging example" hl_lines="4 5 6"
+import os
+from src.utils.logging_config import setup_app_logging, intercept_stdlib_logging
+
+json_logs = os.getenv("LOG_JSON", "true").lower() == "true"
+setup_app_logging(config, service="fastapi", json_logs=json_logs)
+intercept_stdlib_logging()# intercept stdlib logging to loguru
+
+from loguru import logger
+logger.info("fastapi startup complete")
+```
+
+```json title="output in docker logs"
+{"text": "fastapi startup complete\n", "record": {"time": {"repr": "2026-07-13T14:32:01"}, "level": {"name": "INFO"}, "message": "fastapi startup complete", "extra": {"service": "fastapi"}}}
+```
+
+## Module usage
