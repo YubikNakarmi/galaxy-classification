@@ -80,3 +80,7 @@ These variables control training behaviour. Set them in your `.env` file or inje
 
 ### Experiments
 Each training run should log its own experiment name with ```{time}_{model_variant}```
+
+
+# Modular Approach
+`train.py ` is a wrapper that wraps main training files in `src/training/`
