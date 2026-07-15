@@ -10,6 +10,16 @@ root = Path(__file__).parent.parent.parent
 
 class ModelLoader:
 
+    '''A class to load the best model from MLflow, with optional local caching.
+    
+    Example:
+        ```python
+        loader = ModelLoader(experiment_name="my_experiment", local_cache=True, local_cache_dir="./cache", num_classes=5)
+        model = loader.load_best_model()
+        ```
+ 
+    '''
+
     def __init__(self,experiment_name: str,local_cache: bool = True,
                  local_cache_dir: Optional[str| Path] = None,
                  num_classes: int = 5):
@@ -33,6 +43,8 @@ class ModelLoader:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
 
     def _best_run(self):
+        '''Retrieve the best run based on the highest val_f1_macro metric.'''
+
         experiment = self.client.get_experiment_by_name(self.experiment_name)
         
         if experiment is None:
@@ -60,6 +72,14 @@ class ModelLoader:
         return self.local_cache_dir / f"{run_id}.pt" 
     
     def check_cache(self, run_id: str) -> torch.nn.Module:
+        '''Check if the model for the given run_id is cached locally. If so, load it; otherwise, pull from MLflow.
+        Args:
+            run_id: The MLflow run ID for which to check the cache.
+        Returns:
+            The loaded PyTorch model.
+        
+        '''
+
         cache_path = self._cache_path(run_id)
 
         if self.local_cache and self.local_cache_dir and cache_path.exists():
@@ -85,7 +105,11 @@ class ModelLoader:
         return model  
 
     def load_best_model(self) -> torch.nn.Module:
-        ''' Wraps around check_cache and best run to load the best model from mlflow or local cache'''
+        ''' Wraps around check_cache and best run to load the best model from mlflow or local cache
+        
+        Returns:
+            The loaded PyTorch model corresponding to the best run.
+        '''
         best_run = self._best_run()
         run_id = best_run.info.run_id
         logger.info(f"Best run: {run_id} | val_f1_macro: {best_run.data.metrics.get('val_f1_macro')}")
