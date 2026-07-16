@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # directory setup
-source .env
+
+if [ -f .env ]; then
+    source .env
+fi
 
 dir_setup()
 {
@@ -46,4 +49,3 @@ bentoml_build()
 
 }
 
-dvc_setup
