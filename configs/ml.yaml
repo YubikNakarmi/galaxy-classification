@@ -89,8 +89,9 @@ data:
     
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
-  train_path: data/preprocessed/sample/train_sample.csv
+  train_path: data/preprocessed/sample/train_sample.csv #realpath: data/preprocessed/split/train.csv
   val_path: data/preprocessed/sample/val_sample.csv
+  eval_path: data/preprocessed/sample/eval_sample.csv
 
   input_size: 128
 
@@ -139,6 +140,7 @@ storage:
 
     checkpoints:
       dir: models/checkpoints/
+      model_cache_dir: models/cache/
 
     predictions:
       dir: models/predictions/
@@ -150,9 +152,7 @@ storage:
     experiments: 
   
       container: galaxy-experiments #for models
-
-
-
+      
     upload:
       checkpoint_every_epoch: true
       best_model_only: true

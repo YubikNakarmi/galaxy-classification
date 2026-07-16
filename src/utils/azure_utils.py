@@ -5,87 +5,69 @@ Provides a wrapper around the Azure Blob Storage SDK for creating
 containers, uploading files, listing blobs, and deleting blobs.
 
 Example:
-    >>>with AzuleBlobStorage("images") as storage:
-    >>>    storage.create_container("images")
+    ``` python
+    with AzuleBlobStorage("images") as storage:
+        storage.create_container("images")
+    ```
     
 """
+
 import os, uuid
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv
 from pathlib import Path
 from loguru import logger
-from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_app_logging, setup_ml_logging
 from typing import BinaryIO,Optional
+from typing import Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
 load_dotenv(root / '.env') 
 
 
-
-AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-AZURE_STORAGE_ACCOUNT_URL = os.getenv('AZURE_STORAGE_ACCOUNT_URL') #default env var entries``
+_AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING') #default env var entries``
 
 class AzureBlobStorage:
 
-    """Client for interacting with Azure Blob Storage.
+    """ Client for interacting with Azure Blob Storage.
 
     This class provides a high-level wrapper around the Azure Storage Blob SDK
     for managing containers and blobs. It simplifies common operations such as
     creating containers, uploading blobs, listing resources, and deleting blobs.
 
-    Args:
-        container_name: Name of the container to connect to. If omitted, no
-            container is selected until one is specified.
-        account_url: Azure Storage account URL.
-        storage_connection_string: Azure Storage connection string used for
-            authentication.
-
-    Raises:
-        ValueError: If the storage connection string is not provided.
 
     Example:
-        >>> storage = AzureBlobStorage("images")
-        >>> storage.list_blobs()
+        ``` python
+        with AzureBlobStorage("images") as storage:
+            storage.create_container("images")       
+        ```
     """
 
-    def __init__(self , container_name:str|None=None, 
-                 account_url = AZURE_STORAGE_ACCOUNT_URL,
-                 storage_connection_string:str| None = AZURE_STORAGE_CONNECTION_STRING):
+    def __init__(self , container_name:Optional[str] = None, 
+                 storage_connection_string:Optional[str] = _AZURE_STORAGE_CONNECTION_STRING):
         """
         Initialize an Azure Blob Storage client.
 
-        Parameters
-        ----------
-        container_name : str, optional
-            Container to connect to immediately.
-        account_url : str, optional
-            Storage account URL.
-        storage_connection_string : str
-            Azure Storage connection string.
-        logger_config : dict, optional
-            Configuration for logging. If not provided, default logging is used.
-        log_type : str, optional
-            Type of logging to set up. Options are "app" for application logging
+        Args:
+            container_name: Name of the container to connect to. If omitted, no container is selected until one is specified.
+            account_url: Azure Storage account URL.
+            storage_connection_string: Azure Storage connection string used for authentication.
 
-        Raises
-        ------
-        ValueError
-            If the connection string is missing.
-        RuntimeError
-            If the container name is not provided when required.
+        Raises:
+            ValueError: If the storage connection string is not provided.
+            RuntimeError: If the container name is not provided when required
+            ------
+       
         """
 
         if not storage_connection_string:
             raise ValueError("Azure Storage connection string is not set in environment variables.")
        
-        self.storage_connection_string = storage_connection_string
-        self.account_url = account_url
+        self.__storage_connection_string = storage_connection_string
         self.container_name = container_name
 
         #connect
-        self.blob_service_client = BlobServiceClient.from_connection_string(conn_str = self.storage_connection_string)
+        self.blob_service_client = BlobServiceClient.from_connection_string(conn_str = self.__storage_connection_string)
 
         self.container_client = None #None client
 
@@ -105,13 +87,12 @@ class AzureBlobStorage:
         self.blob_service_client.close()
         
     #Main methods
-    def check_container_exists(self, name:str):
+    def check_container_exists(self, name:str)-> bool:
             
         """Check whether a container exists.
 
         Args:
-            name: Container name to check. If omitted, the currently configured
-                container is used.
+            name: Container name to check. If omitted, the currently configured container is used.
 
         Returns:
             True if the container exists; otherwise False.
@@ -141,7 +122,9 @@ class AzureBlobStorage:
             If the container already exists, no action is taken.
 
         Example:
-            >>> storage.create_container("datasets")
+            ```python
+                storage.create_container("datasets")
+            ```
         """
         container_name = name or self.container_name
         if container_name is None:
@@ -181,8 +164,11 @@ class AzureBlobStorage:
             URL of the uploaded blob if the upload succeeds; otherwise ``None``.
 
         Example:
-            >>> with open("image.jpg", "rb") as f:
-            ...     storage.upload_blob("image.jpg", f)
+            ```python
+            with open("image.jpg", "rb") as f:
+                 storage.upload_blob("image.jpg", f)
+            ```
+
         """
 
         try:
@@ -217,7 +203,9 @@ class AzureBlobStorage:
             The URL of the downloaded blob if successful; otherwise None.
 
         Example:
-            >>> storage.load_blob("image.jpg", "local_image.jpg")
+            ```python
+             storage.load_blob("image.jpg", "local_image.jpg")
+            ```
         '''
 
         try:

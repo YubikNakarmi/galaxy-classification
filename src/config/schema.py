@@ -78,6 +78,7 @@ class DataConfig:
     split_dir: Path
     train_path: Path
     val_path: Path
+    eval_path: Path
     input_size: int
     normalize: NormalizeConfig
  
@@ -94,6 +95,7 @@ class LocalLogsConfig:
 @dataclass
 class LocalCheckpointsConfig:
     dir: Path
+    model_cache_dir: Path
  
  
 @dataclass

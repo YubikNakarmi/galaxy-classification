@@ -5,9 +5,6 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from pathlib import Path
-from src.utils import load_yaml
-from src.utils.logging_config import setup_ml_logging
-from loguru import logger
 
 root = Path(__file__).parent.parent.parent
 

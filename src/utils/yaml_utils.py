@@ -15,6 +15,14 @@ def load_yaml(path: str | Path)-> dict:
 
     Returns:
         dict: Parsed YAML content
+
+    Example:
+    ```python
+
+    config = "config.yaml"
+    config_dict = load_yaml(config)
+
+    ```
     """
     
     path = Path(path)

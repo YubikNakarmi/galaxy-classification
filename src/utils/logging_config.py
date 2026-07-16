@@ -1,10 +1,14 @@
 ''' Parser and overwritting default logging with file stream configuration
+
 - setup_app_logging: for application logs
 - setup_ml_logging: for machine learning logs
 
 Example:
+
+```python
     from src.utils.logging_config import setup_app_logging, setup_ml_logging
     setup_app_logging(config)
+````
 '''
 
 from loguru import logger
