@@ -150,14 +150,8 @@ storage:
       container: dvc-storage #stores training data like raw,preprocessed,split
 
     experiments: 
-  
       container: galaxy-experiments #for models
       
-    upload:
-      checkpoint_every_epoch: true
-      best_model_only: true
-      logs_every_n_epochs: 5
-
     # inside galaxy-classification-experiments/<experiment_name>/..
     logs:
       dir: logs/
@@ -166,7 +160,8 @@ storage:
       dir: tensorboard/
 
     checkpoints:
-      dir: models/
+      container: galaxy-experiments
+      dir: models/ #{run_id}/models/best.pt
 
     predictions:
       dir: predictions/

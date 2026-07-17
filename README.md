@@ -57,11 +57,12 @@ dvc remote modify azure_remote sas_token <generated_sas_token>
 
 # improvement
 - cascading module loading problem while running scropts. Since the cutom moduels also realy on other modules the runtime is slow especially during importing of modules. This is not really a problem for ml (as they are mostly training eval, etc which take considerable time anyway).part of the projoect. But thsi can be improved. 
+- in model loader cahce  in bentoml, improve by addibn backup for mlflow faiilure bu scanning for previous best in cache or pulling form blob
 
 
-# vm trianin
+# vm training
 
-do nvdia-smi 
+install  nvdia-smi 
 
 ```
 pip uninstall torch torchvision -y

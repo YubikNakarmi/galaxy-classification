@@ -28,5 +28,15 @@ chmod +x ./setup.sh
 (source ./setup.sh && dir_setup)
 ```
 
+### Setup DVC remote storage
 
+If you want to init dvc for your project and setup remote storage, you can run the following commands. Make sure to replace the placeholders with your actual values.
+
+``` bash title="powershell"
+bash -c ". ./setup.sh; dvc_setup"
+```
+
+``` bash title="bash
+(source ./setup.sh && dvc_setup)
+```
 
