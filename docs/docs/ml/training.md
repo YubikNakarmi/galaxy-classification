@@ -1,4 +1,4 @@
-# training factors
+## Training Factors
 | Component | Value | Notes |
 |---|---|---|
 | Loss | `CrossEntropyLoss` | `label_smoothing=0.1` |
@@ -9,13 +9,34 @@
 | Batch Size | 32–64 | Balance gradient quality vs memory |
 | Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
 
-# Architrure
+## Architecture
 ![training architecture diagram](../assets/training_process.drawio.png)
-# Customizations
+
+/// caption
+Figure 1: Training architecture diagram
+///
+
+## Training options
+
+### Default
+Default model variant with standard training settings. With 5 classes and using default model
+
+### Hubble
+Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
+
+!!! warning "Hubble model is not yet fully trained"
+    The hubble model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+
+### Dirilichet
+Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
+!!! warning "Dirilichet model is not yet fully trained"
+    The dirilichet model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+
+## Customizations
 All the training customaizations can be done through the `configs/ml.yaml` file. The following are the main sections of the configuration file:
 
 
-## Environment Variables
+### Environment Variables
 
 These variables control training behaviour. Set them in your `.env` file or inject via shell / Kaggle Secrets.
 
@@ -26,7 +47,7 @@ These variables control training behaviour. Set them in your `.env` file or inje
 | `AZURE_STORAGE_ACCOUNT_NAME` | — | — | Storage account name (used if connection string not set) |
 | `AZURE_STORAGE_ACCOUNT_KEY` | — | — | Storage account key |
 
-## Training Configuration (`configs/ml.yaml`)
+### Training Configuration (`configs/ml.yaml`)
 
 | Key | Path in YAML | Default | Description |
 |---|---|---|---|
@@ -54,33 +75,20 @@ These variables control training behaviour. Set them in your `.env` file or inje
 | MLflow model name | `variants.<active>.mlflow.model_name` | — | Registered model name in MLflow |
 | Experiment root | `variants.<active>.experiment.root` | — | Top-level MLflow experiment name |
 
-# Traininng Flow
+## Training Flow
+
+### Modular Approach
+`train.py ` is a wrapper that wraps main training files in `src/training/`
 
 
 
-## checkpoints
+### checkpoints
 - eval checkpoints
 - training epoch based checkpoints
 
-## visualizations
+### visualizations
 - Mlflow and tensorboard, and reports functions
 
-## Training options
-
-### Default
-    Default model variant with standard training settings. With 5 classes and using default model
-
-### Hubble
-    Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
-
-### Dirilichet
-    Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
-
-## Default training model
-
-### Experiments
-Each training run should log its own experiment name with ```{time}_{model_variant}```
 
 
-# Modular Approach
-`train.py ` is a wrapper that wraps main training files in `src/training/`
+

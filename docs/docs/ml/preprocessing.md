@@ -1,4 +1,4 @@
-# Preprocessing Script
+## Preprocessing Script
 
 The exection of script can be perfomed with:
 
@@ -48,8 +48,7 @@ preprocess:
     outs:
       - data/preprocessed/
 ```
-
-
+---
 
 ## Preprocessing Configurations
 The preprocessing configurations ar defined in `configs/ml.yaml`.
@@ -84,6 +83,9 @@ variants:
         test_size: 0.15
       stratify: true
 ```
+
+---
+
 ### Directory configuration
 Ultimately the dir in which file is saved is configured in ```data``` along with the raws data paths
 

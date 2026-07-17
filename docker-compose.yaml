@@ -29,7 +29,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
+
+
     volumes:
       - grafana_data:/var/lib/grafana
     healthcheck:
@@ -48,9 +51,17 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus #pth inside container
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090"]
+      interval: 10s
+      timeout: 30s
+      retries: 50
+      start_period: 30s
     
   redis:
       image: redis:7-alpine
+      container_name: redis
       command: redis-server --appendonly yes
       ports:
       - "6379:6379"
@@ -88,7 +99,9 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
+
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]

@@ -28,7 +28,7 @@ logging:
     compression: zip
 ```
 The loggin can be configured in `core.yaml` as shown above. The `app` logger is used for logging the application logs and the `ml` logger is used for logging the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config). 
-
+---
 ## File Stream
 
 `logs/system/app.log` and `logs/system/ml.log` are the file streams for the application and machine learning logs respectively. The logs will be written to these files based on the configuration defined in `core.yaml`. The log files will be created if they do not exist and will be rotated, retained and compressed based on the settings defined in the configuration. 
@@ -69,5 +69,5 @@ logger.info("fastapi startup complete")
 ```json title="output in docker logs"
 {"text": "fastapi startup complete\n", "record": {"time": {"repr": "2026-07-13T14:32:01"}, "level": {"name": "INFO"}, "message": "fastapi startup complete", "extra": {"service": "fastapi"}}}
 ```
-
+---
 ## Module usage
