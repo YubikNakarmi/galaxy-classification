@@ -20,7 +20,7 @@ def get_storage() -> AzureBlobStorage:
 
     return _blob_connection
 
-def close_storage_connection() -> None:
+def close_storage() -> None:
     ''' Close the connection to Azure Blob Storage. '''
     global _blob_connection
     if _blob_connection is not None:
