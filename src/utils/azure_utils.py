@@ -39,7 +39,9 @@ class AzureBlobStorage:
     Example:
         ``` python
         with AzureBlobStorage("images") as storage:
-            storage.create_container("images")       
+            storage.create_container("images") 
+            storage.upload_blob("image.jpg", b"image data")
+            storage.print_info()
         ```
     """
 
@@ -122,7 +124,7 @@ class AzureBlobStorage:
             If the container already exists, no action is taken.
 
         Example:
-            ```python
+            ``` python
                 storage.create_container("datasets")
             ```
         """

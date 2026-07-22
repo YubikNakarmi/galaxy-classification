@@ -12,6 +12,10 @@ from src.utils.yaml_utils import load_yaml
 root = Path(__file__).resolve().parent.parent
 load_dotenv(root / ".env")
 
+class AzureStorageSettings(BaseModel):
+    connection_string: str
+    container_name: str ="image-uploads"  # default container name for image uploads
+
 
 class DatabaseSettings(BaseModel):
     url: str
@@ -20,19 +24,30 @@ class DatabaseSettings(BaseModel):
     echo: bool = False
 
 
+class CelerySettings(BaseModel):
+    broker_url: str
+    result_backend: str
+
+
 class Settings(BaseModel):
     database: DatabaseSettings
+    azure_storage: AzureStorageSettings
+    celery: CelerySettings
+    environment: str = "development"
+    debug: bool = False
 
-@lru_cache
+
+@lru_cache 
 def get_settings() -> Settings:
-    raw = load_yaml(root / "configs" / "backend.yaml")
+    raw = load_yaml(root / "configs" / "backend.yaml") #map yaml configs to Settings classes ( has to have same format)
 
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise RuntimeError("DATABASE_URL environment variable is not set")
+    raw["database"]["url"] = os.environ["DATABASE_URL"]
+    raw["azure_storage"]["connection_string"] = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
 
-    raw["storage"]["database"]["url"] = db_url
-    return Settings(**raw)
+    try:
+        return Settings(**raw)#auto set kwargs
+    except Exception as e:
+        raise RuntimeError(f"Error occurred while creating Settings: {e}")
 
 
 settings = get_settings()

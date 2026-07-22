@@ -1,0 +1,14 @@
+database:
+  pool_size: 5
+  max_overflow: 10
+  echo: false
+
+azure_storage:
+  container_name: image-uploads
+
+celery:
+  broker_url: redis://localhost:6379/0
+  result_backend: redis://localhost:6379/1
+
+environment: development
+debug: true

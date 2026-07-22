@@ -6,8 +6,12 @@
 Example:
 
 ```python
-    from src.utils.logging_config import setup_app_logging, setup_ml_logging
+    from src.utils.logging_config import setup_app_logging, setup_ml_logging, intercept_stdlib_logging
+    
     setup_app_logging(config)
+    intercept_stdlib_logging()  # Redirect stdlib logging to loguru
+
+
 ````
 '''
 

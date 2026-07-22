@@ -10,16 +10,8 @@ ml:
   config_file: configs/ml.yaml
 
 
-storage:
-  azure:
-    connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
-    container_name: ${AZURE_CONTAINER_NAME}
 
-  database:
-    pool_size: 5
-    max_overflow: 10
-    echo: false
-
+  
 
 # Only system logs like script execution, errors, etc. ML-specific logs (like training metrics) 
 # will be handled separately under mlflow and in differnt files though ml.yaml configs.
