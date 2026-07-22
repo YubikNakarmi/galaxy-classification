@@ -6,7 +6,13 @@ import os
 from alembic import context
 from dotenv import load_dotenv
 from pathlib import Path
+import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from core.database import Base
+from core.settings import settings
+import api.models
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
 
@@ -14,8 +20,6 @@ load_dotenv(root / ".env")
 # access to the values within the .ini file in use.
 config = context.config
 
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -23,7 +27,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -31,11 +35,14 @@ target_metadata = None
 
 # ... etc.
 
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
 
 config.set_main_option(
     "sqlalchemy.url",
     os.getenv("DATABASE_URL")
 )
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
