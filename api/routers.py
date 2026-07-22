@@ -10,10 +10,17 @@ router = APIRouter()
 
 router.post("/classify")
 async def classify_image_endpoint(
-    request: ClassifyRequest, db: Session = Depends(get_db)
+    request: ClassifyRequest, db: Session = Depends(get_db) #dep inject
 ):
+
+
+    
     task = classify_image.delay(request.image_b64, request.variant) #call celery
     return {"task_id": task.id}#returns the task id to the client for tracking from celery
+
+
+
+
 
 router.get("/task_status/{task_id}")
 async def get_task_status(task_id: str):

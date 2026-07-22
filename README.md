@@ -102,3 +102,9 @@ Total parameters: 61,187,525
 
 # improvements
 add cache for model instead of always loading
+
+# alembic 
+```sh 
+alembic revision --autogenerate -m "init tables"
+alembic upgrade head
+```

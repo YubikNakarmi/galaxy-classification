@@ -19,6 +19,7 @@ def classify_image(self,image_bytes_b64:str,variant:str="default"):
 
     response = httpx.post(variant_url, json = {"images":image_bytes_b64},timeout=30)
     response.raise_for_status()
+    
     return response.json()
    
 

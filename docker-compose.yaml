@@ -19,7 +19,7 @@ services:
       - .env
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    command: uvicorn api/main:app --host 0.0.0.0
+    command: uvicorn api.main:app --host 0.0.0.0
 
   grafana:
     image: grafana/grafana:13.1.0
