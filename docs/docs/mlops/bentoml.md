@@ -11,6 +11,12 @@ or
 ``` bash
 source(./setup.sh && bentoml_build)
 ```
+## Response
+
+``` json
+
+
+```
 
 ## Run the service
 Once the service is built, you can run it using the following commannd in the docker compose: 

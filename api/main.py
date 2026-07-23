@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from .routers import router
+from api.routers import router
 from core.database import init_db
 from core.storage import get_storage, close_storage
 
@@ -13,8 +13,13 @@ async def lifespan(app: FastAPI):
     yield
     close_storage()#shutdown
 
-app = FastAPI(lifespan=lifespan)
-app.include_router(router, prefix="/predict")
+app = FastAPI(title="Galaxy Classification API", 
+              version="0.6.0", 
+              lifespan=lifespan,)
+
+
+
+app.include_router(router,prefix="/classification",tags=["classification"])
 
 @app.get("/")
 async def root():

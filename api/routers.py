@@ -18,6 +18,7 @@ from loguru import logger
 from src.utils.logging_config import setup_app_logging,intercept_stdlib_logging
 from src.utils.yaml_utils import load_yaml
 from pathlib import Path
+from prometheus_client import Counter, Histogram
 
 root = Path(__file__).parent.parent
 cfg = load_yaml(root / 'configs' / 'core.yaml')
@@ -26,10 +27,10 @@ intercept_stdlib_logging() #stdlib logging for container
 
 router = APIRouter()
 
-router.post("/classify")
+@router.post("/classify")
 async def classify_image_endpoint(
     request: ClassifyRequest, db: Session = Depends(get_db) #dep inject
-):
+    ):
 
     try:
         image_bytes = base64.b64decode(request.image_b64, validate=True)
@@ -43,8 +44,6 @@ async def classify_image_endpoint(
 
     if url is None:
         raise HTTPException(status_code=500, detail="Failed to upload image to Azure Blob Storage")
-    
-
 
     upload = ImageUpload(
         blob_key=blob_key,
@@ -77,7 +76,7 @@ async def classify_image_endpoint(
 
 
 
-router.get("/task_status/{task_id}")
+@router.get("/task_status/{task_id}")
 async def get_task_status(task_id: str):
 
     result = AsyncResult(task_id, app=celery_app)#check result form celery
