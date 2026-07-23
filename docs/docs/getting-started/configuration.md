@@ -8,7 +8,7 @@ DVC_AZURE_CONTAINER_NAME=galaxy-classification-data
 
 
 MYSQLURL_REMOTE= <local/cloud mysql url for mlflow backend store>
-MLFLOW_BACKEND_STORE_URI=mysql+pymysql://avnadmin:AVNS_LaSmjxwKK3LIgBg8Prf@galaxy-classification-mlflow-db-yubiknakarmi123-3316.h.aivencloud.com:22877/mlflow
+MLFLOW_BACKEND_STORE_URI=mysql+pymysql://<username>:<password>@<host>:<port>/<database_name>
 MLFLOW_ARTIFACT_ROOT=wasbs://<container_name>@<storage_acc>.blob.core.windows.net/
 MLFLOW_TRACKING_URI=http://mlflow:5000
 LOG_JSON=True/ False

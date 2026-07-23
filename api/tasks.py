@@ -1,4 +1,4 @@
-from celery import Celery, app
+from celery import Celery
 import httpx
 
 celery_app = Celery('api', broker='redis://redis:6379/0',backend='redis://redis:6379/1')#Host redis on docker compose first

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from api.routers import router
+from api.classify.routers import router
 from core.database import init_db
 from core.storage import get_storage, close_storage
 

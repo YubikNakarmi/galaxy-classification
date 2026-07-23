@@ -5,10 +5,10 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException
 from celery.result import AsyncResult
 
-from api.models import ClassificationResult, ImageUpload
+from api.classify.models import ClassificationResult, ImageUpload
 
-from .tasks import celery_app
-from .tasks import classify_image
+from ..tasks import celery_app
+from ..tasks import classify_image
 from .schemas import ClassifyRequest,ClassificationResponse
 from core.database import get_db
 from sqlalchemy.orm import Session

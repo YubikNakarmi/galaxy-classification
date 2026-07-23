@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.database import Base
 from core.settings import settings
-import api.models
+import api.classify.models
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
 
