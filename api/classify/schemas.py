@@ -6,8 +6,8 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 class ClassifyRequest(BaseModel):
-    image_b64: str
-    variant: Literal["default", "hubble", "dirichlet"] = "default"
+    image_b64: list[str]
+    variant: Literal["default", "hubble", "dirichlet"] = "default" #enfore these variants to prevent downstream errors 
 
 
 

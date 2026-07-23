@@ -62,7 +62,7 @@ class GalaxyClassification:
         end = time.perf_counter()
         h.labels(endpoint="/default").observe(end - start)
 
-        logger.bind(endpoint="/default",ms = ).info(f"Processed {len(images)} images in {end - start:.4f} seconds")
+        logger.bind(endpoint="/default",ms =1 ).info(f"Processed {len(images)} images in {end - start:.4f} seconds")
         number_requests.labels(endpoint="/default").inc()
 
         if response:

@@ -9,6 +9,8 @@ from sqlalchemy.orm import relationship
 
 from core.database import Base
 
+def utcnow():
+    return dt.datetime.now(dt.timezone.utc)
 
 class User(Base):
     __tablename__ = "users"

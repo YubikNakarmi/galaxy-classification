@@ -34,27 +34,42 @@ async def classify_image_endpoint(
     ):
 
     try:
-        image_bytes = base64.b64decode(request.image_b64, validate=True)
+        image_bytes = [base64.b64decode(img, validate=True) for img in request.image_b64] # for blob
     except binascii.Error:
         raise HTTPException(status_code=400, detail="Invalid base64 image data")
 
 
     storage = get_storage() # init azure storage instance
-    blob_key = f"{uuid.uuid4()}.jpg"  # Generate a unique key for the blob
-    url = await run_in_threadpool(storage.upload_blob, blob_key, request.image_b64)  # Upload image to Azure Blob Storage in async
+    batch_id = uuid.uuid4() #single request id
 
-    if url is None:
+    url = []
+    blob_keys = []
+
+    for i, request_image in enumerate(image_bytes):
+        blob_key = f"{batch_id}-{i}.jpg"  # Generate a unique key for the blob, with multi images
+        blob_keys.append(blob_key)
+
+        blob_url = await run_in_threadpool(storage.upload_blob, blob_key, request_image)  # Upload image to Azure Blob Storage in async
+        url.append(blob_url)
+
+    if None in url:
         raise HTTPException(status_code=500, detail="Failed to upload image to Azure Blob Storage")
 
-    upload = ImageUpload(
-        blob_key=blob_key,
-        filename="upload.jpg",
-        file_size=len(image_bytes),
-        status="uploaded",
-    )
-    db.add(upload)
+    uploads = []
+
+    for blob_key, img_bytes in zip(blob_keys, image_bytes):#multi rows for multi images, with unique key but same batch id for tracking
+        upload = ImageUpload(
+            blob_key=blob_key,
+            filename="upload.jpg",
+            file_size=len(img_bytes),
+            status="uploaded",
+        )
+        db.add(upload)
+        uploads.append(upload)
+  
     db.commit()
-    db.refresh(upload)
+    for upload in uploads:
+        db.refresh(upload)
 
 
     task = classify_image.delay(request.image_b64, request.variant) #call celery
