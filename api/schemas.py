@@ -25,3 +25,9 @@ class ClassificationResultOut(BaseModel):
     processing_time_ms: Optional[int]
     variant: str
     created_at: datetime
+
+class ClassificationResponse(BaseModel):
+
+    task_id: str
+    image_upload_id: str
+    blob_url: str

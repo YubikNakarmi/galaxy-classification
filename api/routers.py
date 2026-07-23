@@ -9,7 +9,7 @@ from api.models import ClassificationResult, ImageUpload
 
 from .tasks import celery_app
 from .tasks import classify_image
-from .schemas import ClassifyRequest
+from .schemas import ClassifyRequest,ClassificationResponse
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.storage import get_storage
@@ -27,7 +27,8 @@ intercept_stdlib_logging() #stdlib logging for container
 
 router = APIRouter()
 
-@router.post("/classify")
+@router.post("/classify",response_model=ClassificationResponse)
+
 async def classify_image_endpoint(
     request: ClassifyRequest, db: Session = Depends(get_db) #dep inject
     ):
