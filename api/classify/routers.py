@@ -5,11 +5,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException
 from celery.result import AsyncResult
 
-from api.classify.models import ClassificationResult, ImageUpload
+from api.classify.models import ClassificationResponse, ClassificationResponseRecord, ImageUpload,Prediction
 
 from ..tasks import celery_app
 from ..tasks import classify_image
-from .schemas import ClassifyRequest,ClassificationResponse
+from schemas import ClassifyRequest
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.storage import get_storage
@@ -40,9 +40,9 @@ async def classify_image_endpoint(
 
 
     storage = get_storage() # init azure storage instance
-    batch_id = uuid.uuid4() #single request id
+    batch_id = str(uuid.uuid4()) #single request id
 
-    url = []
+    urls = []
     blob_keys = []
 
     for i, request_image in enumerate(image_bytes):
@@ -50,15 +50,16 @@ async def classify_image_endpoint(
         blob_keys.append(blob_key)
 
         blob_url = await run_in_threadpool(storage.upload_blob, blob_key, request_image)  # Upload image to Azure Blob Storage in async
-        url.append(blob_url)
+        urls.append(blob_url)
 
-    if None in url:
+    if None in urls:
         raise HTTPException(status_code=500, detail="Failed to upload image to Azure Blob Storage")
 
-    uploads = []
+    uploads: list[ImageUpload] = []
 
     for blob_key, img_bytes in zip(blob_keys, image_bytes):#multi rows for multi images, with unique key but same batch id for tracking
         upload = ImageUpload(
+            batch_id=batch_id,
             blob_key=blob_key,
             filename="upload.jpg",
             file_size=len(img_bytes),
@@ -72,32 +73,43 @@ async def classify_image_endpoint(
         db.refresh(upload)
 
 
-    task = classify_image.delay(request.image_b64, request.variant) #call celery
 
-    result = ClassificationResult(
-        image_upload_id=upload.id,
-        task_id=task.id,
+    response_row = ClassificationResponseRecord(
+        batch_id=batch_id,
         variant=request.variant,
-    )
-    db.add(result)
+        status="processing",)
+
+    db.add(response_row)
+
+    db.commit()
+    db.refresh(response_row)
+
+    task = classify_image.delay(request.image_b64, request.variant,response_row.id) #call celery
+
+    response_row.task_id = task.id
     db.commit()
 
+
+
     return {
+        "batch_id": batch_id,
         "task_id": task.id,
-        "image_upload_id": upload.id,
-        "blob_url": url,
+        "image_upload_ids": [u.id for u in uploads],
+        "urls": urls,
+        "status": "processing",
     }#returns the task id to the client for tracking from celery
 
 
-
+@router.get("/results/{batch_id}")
+async def get_classification_results(batch_id: str, db: Session = Depends(get_db)):
+    pass
 
 
 @router.get("/task_status/{task_id}")
 async def get_task_status(task_id: str):
 
     result = AsyncResult(task_id, app=celery_app)#check result form celery
-
-    
+ 
     if result.state == "PENDING":
         return {"status": "pending"}
     if result.state == "FAILURE":
