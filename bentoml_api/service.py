@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 import os
 import sys
 from PIL import Image
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram,make_asgi_app
 import time
 
 from src.utils.cached_models import ModelLoader
@@ -37,6 +37,7 @@ number_requests = Counter('number_of_requests', 'Number of requests received', [
 
 @bentoml.service(resources={"cpu": "2","memory": "4Gi"},
                  traffic={"max_concurrency": 5})
+
 class GalaxyClassification:
     
     def __init__(self):

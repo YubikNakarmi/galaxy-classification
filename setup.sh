@@ -13,12 +13,11 @@ dir_setup()
     mkdir -p 
     
              logs/{reports,system,tensorboard,training} \
-             models/{checkpoints,temp} \
-             data/{raw,preprocessed,split} \
-             logs/{reports,system,tensorboard}
-
-
-
+             models/{checkpoints,cached} \
+             data/{raw,preprocessed} \
+             data/preprocessed/{labels,sample,split} \
+             logs/{reports,system,tensorboard,bentoml}
+}
 
 
 #DVC setup (Assumes DVC is already installed and Storage account and container are aready setup)
@@ -27,8 +26,6 @@ dvc_setup()
 
 
 {
-
-
     dvc init
     dvc remote add -d azure_remote azure://$DVC_AZURE_CONTAINER_NAME
     dvc remote modify azure_remote account_name $AZURE_STORAGE_ACCOUNT_NAME   
@@ -37,7 +34,6 @@ dvc_setup()
     dvc remote modify azure_remote --local connection_string $AZURE_STORAGE_CONNECTION_STRING 
     
     # --local is used to avoid commiting the secret
-    
         
 }
 

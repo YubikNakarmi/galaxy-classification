@@ -5,6 +5,7 @@ import datetime as dt
 
 from sqlalchemy import String, Integer, DateTime, ForeignKey, JSON, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from api.auth.models import User
 
 from core.database import Base
 

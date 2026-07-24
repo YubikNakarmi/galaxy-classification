@@ -38,5 +38,5 @@ def init_db() -> None:
     """Create tables if they don't exist. Prefer Alembic migrations in production;
     this is a convenience for local dev only."""
     from api.classify import models  
-    Base.metadata.create_all(bind=engine)
+    #Base.metadata.create_all(bind=engine), use alembic migrations 
     logger.info("Database tables ensured.")

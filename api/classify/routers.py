@@ -6,8 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from celery.result import AsyncResult
 
 from api.classify.models import ClassificationResponseRecord, ImageUpload
-from ..tasks import celery_app
-from ..tasks import classify_image
+from api.tasks import celery_app, classify_image
 from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 
 from exceptions import *
@@ -35,7 +34,6 @@ API_EXCEPTIONS = Counter(
 )
 
 @router.post("/classify",response_model=ClassificationResponse)
-
 async def classify_image_endpoint(
     request: ClassifyRequest, db: Session = Depends(get_db) #dep inject
     ):

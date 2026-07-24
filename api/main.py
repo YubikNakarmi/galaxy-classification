@@ -5,6 +5,8 @@ from api.classify.routers import router
 from core.database import init_db
 from core.storage import get_storage, close_storage
 
+from prometheus_client import make_asgi_app
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -20,6 +22,9 @@ app = FastAPI(title="Galaxy Classification API",
 
 
 app.include_router(router,prefix="/classification",tags=["classification"])
+
+metrics = make_asgi_app()
+app.mount("/metrics", metrics)
 
 @app.get("/")
 async def root():
