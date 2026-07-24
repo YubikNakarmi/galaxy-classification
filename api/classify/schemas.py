@@ -15,3 +15,5 @@ class ClassificationResponse(BaseModel):
     task_id: str
     image_upload_id: str
     blob_url: str
+
+VARIANTS = ["default", "hubble", "dirichlet"]

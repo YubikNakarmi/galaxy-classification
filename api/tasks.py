@@ -9,6 +9,17 @@ import uuid
 import datetime as dt
 import httpx
 from classify.models import ClassificationResponseRecord, ImageUpload, Prediction
+from exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
+from prometheus_client import Counter, Histogram
+
+PIPELINE_EXCEPTIONS = Counter(
+    "pipeline_errors_total",
+    "Total pipeline errors by type",
+    ["error_code", "endpoint"],
+)
+
+
+
 celery_app = Celery('api', broker='redis://redis:6379/0',backend='redis://redis:6379/1')#Host redis on docker compose first
 celery_app.conf.task_track_started = True
 
@@ -22,7 +33,7 @@ BENTOML_ROUTES = {#preset routes in bentoml/services.py
 
 @celery_app.task(bind=True)#cleery queue task to classify image
 def classify_image(self,image_bytes_b64:list[str],variant:str="default",response_id: Optional[str]=None):
-    
+
     if variant not in BENTOML_ROUTES:
         raise ValueError(f"Unknown variant: {variant}")
 
@@ -44,18 +55,41 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
         ]
 
         try:
+            
             http_response = httpx.post(variant_url, files=files, timeout=30)
             http_response.raise_for_status()
+
         except httpx.TimeoutException as exc:
-            raise self.retry(exc=exc)
+
+            PIPELINE_EXCEPTIONS.labels(
+                error_code="bento_timeout", endpoint=f"/{variant}"
+            ).inc()
+
+            raise BentoServiceTimeoutError(
+            f"BentoML request timed out after 30s: {exc}",
+            variant=variant,
+            task_id=self.request.id)
         
         except httpx.HTTPStatusError as exc:
+
             if exc.response.status_code >= 500:
                 raise self.retry(exc=exc)
+            
+            
             response_row.status = "failed"
             response_row.error_message = str(exc)
             db.commit()
-            raise
+
+            PIPELINE_EXCEPTIONS.labels(
+                error_code="bento_bad_request", endpoint=f"/{variant}"
+            ).inc()
+
+            raise BentoServiceBadRequestError(
+            f"BentoML rejected request with {exc.response.status_code}: {exc}",
+            variant=variant,
+            task_id=self.request.id,
+            status_code=exc.response.status_code,
+                )
 
         results_data = http_response.json()  # list[dict], same order as image_bytes_b64 
 
@@ -74,8 +108,19 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
                 f"Mismatch: {len(uploads)} uploads vs {len(results_data)} BentoML results"
             )
             db.commit()
-            raise ValueError(response_row.error_message)
 
+            PIPELINE_EXCEPTIONS.labels( #prometheus
+                            error_code="bento_response_mismatch", endpoint=f"/{variant}"
+                        ).inc()
+
+            raise BentoResponseMismatchError(
+                response_row.error_message,
+                task_id=self.request.id,
+                batch_id=response_row.batch_id,
+                expected=len(uploads),
+                received=len(results_data),)
+                        
+        
         storage = get_storage() #az blob client
 
         #for each prediction of images

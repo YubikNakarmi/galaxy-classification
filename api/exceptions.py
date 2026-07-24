@@ -1,12 +1,19 @@
 
-
+from loguru import logger
 class PipelineError(Exception):
     """Base class for all pipeline-specific exceptions."""
     error_code: str = "pipeline_error"
+    log_level: str = "ERROR"  
 
-    def __init__(self, message: str = ""):
+    def __init__(self, message: str = "", **context):
         self.message = message or self.__class__.__doc__ or self.error_code
+        self.context = context  
         super().__init__(self.message)
+
+        logger.bind(error_code=self.error_code, **self.context).log(
+            self.log_level, self.message
+        )
+
 
 
 
