@@ -26,6 +26,9 @@ class EmptyImageListError(PipelineError):
     """No images were provided in the request."""
     error_code = "empty_image_list"
 
+class BatchNotFoundError(PipelineError):
+    """No classification results found for the given batch_id."""
+    error_code = "batch_not_found"
 
 class UnknownVariantError(PipelineError):
     """Requested classification variant does not exist."""

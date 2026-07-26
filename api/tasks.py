@@ -44,7 +44,7 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
 # tuple of images with fromat (images,(filename, file_bytes, content_type)) 
 # that converts to multipart/form-data for httpx.post
     try:
-        response_row = db.query(ClassificationResponseRecord).get(response_id)
+        response_row = db.query(ClassificationResponseRecord).get(response_id)#filter pk of response record
         if response_row is None:
             raise ValueError(f"No ClassificationResponseRecord found for id {response_id}")
 

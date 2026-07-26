@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends, HTTPException
 from celery.result import AsyncResult
 
-from api.classify.models import ClassificationResponseRecord, ImageUpload
+from api.classify.models import ClassificationResponseRecord, ImageUpload,Prediction
 from api.tasks import celery_app, classify_image
 from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 
@@ -79,7 +79,7 @@ async def classify_image_endpoint(
 
     for blob_key, img_bytes in zip(blob_keys, image_bytes):#multi rows for multi images, with unique key but same batch id for tracking
         upload = ImageUpload(
-            batch_id=batch_id,
+            batch_id=batch_id,#image batch
             blob_key=blob_key,
             filename="upload.jpg",
             file_size=len(img_bytes),
@@ -119,8 +119,14 @@ async def classify_image_endpoint(
 
 @router.get("/results/{batch_id}")
 async def get_classification_results(batch_id: str, db: Session = Depends(get_db)):
-    pass
+    response_row = db.query(ClassificationResponseRecord).filter_by(batch_id=batch_id).first()
 
+    if response_row is None:
+        API_EXCEPTIONS.labels(error_code="batch_not_found", endpoint="/results").inc()
+        raise BatchNotFoundError(message=f"No classification results found for batch_id: {batch_id}")
+
+    predictions = db.query(Prediction).filter_by(batch_id = response_row.batch_id).all()
+    return {"batch_id": batch_id, "predictions": predictions}
 
 @router.get("/task_status/{task_id}")
 async def get_task_status(task_id: str):
