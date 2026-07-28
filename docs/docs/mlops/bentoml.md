@@ -39,9 +39,50 @@ I used service and runner structure that seperates the model loading and inferen
 
 ## Services
 
+### Galaxy Classification Service
 
 
 
+
+
+## Sending Request
+
+``` bash title="Request"
+curl -X 'POST' \
+  'http://localhost:3000/default' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: multipart/form-data' \
+  -F 'images=@3.jpg;type=image/jpeg'
+  ```
+
+
+  ``` json title="Response"
+  [
+  {
+    "object_type": "edge_on",
+    "confidence_scores": 0.8165369033813477,
+    "heatmap_b64": "iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAIAAABMXPacAABRzUlEQVR4nG393.........",
+    "heatmap_latency": 1.4109894009999948
+  }
+]
+
+``` python title="Request"
+import requests
+
+```
+
+## Logging
+
+You can remove json logs in contair by removing this line which intecetps stdlib, and set json_logs to False in the core.yaml file. This will make the logs more readable and easier to debug.
+``` python title="bentoml_api/service.py" hl_lines="5 6"
+file_config = root / 'configs' / 'core.yaml'
+log_yaml = load_yaml(file_config)
+log_json = os.getenv("LOG_JSON", "True").lower() in ("true", "1", "yes")
+
+setup_app_logging(log_yaml,service = "Bentoml",json_logs = True)
+intercept_stdlib_logging() # logs stdlib to loguru in container logs
+
+```
 ---
 ## Improvements
 

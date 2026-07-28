@@ -82,11 +82,11 @@ services:
     env_file:
       - .env
     volumes:
-      - ./bentoml:/bentoml
+      - ./bentoml_api:/bentoml
       - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
       - ./src:/home/bentoml/bento/src/src #mount for editable files without building
       - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
-      - ./models/cached:/home/bentoml/bento/src/models/cached #mount cached for presistance
+      - ./models/cached:/home/bentoml/bento/src/models/cached/ #mount cached for presistance
       - ./configs:/home/bentoml/bento/src/configs
 
     container_name: bentoml
@@ -154,6 +154,24 @@ services:
     volumes:
       - ./data/ml/tensorboard/experiment_1:/tensorboard
     command: tensorboard --logdir=/tensorboard --host=0.0.0.0
+
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./promtail-config.yaml:/etc/promtail/config.yaml
+    command: -config.file=/etc/promtail/config.yaml
+    depends_on:
+      - loki
 
 
 volumes:

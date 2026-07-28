@@ -67,6 +67,8 @@ class GalaxyClassification:
         number_requests.labels(endpoint="/default").inc()
 
         if response:
+
+            #Unpack the response to get the heatmap latencies
             heatmap_latencies = [lat for lat in (res.get("heatmap_latency") for res in response) if lat is not None]
             avg_heatmap_latency = (sum(heatmap_latencies) / len(heatmap_latencies)) if heatmap_latencies else 0
             h_gradcam.labels(endpoint="/default").observe(avg_heatmap_latency)

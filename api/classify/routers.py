@@ -33,6 +33,16 @@ API_EXCEPTIONS = Counter(
     ["error_code", "endpoint"]
 )
 
+API_REQUEST_DURATION = Histogram(
+    "api_request_duration_seconds",
+    "Duration of API requests"
+)
+
+API_REQUEST_COUNT = Counter(
+    "api_request_count",
+    "Total number of API requests"
+)
+
 @router.post("/classify",response_model=ClassificationResponse)
 async def classify_image_endpoint(
     request: ClassifyRequest, db: Session = Depends(get_db) #dep inject
@@ -125,8 +135,27 @@ async def get_classification_results(batch_id: str, db: Session = Depends(get_db
         API_EXCEPTIONS.labels(error_code="batch_not_found", endpoint="/results").inc()
         raise BatchNotFoundError(message=f"No classification results found for batch_id: {batch_id}")
 
-    predictions = db.query(Prediction).filter_by(batch_id = response_row.batch_id).all()
-    return {"batch_id": batch_id, "predictions": predictions}
+    return {
+        "batch_id": batch_id,
+        "task_id": response_row.task_id,
+        "variant": response_row.variant,
+        "status": response_row.status,  # pending | processing | completed | failed
+        "error_message": response_row.error_message,
+        "created_at": response_row.created_at,
+        "completed_at": response_row.completed_at,
+        "predictions": [
+            {
+                "prediction_id": p.id,
+                "image_upload_id": p.image_upload_id,
+                "object_type": p.object_type,
+                "confidence": p.confidence,
+                "confidence_scores": p.confidence_scores,
+                "heatmap_url": p.heatmap_url,
+                "processing_time_ms": p.processing_time_ms,
+            }
+            for p in response_row.predictions
+        ],
+    }
 
 @router.get("/task_status/{task_id}")
 async def get_task_status(task_id: str):
