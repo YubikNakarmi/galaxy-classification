@@ -163,13 +163,16 @@ services:
     volumes:
       - ./loki-config.yaml:/etc/loki/local-config.yaml
 
-  promtail:
-    image: grafana/promtail:2.9.0
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "12345:12345"   # Alloy UI (optional but useful for debugging pipelines)
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./promtail-config.yaml:/etc/promtail/config.yaml
-    command: -config.file=/etc/promtail/config.yaml
+      - ./config.alloy:/etc/alloy/config.alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
     depends_on:
       - loki
 

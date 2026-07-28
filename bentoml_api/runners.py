@@ -9,7 +9,6 @@ import io
 import base64
 import time
 from typing import Optional
-import os
 from bentoml_api.schemas import ClassificationResult
 
 from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\

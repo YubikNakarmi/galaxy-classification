@@ -39,7 +39,8 @@ The project is structured as a microservices architecture, with each service res
 | `dvc` | 3.67.1 | Data/model versioning |
 | `azure-storage-blob` | 12.29.0 | Azure Blob Storage client |
 | `mkdocs-material` | 9.6.15 | Docs site theme |
-
+|`loki`|2.9.0|Log aggregation|
+|`promtail`|2.9.0|Log aggregation agent|
 
 ## Other Dependancies
 

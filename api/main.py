@@ -23,7 +23,7 @@ app = FastAPI(title="Galaxy Classification API",
 
 app.include_router(router,prefix="/classification",tags=["classification"])
 
-metrics = make_asgi_app()
+metrics = make_asgi_app() #for prometheus metrics
 app.mount("/metrics", metrics)
 
 @app.get("/")

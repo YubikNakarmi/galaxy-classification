@@ -1,7 +1,8 @@
 import pytest
 import requests
 
-from tests.api_test import consts
+from constants import base_64_test
+from PIL import Image
 
 @pytest.fixture
 def bentoml_client():
@@ -17,3 +18,8 @@ class BentomlClient:
 
 
 def test_bentoml_connection():
+    client = BentomlClient()
+    response = client.classify({"image": base_64_test()})
+    assert response.status_code == 200
+    data = response.json()
+    assert "predictions" in data
