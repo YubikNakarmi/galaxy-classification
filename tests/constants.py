@@ -22,3 +22,10 @@ root = Path(__file__).resolve().parent.parent
 
 
 base_64_test = lambda: open(root / "tests"/"image.txt", "r").read()
+
+images_list = [base_64_test() for _ in range(3)]  # Create a list of 3 base64-encoded images
+
+files = [
+        ("images", (f"img{i}.jpg", base64.b64decode(b), "image/jpeg"))
+        for i, b in enumerate(images_list)
+        ]

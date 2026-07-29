@@ -28,24 +28,30 @@ services:
       - "3001:3000" #avoid conflict with bentoml
     env_file:
       - .env
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
     depends_on:
       prometheus:
         condition: service_healthy
+    healthcheck:
+        test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
 
 
     volumes:
       - grafana_data:/var/lib/grafana
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 30s
-      retries: 50
-      start_period: 30s
+      - ./grafana/provisioning:/etc/grafana/provisioning
+
 
   prometheus:
     image: prom/prometheus:v3.13.1
     container_name: prometheus
     restart: unless-stopped
+
     ports:
       - "9090:9090"
     volumes:
@@ -53,11 +59,10 @@ services:
       - prometheus_data:/prometheus #pth inside container
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9090"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
       interval: 10s
-      timeout: 30s
-      retries: 50
-      start_period: 30s
+      timeout: 5s
+      retries: 10
     
   redis:
       image: redis:7-alpine
@@ -172,6 +177,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./config.alloy:/etc/alloy/config.alloy
+      
     command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
     depends_on:
       - loki

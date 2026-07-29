@@ -19,10 +19,50 @@ discovery.relabel "containers" {
 }
 
 loki.source.docker "containers" {
-  host             = "unix:///var/run/docker.sock"
-  targets          = discovery.relabel.containers.output
-  relabel_rules    = discovery.relabel.containers.rules
-  forward_to       = [loki.write.default.receiver]
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.relabel.containers.output
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.bentoml.receiver]
+}
+
+loki.process "bentoml" {
+  forward_to = [loki.write.default.receiver]
+
+  // Try to parse the line as loguru JSON. Non-JSON lines
+  // (BentoML's own plain-text startup logs) just fail this
+  // stage silently and pass through unmodified below.
+  stage.json {
+    expressions = {
+      level     = "record.level.name",
+      message   = "record.message",
+      timestamp = "record.time.timestamp",
+      module    = "record.module",
+      function  = "record.function",
+      service   = "record.extra.service",
+    }
+  }
+
+  // Promote extracted fields to real Loki labels so you can
+  // filter with {container="...", level="ERROR"} in Grafana
+  stage.labels {
+    values = {
+      level   = "",
+      module  = "",
+      service = "",
+    }
+  }
+
+  // Use the log's own timestamp instead of ingest time
+  stage.timestamp {
+    source = "timestamp"
+    format = "Unix"
+  }
+
+  // Replace the stored line with just the clean message
+  // (falls back to the original line if message extraction failed)
+  stage.output {
+    source = "message"
+  }
 }
 
 loki.write "default" {

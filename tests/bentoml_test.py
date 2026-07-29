@@ -18,8 +18,10 @@ class BentomlClient:
 
 
 def test_bentoml_connection():
+
+    
     client = BentomlClient()
-    response = client.classify({"image": base_64_test()})
+    response = client.classify({"image":})
     assert response.status_code == 200
     data = response.json()
     assert "predictions" in data
