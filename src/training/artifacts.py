@@ -2,6 +2,7 @@
 This module provides functions to register models with MLflow, upload training logs, reports, and tensorboard artifacts to Azure Blob Storage. 
 It also sets up logging configurations for both application and ML logging.'''
 
+from alembic.command import current
 import torch
 import mlflow
 from dotenv import load_dotenv
@@ -11,7 +12,7 @@ import os
 from loguru import logger
 import datetime
 from mlflow.models.signature import infer_signature
-
+from mlflow.tracking import MlflowClient
 
 from src.utils.azure_utils import AzureBlobStorage
 from src.utils.yaml_utils import load_yaml
@@ -27,6 +28,7 @@ MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
 file_config = root / 'configs' / 'ml.yaml'
 ml_yaml = load_yaml(file_config)
 cfg = load_and_validate_config(file_config)
+core_cfg = load_yaml(root / 'configs' / 'core.yaml')
 
 #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
 # normalize device to a torch.device once
@@ -53,7 +55,7 @@ def register_model(model,val_loader:DataLoader):
  
     mlflow.pytorch.log_model(
         model,
-        serialization_format="pt2", #most robust format for torchscript and future compatibility
+        #serialization_format="pt2",
         input_example=sample_images.cpu(),
         name="model",
         registered_model_name=cfg.variant.mlflow.model_name,
@@ -62,6 +64,7 @@ def register_model(model,val_loader:DataLoader):
     logger.success("Model logged to MLflow registry as {}.", cfg.variant.mlflow.model_name)
  
 def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> None:
+
     log_path = root / core_cfg["logging"]["ml"]["file"]
     logger.info("Uploading artifacts for run {} from {}", run_id, log_path)
  
@@ -90,3 +93,45 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
 
     except Exception as e:
         logger.exception(f"Could not upload tensorboard logs for run {run_id}: {e}")
+
+
+def promote_if_better(
+           registered_model_name: str,
+    candidate_version: str,
+    candidate_metric: float,
+    metric_name: str = "f1_macro",
+    alias: str = "champion",
+    min_improvement: float = 0.005,
+) -> bool:
+
+    client = MlflowClient()
+
+    try:
+        current_champion = client.get_model_version_by_alias(registered_model_name, alias)
+        current_metric_str = current_champion.tags.get(metric_name)
+        current_metric = float(current_metric_str) if current_metric_str is not None else None    
+
+    except:
+        logger.warning("No current champion found for model {}. " \
+        "Promoting candidate version {} as the new champion.", registered_model_name, candidate_version)
+
+        current_champion=None
+        current_metric = None
+
+    if current_champion is None or current_metric is None:
+        logger.info("No current champion found for model {}. Promoting candidate version {} as the new champion.", registered_model_name, candidate_version)
+        client.set_registered_model_alias(registered_model_name, candidate_version, alias)
+        return True    
+
+    logger.info("Comparing current champion version {} with metric {}={} to candidate version {} with metric {}={}", 
+                current_champion.version, metric_name, current_metric, candidate_version, metric_name, candidate_metric)
+
+    if candidate_metric > current_metric + min_improvement:
+        client.set_registered_model_alias(registered_model_name, candidate_version, alias)
+        logger.success("Current champion version {} is better than candidate version {}. No promotion.", current_champion.version, candidate_version)
+
+        return True
+    else:
+        logger.info("Candidate version {} is not better than current champion version {}. No promotion.", candidate_version, current_champion.version)
+        return False
+    

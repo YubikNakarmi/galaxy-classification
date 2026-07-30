@@ -108,3 +108,9 @@ add cache for model instead of always loading
 alembic revision --autogenerate -m "init tables"
 alembic upgrade head
 ```
+
+
+
+# to do
+- champion model in eval.py prmotoin
+-  loaga cahcne check champion

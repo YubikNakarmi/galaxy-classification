@@ -1,5 +1,5 @@
 import mlflow
-from mlflow.tracking import MlflowClient
+from mlflow.tracking import MlflowClient 
 import torch
 from typing import Optional
 from loguru import logger
@@ -22,7 +22,7 @@ class ModelLoader:
 
     def __init__(self,experiment_name: str,local_cache: bool = True,
                  local_cache_dir: Optional[str| Path] = None,
-                 num_classes: int = 5):
+                 num_classes: int = 5,registered_model_name: Optional[str] = None):
         """
         Initialize the ModelLoader.
 
@@ -38,6 +38,7 @@ class ModelLoader:
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
         self.best_run_id = None  # Store the best run ID for later use
+        self.registered_model_name = registered_model_name  # Store the registered model name for later use
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -62,8 +63,23 @@ class ModelLoader:
         
         self.best_run_id = runs[0].info.run_id  # Store the best run ID
 
-        return runs[ 0]
-    
+        return runs[0]
+
+    def latest_registered(self):
+        '''Retrieve the latest registered model for the given experiment.'''
+
+        model = self.client.get_registered_model(self.registered_model_name)
+        return model
+
+
+    def get_champion_model(self):
+        pass
+
+    def register_champion_model
+
+
+
+
     def _init_model(self) -> torch.nn.Module:
         from src.models.model import GalaxyClassifier_ResNet
         return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
