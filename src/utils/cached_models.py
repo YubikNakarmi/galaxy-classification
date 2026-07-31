@@ -1,3 +1,4 @@
+import hashlib
 import mlflow
 from mlflow.tracking import MlflowClient 
 import torch
@@ -192,4 +193,28 @@ class LruCache:
     pass
 
 class Metadata:
-    pass
+    
+    def __init__(self, run_id: str, model_name: str, metric:dict,save_path: Optional[str|Path] = None):
+        self.run_id = run_id
+        self.model_name = model_name
+        self.metric = metric
+        self.save_path = Path(save_path) if save_path else None
+
+
+
+
+class ModelMetadata(Metadata):
+
+
+    def __init__(self, run_id: str, model_name: str, metric: dict, save_path: Optional[str|Path] = None):
+
+        super().__init__(run_id, model_name, metric, save_path)
+        self.model_type = "PyTorch"
+
+    def checksum(self)-> str:
+        '''Generate a checksum for the model metadata.'''
+        data = f"{self.run_id}{self.model_name}{self.metric}"
+        return hashlib.md5(data.encode()).hexdigest()
+
+    def __str__(self):
+        return f"ModelMetadata(run_id={self.run_id}, model_name={self.model_name}, metric={self.metric})"

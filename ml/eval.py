@@ -78,7 +78,7 @@ def eval(metrics:dict,model:torch.nn.Module):
 @click.option("--metric-name", type=str, default="test_f1_macro", help="Which computed metric drives the promotion decision")
 @click.option("--alias", type=str,default="champion", help="Alias for the registered model")
 
-def main(run_id, variant, model_version, min_improvement, metric_name, alias):
+def evaluate(run_id, variant, model_version, min_improvement, metric_name, alias):
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
@@ -160,4 +160,4 @@ def main(run_id, variant, model_version, min_improvement, metric_name, alias):
         )
 
 if __name__ == "__main__":
-    main()
+    evaluate()

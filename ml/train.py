@@ -252,7 +252,7 @@ def train_dirilchled():
 # CLI entry
 @click.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")
-def main(variant):
+def train(variant):
 
     if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
                mlflow_tracking_uri=MLFLOW_TRACKING_URI,
@@ -271,4 +271,4 @@ def main(variant):
     
  
 if __name__ == "__main__":
-    main()
+    train()
