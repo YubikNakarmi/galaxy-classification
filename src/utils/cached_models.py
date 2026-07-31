@@ -114,8 +114,6 @@ class ModelLoader:
             return None
 
 
-
-
     def _init_model(self) -> torch.nn.Module:
         from src.models.model import GalaxyClassifier_ResNet
         return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
@@ -187,3 +185,11 @@ class ModelLoader:
                 logger.error(f"No finished runs found for experiment '{model_name}'")
                 return None
             return runs
+
+
+
+class LruCache:
+    pass
+
+class Metadata:
+    pass

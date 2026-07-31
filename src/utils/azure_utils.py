@@ -6,8 +6,9 @@ containers, uploading files, listing blobs, and deleting blobs.
 
 Example:
     ``` python
-    with AzuleBlobStorage("images") as storage:
-        storage.create_container("images")
+    
+        with AzuleBlobStorage("images") as storage:
+            storage.create_container("images")
     ```
     
 """

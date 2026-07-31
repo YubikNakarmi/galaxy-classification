@@ -65,7 +65,7 @@ def train_epoch(
     return train_loss, global_step
 
 def validate_epoch(
-     model: nn.Module,
+    model: nn.Module,
     dataloader: DataLoader,
     criterion: nn.Module,
     metrics: dict,

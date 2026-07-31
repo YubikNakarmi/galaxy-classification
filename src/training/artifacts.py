@@ -47,7 +47,7 @@ def register_model(model,val_loader:DataLoader):
         dev,
     )
     
-    # getting model signatures and sample for pt2 serialization
+    # getting model signatures and sample 
     with torch.no_grad():
         preds_np = torch.softmax(model(sample_images), dim=1).cpu().numpy()
  
@@ -55,7 +55,7 @@ def register_model(model,val_loader:DataLoader):
  
     mlflow.pytorch.log_model(
         model,
-        #serialization_format="pt2",
+        #serialization_format="pt2", using non pt2 for better grandcam compatibility
         input_example=sample_images.cpu(),
         name="model",
         registered_model_name=cfg.variant.mlflow.model_name,
@@ -100,13 +100,14 @@ def promote_if_better(
     registered_model_name: str,
     candidate_version: str,
     candidate_metric: float,
-    metric_name: str = "f1_macro",
+    metric_name: str = "eval_f1_macro",
     alias: str = "champion",
-    min_improvement: float = 0.005,) -> bool:
+    min_improvement: float = 0.005) -> bool:
 
     client = MlflowClient()
 
     try:
+        #using alias for best model after eval
         current_champion = client.get_model_version_by_alias(registered_model_name, alias)
         current_metric_str = current_champion.tags.get(metric_name)
         current_metric = float(current_metric_str) if current_metric_str is not None else None    
