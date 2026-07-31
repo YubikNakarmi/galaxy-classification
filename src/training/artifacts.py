@@ -65,6 +65,7 @@ def register_model(model,val_loader:DataLoader):
  
 def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> None:
 
+    
     log_path = root / core_cfg["logging"]["ml"]["file"]
     logger.info("Uploading artifacts for run {} from {}", run_id, log_path)
  
@@ -96,13 +97,12 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
 
 
 def promote_if_better(
-           registered_model_name: str,
+    registered_model_name: str,
     candidate_version: str,
     candidate_metric: float,
     metric_name: str = "f1_macro",
     alias: str = "champion",
-    min_improvement: float = 0.005,
-) -> bool:
+    min_improvement: float = 0.005,) -> bool:
 
     client = MlflowClient()
 

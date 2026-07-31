@@ -14,68 +14,104 @@ class ModelLoader:
     
     Example:
         ```python
-        loader = ModelLoader(experiment_name="my_experiment", local_cache=True, local_cache_dir="./cache", num_classes=5)
+        loader = ModelLoader(registered_model_name="my_model", local_cache=True, local_cache_dir="./cache", num_classes=5)
         model = loader.load_best_model()
         ```
  
     '''
 
-    def __init__(self,experiment_name: str,local_cache: bool = True,
+    def __init__(self,registered_model_name:str,local_cache: bool = True,
                  local_cache_dir: Optional[str| Path] = None,
-                 num_classes: int = 5,registered_model_name: Optional[str] = None):
+                 num_classes: int = 5):
         """
         Initialize the ModelLoader.
 
         Args:
-            experiment_name: The name of the MLflow experiment.
             local_cache: Whether to use local caching.
             local_cache_dir: The directory for local caching.
+            num_classes: The number of classes for the model.
+            registered_model_name: The name of the registered model in MLflow.
         """
 
         self.client = MlflowClient()
-        self.experiment_name = experiment_name
+
+        self.registered_model_name = registered_model_name  # Store the registered model name for later use
+
         self.local_cache = local_cache
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
         self.best_run_id = None  # Store the best run ID for later use
-        self.registered_model_name = registered_model_name  # Store the registered model name for later use
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
 
-    def _best_run(self):
-        '''Retrieve the best run based on the highest val_f1_macro metric.'''
+    
 
-        experiment = self.client.get_experiment_by_name(self.experiment_name)
+    def load_with_fallback(self,top_n:int=5, metric: str = "val_f1_macro") -> torch.nn.Module:
+        '''Load the best model for the given experiment name, with a fallback to other models if best model fails.
+        Args:
+            top_n: The number of top runs to consider.
+            metric: The metric to sort runs by.
+        Returns:
+            The loaded PyTorch model.
         
-        if experiment is None:
-            raise ValueError(f"Experiment '{self.experiment_name}' not found")
-
-        runs = self.client.search_runs(
-            experiment_ids=[experiment.experiment_id],
-            filter_string="attributes.status = 'FINISHED'",
-            order_by=["metrics.val_f1_macro DESC"],
-            max_results=1,
-        )
-
-        if not runs:
-            raise ValueError(f"No finished runs in experiment '{self.experiment_name}'")
+        Raises:
+            RuntimeError: If no model could be loaded from the top N runs.
         
-        self.best_run_id = runs[0].info.run_id  # Store the best run ID
+        Example:
+            ```python
+            loader = ModelLoader(registered_model_name="my_model", local_cache=True, local_cache_dir="./cache", num_classes=5)
+            model = loader.load_with_fallback(top_n=5, metric="val_f1_macro")
+            ```
+        '''
 
-        return runs[0]
+        model_list = self._best_run(self.registered_model_name,top_n=top_n, metric=metric)
 
-    def latest_registered(self):
-        '''Retrieve the latest registered model for the given experiment.'''
+        for rank,runs in enumerate(model_list,start=1):
+            run_id = runs.info.run_id
+            metric = runs.data.metrics.get(metric, None)
 
-        model = self.client.get_registered_model(self.registered_model_name)
-        return model
+            logger.info(f"Attempting to load model from run '{run_id}' with {metric}: {metric} (Rank: {rank})")
 
+            try: 
+                model = self.check_cache(run_id)
+                logger.success(f"Successfully loaded model from run '{run_id}' with {metric}: {metric} (Rank: {rank})")
 
-    def get_champion_model(self):
-        pass
+                if model is None:
+                    logger.exception(f"Model loading failed for run '{run_id}' with {metric}: {metric} (Rank: {rank})")
 
-    def register_champion_model
+                if rank > 1:
+                    logger.warning(f"Loaded model from run '{run_id}' with {metric}: {metric} (Rank: {rank}), which is not the best model.")
+
+                return model
+            
+            except Exception as e:
+                logger.error(f"Couldn't load the model from run_id:{run_id} continuing search")
+                continue
+
+        raise RuntimeError(f"Failed to load any model for experiment '{self.registered_model_name}' after checking top {top_n} runs.")
+   
+        
+
+    def load_champion_model(self)->Optional[torch.nn.Module]:  
+        '''Retrieve the champion model's run ID from MLflow.
+        
+        Returns:
+            The run ID of the champion model if it exists, otherwise None.
+        Raises:
+            Exception: If there is an error retrieving the champion model.
+        
+        '''
+
+        try:
+            champion_version = self.client.get_model_version_by_alias(self.registered_model_name, "champion")
+            champion_run_id = champion_version.run_id
+            logger.success(f"Champion model version: {champion_version.version} | Run ID: {champion_run_id}")
+            return self.check_cache(champion_run_id)
+        
+        except Exception as e:
+            logger.exception(f"Could not retrieve champion model for '{self.registered_model_name}': {e}")
+            return None
 
 
 
@@ -120,19 +156,34 @@ class ModelLoader:
 
         return model  
 
-    def load_best_model(self) -> torch.nn.Module:
-        ''' Wraps around check_cache and best run to load the best model from mlflow or local cache
-        
-        Returns:
-            The loaded PyTorch model corresponding to the best run.
-        '''
-        best_run = self._best_run()
-        run_id = best_run.info.run_id
-        logger.info(f"Best run: {run_id} | val_f1_macro: {best_run.data.metrics.get('val_f1_macro')}")
-        model = self.check_cache(run_id)
-        if model is None:
-            logger.exception(f"Model not found for run ID '{run_id}'")
+   
+    def _best_run(self,model_name:str,top_n:int=5, metric: str = "val_f1_macro"):
+            '''Retrieve the best run based on the highest specified metric.
 
-        return model
+            Args:
+                model_name: The name of the model in Mlflow Registry.
+                top_n: The number of top runs to consider.
+                metric: The metric to sort runs by.
+
+            Returns:
+                A list of the top N runs based on the specified metric.
+
+            '''
     
-  
+            experiment_name = self.client.get_experiment_by_name(model_name) 
+    
+            if experiment_name is None:
+                logger.error(f"No experiment found with name '{model_name}'")
+                return None
+    
+            runs = self.client.search_runs(
+                experiment_ids=[experiment_name.experiment_id],
+                filter_string="attributes.status = 'FINISHED'",
+                order_by=[f"metrics.{metric} DESC"],
+                max_results=top_n,
+                )
+    
+            if not runs: 
+                logger.error(f"No finished runs found for experiment '{model_name}'")
+                return None
+            return runs

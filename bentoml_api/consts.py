@@ -45,3 +45,8 @@ experiment_root_dirichlet = ml_yaml["variants"]["Dirichlet"]["experiment"]["root
 device = ml_yaml["env"]["device"]
 
 container_name = ml_yaml["storage"]["cloud"]["experiments"]["container"]
+
+
+default_model_name = ml_yaml["variants"]["Default"]["mlflow"]["model_name"]
+hubble_model_name = ml_yaml["variants"]["Hubble"]["mlflow"]["model_name"]
+dirichlet_model_name = ml_yaml["variants"]["Dirichlet"]["mlflow"]["model_name"]

@@ -12,7 +12,9 @@ from src.utils.cached_models import ModelLoader
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import intercept_stdlib_logging, setup_app_logging
 from bentoml_api.runners import run_default_model, run_dirichlet_model, run_hubble_model, build_gradcam
-from bentoml_api.consts import DEVICE, experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
+from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
+default_model_name, hubble_model_name, dirichlet_model_name
+
 from loguru import logger
 
 root = Path(__file__).parent.parent
@@ -42,10 +44,14 @@ class GalaxyClassification:
     
     def __init__(self):
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        modelloader_default = ModelLoader(experiment_name=experiment_root_default, 
+        modelloader_default = ModelLoader(registered_model_name=default_model_name,
                                           local_cache=True, local_cache_dir=root / "models/cached")
 
-        self.default_model = modelloader_default.load_best_model().eval().to(DEVICE)
+        def_model= modelloader_default.load_champion_model() 
+
+        self.default_model = def_model if def_model else \
+        modelloader_default.load_with_fallback(top_n=5, metric="val_f1_macro").eval().to(DEVICE)#change to "eval_f1_macro" on production
+        
 
         #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
         #self.dirichlet_model = load_best_model(experiment_name=experiment_root_dirichlet).eval().to(DEVICE)

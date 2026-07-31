@@ -12,7 +12,7 @@ from typing import Optional
 from bentoml_api.schemas import ClassificationResult
 
 from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
-experiment_root_default, experiment_root_hubble, experiment_root_dirichlet
+default_model_name, hubble_model_name, dirichlet_model_name
 
 root = Path(__file__).parent.parent
 

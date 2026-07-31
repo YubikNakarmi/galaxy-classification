@@ -78,7 +78,7 @@ def main(run_id, variant, model_version):
     model_name = None
 
     if model_version is None:
-        # get the latest version of the model 
+        # get the model version associated with the run_id
         ver = client.search_model_versions(f"run_id='{run_id}'")
         if not ver:
             logger.error("No registered version for run_id {} under variant {}", run_id, variant)
