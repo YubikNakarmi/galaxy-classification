@@ -79,16 +79,7 @@ class AzureBlobStorage:
                 container_name
                 
             )
-    #context managers
-    def __enter__(self):
-        logger.info("AzureBlobStorage client initialized...")
-
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        logger.info("Closing AzureBlobStorage client...")
-        self.blob_service_client.close()
-        
+   
     #Main methods
     def check_container_exists(self, name:str)-> bool:
             
@@ -310,3 +301,18 @@ class AzureBlobStorage:
                 )
             self.container_client = self.blob_service_client.get_container_client(self.container_name)
         return self.container_client
+
+    def __repr__(self):
+        return f"AzureBlobStorage(container_name={self.container_name!r}, \
+        storage_connection_string={'***' if self.__storage_connection_string else None})"
+    
+     #context managers
+    def __enter__(self):
+        logger.info("AzureBlobStorage client initialized...")
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        logger.info("Closing AzureBlobStorage client...")
+        self.blob_service_client.close()
+        

@@ -114,3 +114,8 @@ alembic upgrade head
 # to do
 - champion model in eval.py prmotoin
 -  loaga cahcne check champion
+-  
+# Need to test
+- new cached
+- fastapi
+- cli training
