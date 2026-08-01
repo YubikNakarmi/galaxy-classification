@@ -1,8 +1,13 @@
 import hashlib
+import json
+import os
 import mlflow
 from mlflow.tracking import MlflowClient 
 import torch
-from typing import Optional
+from typing import Optional,Any
+from datetime import datetime, timezone
+
+
 from loguru import logger
 
 from pathlib import Path
@@ -194,12 +199,72 @@ class LruCache:
 
 class Metadata:
     
-    def __init__(self, run_id: str, model_name: str, metric:dict,save_path: Optional[str|Path] = None):
-        self.run_id = run_id
-        self.model_name = model_name
-        self.metric = metric
+    def __init__(self,save_path: Optional[str|Path] = None):
+    
         self.save_path = Path(save_path) if save_path else None
 
+    def _log_formats(self):
+
+        top_json_format = {
+            "Default": {
+                "candidates":[],
+                "latest_update": ""
+
+                },
+            "Hubble": {
+                "candidates":[],
+                "latest_update": ""
+
+                },
+
+            "Dirichlet": {
+                "candidates":[],
+                "latest_update": ""
+            }
+        }
+
+        candidates_json_format =  {
+            "rank": None,
+            "run_id": "",
+            "model_name": "",
+            "experiment_name": "",
+            "val_f1_macro": None,
+            "num_classes": None,
+            "cache_file": "",
+            "cached_at": "",
+            "save_path": ""
+        }
+
+        return top_json_format, candidates_json_format
+
+    def _load_json(self, file_path: str) -> dict: #load joson 
+        """
+        Load a JSON file.
+        """
+        if not os.path.exists(file_path):
+            return {}
+        with open(file_path, "r", encoding="utf-8") as file:
+            try:
+                return json.load(file)
+            except json.JSONDecodeError:
+                return {}
+    def _write_json(self,file_path: str, data: dict) -> None: #write to file
+
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=2, ensure_ascii=False, default=self._json_default)
+
+    def _json_default(self,value: Any):# Convert datetime to ISO format, and handle other non-serializable types
+
+        if isinstance(value, (datetime,)):
+            return value.astimezone(timezone.utc).isoformat()
+        if hasattr(value, "item"):
+            return value.item()
+        return str(value)
+
+
+    def update_metadata():
+        pass
 
 
 
@@ -208,8 +273,10 @@ class ModelMetadata(Metadata):
 
     def __init__(self, run_id: str, model_name: str, metric: dict, save_path: Optional[str|Path] = None):
 
-        super().__init__(run_id, model_name, metric, save_path)
+        super().__init__(save_path)
         self.model_type = "PyTorch"
+        self.run_id = run_id
+        self.model_name = model_name
 
     def checksum(self)-> str:
         '''Generate a checksum for the model metadata.'''
@@ -218,3 +285,5 @@ class ModelMetadata(Metadata):
 
     def __str__(self):
         return f"ModelMetadata(run_id={self.run_id}, model_name={self.model_name}, metric={self.metric})"
+
+   

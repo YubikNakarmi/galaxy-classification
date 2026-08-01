@@ -75,6 +75,10 @@ def _parse_data(raw: dict, root: Path) -> DataConfig:
             mean=list(norm.get("mean", [0.1376, 0.1276, 0.1187])),
             std=list(norm.get("std", [0.1728, 0.1586, 0.1488])),
         ),
+        raw_paths=RawDataConfig(
+            labels=root / d["raw_paths"][0]["labels"],
+            mappings=root / d["raw_paths"][1]["mappings"],
+        ),
     )
  
  

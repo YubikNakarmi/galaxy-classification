@@ -5,43 +5,30 @@ from pathlib import Path
 from dotenv import load_dotenv
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
+from src.utils.cli_bootstrap import load_context
 import click
 import pandas as pd
 from loguru import logger
+from . import pipeline
 
 
 #setup logging and config load
 root = Path(__file__).resolve().parent.parent
-load_dotenv(root / '.env') 
 
-log_config = load_yaml(root / 'configs' / 'core.yaml')
-setup_ml_logging(log_config)
-
-file_config = root / 'configs' / 'ml.yaml'
-ml_yaml = load_yaml(file_config)
-
-#core params
-active_variant = str(ml_yaml['active_variant'])
-seed = ml_yaml["env"]["seed"]
-test_size = ml_yaml['variants'][active_variant]['data']['split']["test_size"]
-train_size = ml_yaml['variants'][active_variant]['data']['split']["train_size"]
-val_size = ml_yaml['variants'][active_variant]['data']['split']["val_size"]
-
-# dirs and paths for preprocessing and splitting
-split_dir = root / ml_yaml['data']['split_dir']
-split_dir.mkdir(parents=True, exist_ok=True)
-
-label_file = root / ml_yaml["variants"][active_variant]["label_file"]
-preprocessed_dir = root / ml_yaml['data']['preprocessed_dir']
-
-mapping = root / ml_yaml['data']["raw_paths"][1]["mappings"]
-labels =  root /ml_yaml['data']["raw_paths"][0]["labels"]
 
 
 
 #splitting data 
 
-def split(df:pd.DataFrame)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def split(df:pd.DataFrame,cfg)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+    seed = cfg.env.seed
+    active_variant = cfg.active_variant
+    test_size = cfg.variants[active_variant].data.split.test_size
+
+    train_size = cfg.variants[active_variant].data.split.train_size
+    val_size = cfg.variants[active_variant].data.split.val_size
+
 
     ids = df.drop_duplicates("asset_id")[["asset_id", "label"]]
     
@@ -64,17 +51,33 @@ def split(df:pd.DataFrame)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 
 
 
-@click.command()
+@pipeline.command()
 @click.option('--run_preprocessing',default= False, help='Whether to run preprocessing or not')
 @click.option('--preprocess_type', default='classic', help='Type of preprocessing to run (e.g., classic, hubble,dirilichet)')
-
-
 @click.option('--run_split', default=False, help='Whether to run data splitting or not split defined in ml.yaml')
+@click.option('--variant', default="Default", help='Variant of the experiment to preprocess.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
+@click.pass_context #ctx from top level
+def preprocess(ctx, run_preprocessing,run_split,preprocess_type):
+     #custom contexxt to avaoid multi load
+    app_ctx = ctx.obj or load_context(service="ml")#retrive from top level of click cmd in __init__py
 
+    cfg = app_ctx.cfg
 
+  
+    #core params
+    active_variant = cfg.active_variant    
+    # dirs and paths for preprocessing and splitting
+    split_dir = cfg.data.split_dir
+    split_dir.mkdir(parents=True, exist_ok=True)
 
-def main(run_preprocessing,run_split,preprocess_type=active_variant):
-    
+    label_file = cfg.variants[active_variant].label_file
+
+    preprocessed_dir = str(cfg.data.preprocessed_dir)
+
+    mapping = pd.read_csv(str(cfg.data.raw_paths.mappings))
+
+    labels = pd.read_csv(str(cfg.data.raw_paths.labels))
+
     if run_preprocessing:
 
         if mapping is None or labels is None:
@@ -107,7 +110,7 @@ def main(run_preprocessing,run_split,preprocess_type=active_variant):
             return
         
         labels_df = pd.read_csv(label_file)
-        splits = split(labels_df)
+        splits = split(labels_df, cfg)
 
         train_ids, val_ids, test_ids = splits
         for split_name, ids in [("train", train_ids), ("val", val_ids), ("test", test_ids)]:
@@ -119,4 +122,4 @@ def main(run_preprocessing,run_split,preprocess_type=active_variant):
     
 # pythron preprocess.py --run_preprocessing=true --preprocess_type="classic" --run_split=true
 if __name__ == "__main__":
-    main()
+    preprocess()

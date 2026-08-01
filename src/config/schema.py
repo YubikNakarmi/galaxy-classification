@@ -69,7 +69,11 @@ class VariantConfig:
 class NormalizeConfig:
     mean: list[float]
     std: list[float]
- 
+
+@dataclass
+class RawDataConfig:
+    labels: Path
+    mappings: Path
  
 @dataclass
 class DataConfig:
@@ -81,6 +85,7 @@ class DataConfig:
     eval_path: Path
     input_size: int
     normalize: NormalizeConfig
+    raw_paths: RawDataConfig
  
  
 '''Storages''' 

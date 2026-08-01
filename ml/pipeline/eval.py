@@ -2,6 +2,7 @@ from pathlib import Path
 
 import mlflow
 import torch
+from ml.pipeline import pipeline
 from src.utils.yaml_utils import load_yaml
 from src.config import load_and_validate_config
 from src.utils.logging_config import setup_ml_logging
@@ -15,27 +16,20 @@ import datetime
 import os
 import click
 from mlflow.tracking import MlflowClient
-
-
+from src.utils.cli_bootstrap import load_context
 
 from loguru import logger
 root = Path(__file__).resolve().parent.parent
 
-file_config = root / 'configs' / 'ml.yaml'
-setup_ml_logging(load_yaml(file_config))
-ml_yaml = load_yaml(file_config)
 
-cfg = load_and_validate_config(file_config)
-active_var = cfg.active_variant
-dev = cfg.env.device
-experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
+def eval(metrics:dict,model:torch.nn.Module,cfg)-> dict:
 
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    #Loading config context with better way than usign gloals which conflicts in cli
+    cache_dir = cfg.storage.local.checkpoints.model_cache_dir
+    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
 
 
-cache_dir = cfg.storage.local.checkpoints.model_cache_dir
 
-def eval(metrics:dict,model:torch.nn.Module):
     logger.info(f"Loading model from cache dir: {cache_dir}")
 
     
@@ -69,16 +63,28 @@ def eval(metrics:dict,model:torch.nn.Module):
 
 
     
-
-@click.command()
+@pipeline.command()
 @click.option('--run_id', required=True, help='MLflow run ID to evaluate. If not provided, the best model will be used.')
-@click.option('--variant', default=active_var, help='Variant of the experiment to evaluate.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
+@click.option('--variant', default="Default", help='Variant of the experiment to evaluate.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
 @click.option('--model_version', default=None, help='Version of the model to evaluate.')
 @click.option("--min-improvement", type=float, default=0.005, help="Minimum metric improvement required to promote")
 @click.option("--metric-name", type=str, default="test_f1_macro", help="Which computed metric drives the promotion decision")
-@click.option("--alias", type=str,default="champion", help="Alias for the registered model")
+@click.option("--alias", type=str,default="Champion", help="Alias for the registered model")
+@click.pass_context
+def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, alias):
+    
+    app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py
+    cfg = app_ctx.cfg
 
-def evaluate(run_id, variant, model_version, min_improvement, metric_name, alias):
+    active_var = cfg.active_variant
+    dev = cfg.env.device
+    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
+
+    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
+
+
+
+
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
@@ -133,13 +139,9 @@ def evaluate(run_id, variant, model_version, min_improvement, metric_name, alias
         logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")
        
         metrics   = make_metrics(cfg.variant.num_classes, dev)
-        results = eval(metrics, model)
+        results = eval(metrics, model,cfg=cfg)
 
-        results = eval(
-            metrics=metrics,
-            model=model,
-        )
-
+    
         mlflow.log_metrics(results)
         logger.info("Eval results | {}", results)
 

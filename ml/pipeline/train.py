@@ -16,32 +16,31 @@ from src.utils.azure_utils import AzureBlobStorage
 from src.models.model import GalaxyClassifier_ResNet
 from src.utils.yaml_utils import load_yaml
 from src.utils.logging_config import setup_ml_logging
+from src.utils.cli_bootstrap import load_context
 from src.dataset.dataset import GalaxyDataset
 from src.training import train_epoch,validate_epoch
 from src.config import load_and_validate_config
-from src.training import CheckpointManager,validate_setup,upload_artifact,register_model,make_metrics, raw_transforms, val_transforms
-
-root = Path(__file__).parent.parent
-load_dotenv(root / ".env")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
-
-log_config = load_yaml(root / 'configs' / 'core.yaml')
-setup_ml_logging(log_config)
-
-core_cfg = load_yaml(root / 'configs' / 'core.yaml')
-
-file_config = root / 'configs' / 'ml.yaml'
-ml_yaml = load_yaml(file_config)
-cfg = load_and_validate_config(file_config)
-
-#used throughout all loggings runs for local saves, cloud saves use mlflow run_id
-experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
-# normalize device to a torch.device once
-dev = torch.device(cfg.env.device)
-active_variant = cfg.active_variant
+from src.training import CheckpointManager,validate_setup,upload_artifact,register_model,make_metrics, \
+raw_transforms, val_transforms
+from ml.pipeline import pipeline
 
 
-def train_default():
+
+
+
+
+
+
+def train_default(cfg):
+
+    #configs
+    #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
+    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
+    # normalize device to a torch.device once
+    dev = torch.device(cfg.env.device)
+
+
+    #trainin start
 
     logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
     logger.info(
@@ -250,9 +249,16 @@ def train_hubble():
 def train_dirilchled():
     pass
 # CLI entry
-@click.command()
+@pipeline.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")
-def train(variant):
+@click.pass_context
+
+def train(ctx, variant):
+
+    app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py, fallback to load_context if not present
+    cfg = app_ctx.cfg
+    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
+
 
     if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
                mlflow_tracking_uri=MLFLOW_TRACKING_URI,
@@ -267,7 +273,7 @@ def train(variant):
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":
         mlflow.set_experiment(cfg.variant.experiment.root)
-        train_default()
+        train_default(cfg)
     
  
 if __name__ == "__main__":
