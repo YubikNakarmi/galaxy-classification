@@ -44,11 +44,13 @@ class CandidateMetadata:
     run_id: str
     model_name: str
     experiment_name: str
+    f1_macro: float | None
     val_f1_macro: float | None
     num_classes: int | None
     cache_file: str
     cached_at: str
     save_path: str
+    other_metrics: Optional[dict] = field(default_factory=dict)  # For any additional metrics
 
 @dataclass 
 class ModelMetadata: #for model specific metadata
@@ -56,7 +58,7 @@ class ModelMetadata: #for model specific metadata
     model_name: str
     metric: dict
     save_path: Optional[str|Path] = None
-    sha_hash: Optional[str] = None
+    checksum: Optional[str] = None
 
 @dataclass
 class VariantMetadata:

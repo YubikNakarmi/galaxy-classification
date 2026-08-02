@@ -72,6 +72,7 @@ plugins:
           options:
             show_root_heading: true
             show_source: false
+            filters: ["!^__"]
 
   - awesome-pages
 
