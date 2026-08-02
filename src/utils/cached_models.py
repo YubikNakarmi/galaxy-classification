@@ -304,6 +304,7 @@ class ModelLoader:
                 local_cache: bool = True,
                 local_cache_dir: Optional[str| Path] = None,
                 num_classes: int = 5,cache_metadata: bool = True, 
+                model_top_n: int = 5,
                 metadata: Optional[Metadata]= None,
                 metadata_save_path: Optional[str|Path] = "../../models/cached/metadata.json", 
                 metric:str = "val_f1_macro",
@@ -340,6 +341,7 @@ class ModelLoader:
         self.metric = metric  # Store the metric for sorting runs
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
+        self.top_n = model_top_n  # Store the top_n for metadata
 
         
         if self.cache_metadata:
@@ -397,11 +399,10 @@ class ModelLoader:
             
   
     
-    def load_with_fallback(self,top_n:int=5) -> torch.nn.Module:
+    def load_with_fallback(self) -> torch.nn.Module:
 
         '''Load the best model for the given experiment name, with a fallback to other models if best model fails.
-        Args:
-            top_n: The number of top runs to consider.
+       
         Returns:
             The loaded PyTorch model.
         
@@ -410,20 +411,20 @@ class ModelLoader:
         
         Example:
             ```python
-            loader = ModelLoader(registered_model_name="my_model", local_cache=True, local_cache_dir="./cache", num_classes=5)
-            model = loader.load_with_fallback(top_n=5)
+            loader = ModelLoader(registered_model_name="my_model",top_n=5,local_cache=True, local_cache_dir="./cache", num_classes=5)
+            model = loader.load_with_fallback()
             ```
         '''
 
         if self.cache_metadata:
-            self.sync_metadata_with_mlflow(top_n=top_n)  # Sync metadata with MLflow before loading
+            self.sync_metadata_with_mlflow(top_n=self.top_n)  # Sync metadata with MLflow before loading
         try:
-            model_list = self._best_run(self.registered_model_name,top_n=top_n, metric=self.metric)
+            model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
 
             #self.metadata.update_metadata()
         except Exception as e:
             logger.error(f"MLflow unreachable, attempting to load from local metadata fallback: {e}")
-            return self._load_from_local_metadata(top_n=top_n)    
+            return self._load_from_local_metadata(top_n=self.top_n)    
 
         
         if not model_list:
@@ -451,7 +452,7 @@ class ModelLoader:
                 logger.error(f"Couldn't load the model from run_id:{run_id} continuing search")
                 continue
 
-        raise RuntimeError(f"Failed to load any model for experiment '{self.registered_model_name}' after checking top {top_n} runs.")
+        raise RuntimeError(f"Failed to load any model for experiment '{self.registered_model_name}' after checking top {self.top_n} runs.")
    
         
 
@@ -578,18 +579,16 @@ class ModelLoader:
 
         return model  
 
-    def _load_from_local_metadata(self, top_n: int = 5) -> torch.nn.Module:
+    def _load_from_local_metadata(self) -> torch.nn.Module:
 
         '''Used only when MLflow is unreachable. Reads previously-cached, already-ranked
         candidates from the local metadata file.
         
-        Args:
-            top_n: The number of top runs to consider.
-
+       
         Example:
         ```python
             # called internally by load_with_fallback when MLflow is unreachable
-            model = loader._load_from_local_metadata(top_n=5)
+            model = loader._load_from_local_metadata()
         ```
 
         '''
@@ -599,7 +598,7 @@ class ModelLoader:
 
         file = self.metadata._load()
 
-        candidates = file[self.variant].candidates[:top_n]
+        candidates = file[self.variant].candidates[:self.top_n]
 
         if not candidates:
             raise RuntimeError(f"MLflow unreachable and no cached candidates for variant '{self.variant}'.")
@@ -672,15 +671,13 @@ class ModelLoader:
             checksum = self.compute_checksum(run_id)
         return checksum_path.read_text().strip() == checksum
     
-    def sync_metadata_with_mlflow(self,top_n:int=5)-> List[CandidateMetadata]:
+    def sync_metadata_with_mlflow(self)-> List[CandidateMetadata]:
 
         '''Query MLflow for the top_n runs by metric and record all of them in local
         metadata, regardless of whether their weights get downloaded/cached. Keeps the
         local registry in sync with MLflow even for candidates load_with_fallback never
         had to fall through to.
 
-        Args:
-            top_n: Number of top runs to fetch from MLflow.
 
         Returns:
             The list of CandidateMetadata written, in rank order. Empty list if
@@ -690,8 +687,8 @@ class ModelLoader:
         ```python
             loader = ModelLoader(registered_model_name="galaxy-classification-default",
                                 local_cache=True, local_cache_dir="./cache",
-                                num_classes=5, variant="Default")
-            candidates = loader.sync_metadata_with_mlflow(top_n=5)
+                                num_classes=5, variant="Default",top_n=5)
+            candidates = loader.sync_metadata_with_mlflow()
             for c in candidates:
                 print(c.rank, c.run_id, c.val_f1_macro)
         ```
@@ -701,7 +698,7 @@ class ModelLoader:
             logger.warning("cache_metadata is False; skipping metadata sync.")
             return []
 
-        model_list = self._best_run(self.registered_model_name, top_n=top_n, metric=self.metric)
+        model_list = self._best_run(self.registered_model_name, top_n=self.top_n, metric=self.metric)
         if not model_list:
             logger.warning(f"No runs found for '{self.registered_model_name}' to sync metadata from.")
             return []
@@ -726,7 +723,7 @@ class ModelLoader:
                 save_path=str(self.local_cache_dir) if self.local_cache_dir else None,
                 other_metrics={self.metric: metric_val} if metric_val is not None else {}
             )
-            self.metadata.update_metadata(cand, variant=self.variant, top_n=top_n)
+            self.metadata.update_metadata(cand, variant=self.variant, top_n=self.top_n)
             synced.append(cand)
 
         logger.success(f"Synced top {len(synced)} candidate(s) metadata for '{self.registered_model_name}'")
