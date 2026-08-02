@@ -120,11 +120,26 @@ class Metadata:
         if hasattr(value, "item"):
             return value.item()
         return str(value)
+
+    def __len__(self):
+        """
+        Return the total number of candidates across all variants in the metadata.
+        Returns:
+            The total number of candidates across all variants.
+        Example:
+            ```python
+            metadata = Metadata(save_path="./cache/model_metadata.json")
+            total_candidates = len(metadata)
+            print(f"Total candidates: {total_candidates}")
+            ```
+        """
+        file = self._load()
+        return sum(len(getattr(file, variant).candidates) for variant in ["Default", "Hubble", "Dirichlet"])
     
 
 
     def update_metadata(self,metadata:CandidateMetadata,
-                        variant:Literal["Default","Hubble","Dirichlet"]="Default"):
+                        variant:Literal["Default","Hubble","Dirichlet"]="Default",top_n:int=5)->Any:
 
         '''Update the metadata file with new candidate metadata for a specific variant.
 
@@ -168,13 +183,24 @@ class Metadata:
             key=lambda c: (c.f1_macro if c.f1_macro is not None else float("-inf")),
             reverse=True,)
 
+            #drop candidates beyond top_n
+            dropped = selected.candidates[top_n:]
+            selected.candidates = selected.candidates[:top_n]
+
             for i, c in enumerate(selected.candidates, start=1):
                 c.rank = i
+
+            if dropped:
+                logger.info(f"Pruned {len(dropped)} candidate(s) beyond top_n={top_n} for variant '{variant}': "
+                       f"{[c.run_id for c in dropped]}")
+
 
             selected.latest_update = datetime.now(timezone.utc).isoformat()
 
             self._write_json(self.save_path, asdict(file))
             logger.success(f"Metadata updated for variant '{variant}' at {self.save_path}")
+
+            return dropped #for file eviction
 
         except Exception as e:
             logger.error(f"Error updating metadata: {e}")
@@ -188,12 +214,90 @@ class ModelLoader:
 
     '''A class to load the best model from MLflow, with optional local caching.
     
-    Example:
+        Example: Minimal usage (no caching, no metadata)
         ```python
-        loader = ModelLoader(registered_model_name="my_model", local_cache=True, local_cache_dir="./cache", num_classes=5)
-        model = loader.load_best_model()
+                loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache=False,
+                    cache_metadata=False,
+                )
+                model = loader.load_with_fallback(top_n=5)
         ```
- 
+
+            Example: Local caching only (no metadata tracking)
+        ```python
+                loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache=True,
+                    local_cache_dir="./models/cached",
+                    num_classes=5,
+                    cache_metadata=False,
+                )
+                model = loader.load_with_fallback(top_n=5)
+        ```
+
+            Example: Full setup — caching + metadata + checksum verification (recommended)
+        ```python
+                loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache=True,
+                    local_cache_dir="./models/cached",
+                    num_classes=5,
+                    cache_metadata=True,
+                    metadata_save_path="./models/cached/metadata.json",
+                    variant="Default",
+                    metric="val_f1_macro",
+                    checksum=True,
+                    checksum_method="sha256",
+                )
+                model = loader.load_with_fallback(top_n=5)
+        ```
+
+            Example: Loading the champion model directly (BentoML service startup)
+        ```python
+                loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache=True,
+                    local_cache_dir="./models/cached",
+                    num_classes=5,
+                    variant="Default",
+                )
+                model = loader.load_champion_model()
+                if model is None:
+                    raise RuntimeError("No champion model available; check MLflow connectivity")
+                model.eval()
+        ```
+
+            Example: Passing a pre-configured Metadata instance (shared across variants)
+        ```python
+                shared_metadata = Metadata(save_path="./models/cached/metadata.json")
+
+                default_loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache_dir="./models/cached",
+                    num_classes=5,
+                    metadata=shared_metadata,
+                    variant="Default",
+                )
+                hubble_loader = ModelLoader(
+                    registered_model_name="galaxy-classification-hubble",
+                    local_cache_dir="./models/cached",
+                    num_classes=10,
+                    metadata=shared_metadata,
+                    variant="Hubble",
+                )
+        ```
+
+            Example: Syncing metadata without loading a model (e.g. a periodic refresh job)
+        ```python
+                loader = ModelLoader(
+                    registered_model_name="galaxy-classification-default",
+                    local_cache_dir="./models/cached",
+                    num_classes=5,
+                    variant="Default",
+                )
+                candidates = loader.sync_metadata_with_mlflow(top_n=5)
+        ```
     '''
 
     def __init__(self,registered_model_name:str,
@@ -205,9 +309,7 @@ class ModelLoader:
                 metric:str = "val_f1_macro",
                 variant: Optional[Literal["Default","Hubble","Dirlichlet"]] = "Default",
                 checksum_method: Literal["sha256","md5","sha1"] = "sha256",
-                checksum: bool = True
-                
-                ):
+                checksum: bool = True):
         """
         Initialize the ModelLoader.
 
@@ -248,8 +350,6 @@ class ModelLoader:
             else:
                 raise ValueError("metadata_save_path must be set if cache_metadata=True and no metadata instance is passed.")
 
-        if self.cache_metadata:
-            self.metadata = metadata if metadata else Metadata(save_path=self.metadata_save_path) 
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -260,7 +360,20 @@ class ModelLoader:
 
  
 
-    def add_checksum(self,run_id:str)->str:
+    def compute_checksum(self,run_id:str)->str:
+        '''
+        Compute the checksum of the model file for a given run_id using the specified checksum method.
+        Args:
+            run_id: The MLflow run ID for which to compute the checksum.
+
+        ```python
+            loader = ModelLoader(registered_model_name="my_model", local_cache=True,
+                                local_cache_dir="./cache", num_classes=5)
+            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
+            print(checksum)
+            >>> "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3..."
+        ```
+        '''
 
         if self.local_cache_dir is None:
             logger.error("local_cache_dir is not set; cannot compute checksum path.")
@@ -282,12 +395,10 @@ class ModelLoader:
 
         return hash_func.hexdigest()
             
-    
-    def compare_checksum(self,calculated_checksum:str,current_checksum:str)->bool:
-        return calculated_checksum == current_checksum
-
+  
     
     def load_with_fallback(self,top_n:int=5) -> torch.nn.Module:
+
         '''Load the best model for the given experiment name, with a fallback to other models if best model fails.
         Args:
             top_n: The number of top runs to consider.
@@ -304,9 +415,17 @@ class ModelLoader:
             ```
         '''
 
-      
+        if self.cache_metadata:
+            self.sync_metadata_with_mlflow(top_n=top_n)  # Sync metadata with MLflow before loading
+        try:
+            model_list = self._best_run(self.registered_model_name,top_n=top_n, metric=self.metric)
 
-        model_list = self._best_run(self.registered_model_name,top_n=top_n, metric=self.metric)
+            #self.metadata.update_metadata()
+        except Exception as e:
+            logger.error(f"MLflow unreachable, attempting to load from local metadata fallback: {e}")
+            return self._load_from_local_metadata(top_n=top_n)    
+
+        
         if not model_list:
             raise RuntimeError(f"No runs found for '{self.registered_model_name}' to fall back on.")
 
@@ -337,14 +456,24 @@ class ModelLoader:
         
 
     def load_champion_model(self)->Optional[torch.nn.Module]:
+
         ''' load the champion model from MLflow using the alias "champion". 
         If the alias is not found, it falls back to the latest run in the metadata for the specified variant.
 
         Returns:
             The loaded PyTorch model if successful, None otherwise.
         
+        Example:
+        ```python
+            loader = ModelLoader(registered_model_name="galaxy-classification-default",
+                                local_cache=True, local_cache_dir="./cache",
+                                num_classes=5, variant="Default")
+            model = loader.load_champion_model()
+            if model is not None:
+                model.eval()
+        ```
+        
         '''
-
 
         try:
             try:
@@ -354,10 +483,12 @@ class ModelLoader:
                 logger.warning("Failed to load from MLflow alias; using local metadata to get run_id")
                 met = self.metadata
                 file = met._load()
-                champion_run_id = file[self.variant].candidates[-1].run_id
+                champion_run_id = file[self.variant].candidates[-1].run_id #last run id from the variant metadata
 
             run = self.client.get_run(champion_run_id)
-            f1_macro = run.data.metrics.get(self.metric, None)
+            f1_macro = run.data.metrics.get("f1_macro", None)
+            val_f1_macro = run.data.metrics.get("val_f1_macro", None)
+            other_metric = run.data.metrics.get(self.metric, None)
 
             logger.success(f"Champion run ID: {champion_run_id}")
 
@@ -368,11 +499,12 @@ class ModelLoader:
                     model_name=self.registered_model_name,
                     experiment_name=self.registered_model_name,
                     f1_macro=f1_macro,
-                    val_f1_macro=None, # Set to None or fetch from run data if available
+                    val_f1_macro=val_f1_macro, # Set to None or fetch from run data if available
                     num_classes=self.num_classes,
                     cache_file=str(self._cache_path(champion_run_id)),
                     cached_at=datetime.now(timezone.utc).isoformat(),
                     save_path=str(self.local_cache_dir),
+                    other_metrics={self.metric: other_metric} if other_metric is not None else {}
                 )
                 self.metadata.update_metadata(met, variant=self.variant)
 
@@ -384,32 +516,45 @@ class ModelLoader:
 
   
     def check_cache(self, run_id: str) -> torch.nn.Module:
+
         '''Check if the model for the given run_id is cached locally. If so, load it; otherwise, pull from MLflow.
         Args:
             run_id: The MLflow run ID for which to check the cache.
         Returns:
             The loaded PyTorch model.
+        Example:
+        ```python
+            loader = ModelLoader(registered_model_name="my_model", local_cache=True,
+                                local_cache_dir="./cache", num_classes=5)
+            model = loader.check_cache(run_id="e3b866df7f01417fb0db72e0da051f23")
+        ```
         
         '''
 
         cache_path = self._cache_path(run_id)
 
+        #local cache hit
         if self.local_cache and self.local_cache_dir and cache_path.exists():
-
-            logger.info(f"Loading state_dict from cache: {cache_path}")
-            state_dict = torch.load(cache_path, map_location="cpu", weights_only=True)
-            model = self._init_model()
-            model.load_state_dict(state_dict)
-            return model
-        
+            if not self.checksum or self.compare_checksum(run_id):
+                logger.info(f"Loading state_dict from cache: {cache_path}")
+                state_dict = torch.load(cache_path, map_location="cpu", weights_only=True)
+                model = self._init_model()
+                model.load_state_dict(state_dict)
+                return model
+            else:
+                logger.warning(f"Checksum mismatch for '{run_id}'; deleting corrupt cache and re-pulling")
+                cache_path.unlink(missing_ok=True)
+                self._checksum_path(run_id).unlink(missing_ok=True)
+                # falls through to MLflow pull below
+            
 
         logger.info(f"Cache miss for run '{run_id}', pulling from MLflow")
-        
+
+        #load form mlflow then save
         try:
             mlflow_model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 
-              
-
+            
             # extract state_dict from ExportedProgram and load into fresh model
             model = self._init_model()
             missing, unexpected = model.load_state_dict(mlflow_model.state_dict(), strict=False)
@@ -422,7 +567,7 @@ class ModelLoader:
                 logger.info(f"Cached state_dict to {cache_path}")
 
                 if self.checksum:
-                    added_checksum = self.add_checksum(run_id)
+                    added_checksum = self.compute_checksum(run_id)
                     self._save_checksum(run_id, added_checksum)#save checksum to save dir 
                     logger.info(f"Checksum ({self.checksum_method}) for run '{run_id}': {added_checksum}")
 
@@ -433,78 +578,242 @@ class ModelLoader:
 
         return model  
 
+    def _load_from_local_metadata(self, top_n: int = 5) -> torch.nn.Module:
 
-    def _save_checksum(self, run_id: str, checksum: str) -> None:
+        '''Used only when MLflow is unreachable. Reads previously-cached, already-ranked
+        candidates from the local metadata file.
+        
+        Args:
+            top_n: The number of top runs to consider.
 
-            
-            if not self.metadata_save_path:
-                logger.error("Metadata save path is not set; cannot save checksum.")
-                raise
+        Example:
+        ```python
+            # called internally by load_with_fallback when MLflow is unreachable
+            model = loader._load_from_local_metadata(top_n=5)
+        ```
+
+        '''
+
+        if not (self.cache_metadata and self.metadata_save_path and self.metadata_save_path.exists()):
+            raise RuntimeError("MLflow unreachable and no local metadata available to fall back on.")
+
+        file = self.metadata._load()
+
+        candidates = file[self.variant].candidates[:top_n]
+
+        if not candidates:
+            raise RuntimeError(f"MLflow unreachable and no cached candidates for variant '{self.variant}'.")
+
+        for c in candidates:
+            logger.info(f"[local fallback] Attempting run '{c.run_id}' (rank {c.rank}, {self.metric}={c.val_f1_macro})")
+            try:
+                return self.check_cache(c.run_id)
+            except Exception:
+                logger.error(f"[local fallback] Couldn't load run_id:{c.run_id}, continuing")
+                continue
+
+        raise RuntimeError(f"Failed to load any model for variant '{self.variant}' from local metadata fallback.")
+
     
-            checksum_path = self._checksum_path(run_id)
-            with open(checksum_path, "w") as f:
-                f.write(checksum)
-            logger.success(f"Checksum saved to {checksum_path}")
-   
+    def _save_checksum(self, run_id: str, checksum: str,save_path:Optional[str|Path]=None) -> None:
+
+        '''Save the checksum for a given run_id to a file in the local cache directory.
+        Args:
+            run_id: The MLflow run ID for which to save the checksum.
+            checksum: The checksum to save.
+            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
+        
+        Example:
+        ```python
+            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
+            loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
+        ```
+        '''
+
+        if save_path:
+            path = Path(save_path)
+        else:
+            path = self.local_cache_dir
+        if not self.local_cache_dir:
+            logger.error("Local cache directory is not set; cannot save checksum.")
+            raise
+
+        checksum_path = self._checksum_path(run_id)
+        checksum_path.write_text(checksum)
+        logger.success(f"Checksum saved to {checksum_path}")
+
+      
+    def compare_checksum(self,run_id:str,checksum:Optional[str]=None)->bool:
+
+        '''
+        Compared two checksum based on value provided or checks local cache directory for the checksum file of the model using run_id.
+        Args:
+            run_id: The MLflow run ID for which to compare the checksum.
+            checksum: Optional; if provided, compares this checksum with the stored one. If not provided, reads the stored checksum from the local cache.
+        Returns:
+            True if the checksums match, False otherwise.
+        
+        Example:
+            ```python
+            loader = ModelLoader(registered_model_name="my_model",
+                                 local_cache=True, local_cache_dir="./cache", num_classes=5)
+
+            is_valid = loader.compare_checksum(run_id="12345")
+            print(f"Checksum valid: {is_valid}")
+            >>> True
+            ```
+        '''
+
+        checksum_path = self._checksum_path(run_id)
+        if not checksum_path.exists():
+            logger.warning(f"No checksum file for run '{run_id}'; treating cache as unverifiable")
+            return False
+        if checksum is None:
+            checksum = self.compute_checksum(run_id)
+        return checksum_path.read_text().strip() == checksum
+    
+    def sync_metadata_with_mlflow(self,top_n:int=5)-> List[CandidateMetadata]:
+
+        '''Query MLflow for the top_n runs by metric and record all of them in local
+        metadata, regardless of whether their weights get downloaded/cached. Keeps the
+        local registry in sync with MLflow even for candidates load_with_fallback never
+        had to fall through to.
+
+        Args:
+            top_n: Number of top runs to fetch from MLflow.
+
+        Returns:
+            The list of CandidateMetadata written, in rank order. Empty list if
+            cache_metadata is disabled or no runs were found.
+
+        Example:
+        ```python
+            loader = ModelLoader(registered_model_name="galaxy-classification-default",
+                                local_cache=True, local_cache_dir="./cache",
+                                num_classes=5, variant="Default")
+            candidates = loader.sync_metadata_with_mlflow(top_n=5)
+            for c in candidates:
+                print(c.rank, c.run_id, c.val_f1_macro)
+        ```
+        '''
+
+        if not self.cache_metadata:
+            logger.warning("cache_metadata is False; skipping metadata sync.")
+            return []
+
+        model_list = self._best_run(self.registered_model_name, top_n=top_n, metric=self.metric)
+        if not model_list:
+            logger.warning(f"No runs found for '{self.registered_model_name}' to sync metadata from.")
+            return []
+
+        synced = []
+        for rank, run in enumerate(model_list, start=1):
+            run_id = run.info.run_id
+            metric_val = run.data.metrics.get(self.metric, None)
+            cache_path = self._cache_path(run_id) if self.local_cache_dir else None
+
+            cand = CandidateMetadata(
+                rank=rank,
+                run_id=run_id,
+                model_name=self.registered_model_name,
+                experiment_name=self.registered_model_name,
+                f1_macro=run.data.metrics.get("f1_macro", None),
+                val_f1_macro=run.data.metrics.get("val_f1_macro", None),
+                num_classes=self.num_classes,
+                cache_file=str(cache_path) if cache_path else None,
+                # only stamp cached_at if the weights are actually on disk already
+                cached_at=datetime.now(timezone.utc).isoformat() if (cache_path and cache_path.exists()) else None,
+                save_path=str(self.local_cache_dir) if self.local_cache_dir else None,
+                other_metrics={self.metric: metric_val} if metric_val is not None else {}
+            )
+            self.metadata.update_metadata(cand, variant=self.variant, top_n=top_n)
+            synced.append(cand)
+
+        logger.success(f"Synced top {len(synced)} candidate(s) metadata for '{self.registered_model_name}'")
+        return synced
+
     def _best_run(self,model_name:str,top_n:int=5, metric: str = "val_f1_macro"):
-            '''Retrieve the best run based on the highest specified metric.
+        '''Retrieve the best run based on the highest specified metric.
 
-            Args:
-                model_name: The name of the model in Mlflow Registry.
-                top_n: The number of top runs to consider.
-                metric: The metric to sort runs by.
+        Args:
+            model_name: The name of the model in Mlflow Registry.
+            top_n: The number of top runs to consider.
+            metric: The metric to sort runs by.
 
-            Returns:
-                A list of the top N runs based on the specified metric.
+        Returns:
+            A list of the top N runs based on the specified metric.
 
-            '''
-    
-            experiment_name = self.client.get_experiment_by_name(model_name) 
-    
-            if experiment_name is None:
-                logger.error(f"No experiment found with name '{model_name}'")
-                return None
-    
-            runs = self.client.search_runs(
-                experiment_ids=[experiment_name.experiment_id],
-                filter_string="attributes.status = 'FINISHED'",
-                order_by=[f"metrics.{metric} DESC"],
-                max_results=top_n,
-                )
-    
-            if not runs: 
-                logger.error(f"No finished runs found for experiment '{model_name}'")
-                return None
-            return runs
+        Example:
+        ```python
+            runs = loader._best_run(model_name="galaxy-classification-default-experiments",
+                                    top_n=5, metric="val_f1_macro")
+            for r in runs:
+                print(r.info.run_id, r.data.metrics.get("val_f1_macro"))
+        ```
+
+        '''
+
+        experiment_name = self.client.get_experiment_by_name(model_name) 
+
+        if experiment_name is None:
+            logger.error(f"No experiment found with name '{model_name}'")
+            return None
+
+        runs = self.client.search_runs(
+            experiment_ids=[experiment_name.experiment_id],
+            filter_string="attributes.status = 'FINISHED'",
+            order_by=[f"metrics.{metric} DESC"],
+            max_results=top_n,
+            )
+
+        if not runs: 
+            logger.error(f"No finished runs found for experiment '{model_name}'")
+            return None
+        return runs
 
 
-    def _checksum_path(self, run_id: str) -> Path:
+
+    def _checksum_path(self, run_id: str, save_path: Optional[str | Path] = None) -> Path:
     
-            '''
-            Helper for checksum path. That depends on _cache_path and the checksum method. 
-            It returns the path to the checksum file for a given run_id.
-            
-            Args:
-                run_id: The MLflow run ID for which to compute the checksum path.
-            Example:
-                ```python
-                >>> modelloader._checksum_path("12345")
-                PosixPath('path/to/metadata/12345.sha256')
-            '''
-            if not self.metadata_save_path:
-                logger.error("Metadata save path is not set; cannot compute checksum path.")
-                raise
-    
-            return self._cache_path(run_id).with_suffix(f".{self.checksum_method}")
+        '''
+        Helper for checksum path. That depends on _cache_path and the checksum method. 
+        It returns the path to the checksum file for a given run_id.
+        
+        Args:
+            run_id: The MLflow run ID for which to compute the checksum path.
+            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
+        Example:
+            ```python
+            >>> modelloader._checksum_path("12345",path="./path/to/metadata/12345.sha256")
+            PosixPath('path/to/metadata/12345.sha256')
+        '''
+        if not self.local_cache_dir:
+            logger.error("Local cache directory is not set; cannot compute checksum path.")
+            raise
+        if save_path:
+            path = Path(save_path)
+        else:
+            path = self._cache_path(run_id)
+
+        return path.with_suffix(f".{self.checksum_method}")
 
     def _init_model(self) -> torch.nn.Module:
-            
-            from src.models.model import GalaxyClassifier_ResNet
-            return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
+        
+        from src.models.model import GalaxyClassifier_ResNet
+        return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
     
     def _cache_path(self, run_id: str) -> Path:
 
         '''Compute the cache path for a given run_id.
+        
+        Args:
+            run_id: The MLflow run ID for which to compute the cache path.
+        
+        Example:
+        ```python
+            >>> loader._cache_path("e3b866df7f01417fb0db72e0da051f23")
+            PosixPath('models/cached/e3b866df7f01417fb0db72e0da051f23.pt')
+        ```
 
         '''
         if self.local_cache_dir is None:
@@ -520,7 +829,7 @@ class ModelLoader:
         metadata_save_path={self.metadata_save_path}, \
         variant={self.variant})"
 
-class LruCache:
+class ModelEvictor(Metadata):
     pass
 
 

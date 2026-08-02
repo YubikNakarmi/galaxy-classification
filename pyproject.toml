@@ -46,7 +46,10 @@ dependencies = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["src", "src.*"]
+include = ["src", 
+            "src.*",
+            "ml",
+            "ml.*",]
 
 [project.scripts]
 galax = "ml.cli:cli"

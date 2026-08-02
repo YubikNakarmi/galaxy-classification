@@ -2,7 +2,7 @@ import click
 from ml.pipeline import pipeline
 
 
-click.group()
+@click.group()
 def cli():
     """Command line interface for the Galaxy Classification project."""
     pass
