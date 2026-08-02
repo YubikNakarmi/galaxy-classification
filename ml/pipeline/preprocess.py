@@ -1,14 +1,9 @@
 
-from src.dataset.label_preprocessing import Label_Processing_Classic
-from sklearn.model_selection import train_test_split
+from __future__ import annotations
+
 from pathlib import Path
-from dotenv import load_dotenv
-from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_ml_logging
-from src.utils.cli_bootstrap import load_context
+
 import click
-import pandas as pd
-from loguru import logger
 from . import pipeline
 
 
@@ -20,7 +15,10 @@ root = Path(__file__).resolve().parent.parent
 
 #splitting data 
 
-def split(df:pd.DataFrame,cfg)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+#no typing to lower the latnency of click cli command and avoid loading config multiple times in each command
+def split(df,cfg):
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
 
     seed = cfg.env.seed
     active_variant = cfg.active_variant
@@ -58,6 +56,11 @@ def split(df:pd.DataFrame,cfg)-> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]
 @click.option('--variant', default="Default", help='Variant of the experiment to preprocess.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
 @click.pass_context #ctx from top level
 def preprocess(ctx, run_preprocessing,run_split,preprocess_type):
+    import pandas as pd
+    from loguru import logger
+
+    from src.dataset.label_preprocessing import Label_Processing_Classic
+    from src.utils.cli_bootstrap import load_context
      #custom contexxt to avaoid multi load
     app_ctx = ctx.obj or load_context(service="ml")#retrive from top level of click cmd in __init__py
 

@@ -22,6 +22,7 @@ from pathlib import Path
 from src.utils.schemas import CandidateMetadata,MetadataFile, VariantMetadata
 from dataclasses import asdict
 import hashlib
+from src.config import RootConfig
 
 root = Path(__file__).parent.parent.parent
 
@@ -296,11 +297,12 @@ class ModelLoader:
                     num_classes=5,
                     variant="Default",
                 )
-                candidates = loader.sync_metadata_with_mlflow(top_n=5)
+                candidates = loader.sync_metadata_with_mlflow()
         ```
     '''
 
     def __init__(self,registered_model_name:str,
+                cfg:RootConfig,
                 local_cache: bool = True,
                 local_cache_dir: Optional[str| Path] = None,
                 num_classes: int = 5,cache_metadata: bool = True, 
@@ -342,11 +344,15 @@ class ModelLoader:
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
         self.top_n = model_top_n  # Store the top_n for metadata
+        self.device = cfg.env.device  # Store the device for model loading
 
         
+
+                
         if self.cache_metadata:
             if metadata is not None:
                 self.metadata = metadata
+
             elif self.metadata_save_path is not None:
                 self.metadata = Metadata(save_path=self.metadata_save_path)
             else:
@@ -417,14 +423,14 @@ class ModelLoader:
         '''
 
         if self.cache_metadata:
-            self.sync_metadata_with_mlflow(top_n=self.top_n)  # Sync metadata with MLflow before loading
+            self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
         try:
             model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
 
             #self.metadata.update_metadata()
         except Exception as e:
             logger.error(f"MLflow unreachable, attempting to load from local metadata fallback: {e}")
-            return self._load_from_local_metadata(top_n=self.top_n)    
+            return self._load_from_local_metadata()    
 
         
         if not model_list:
@@ -538,10 +544,11 @@ class ModelLoader:
         if self.local_cache and self.local_cache_dir and cache_path.exists():
             if not self.checksum or self.compare_checksum(run_id):
                 logger.info(f"Loading state_dict from cache: {cache_path}")
-                state_dict = torch.load(cache_path, map_location="cpu", weights_only=True)
+                state_dict = torch.load(cache_path, map_location=self.device, weights_only=True)
                 model = self._init_model()
                 model.load_state_dict(state_dict)
                 return model
+            
             else:
                 logger.warning(f"Checksum mismatch for '{run_id}'; deleting corrupt cache and re-pulling")
                 cache_path.unlink(missing_ok=True)
@@ -671,7 +678,7 @@ class ModelLoader:
             checksum = self.compute_checksum(run_id)
         return checksum_path.read_text().strip() == checksum
     
-    def sync_metadata_with_mlflow(self)-> List[CandidateMetadata]:
+    def sync_metadata_with_mlflow(self)-> list[CandidateMetadata]:
 
         '''Query MLflow for the top_n runs by metric and record all of them in local
         metadata, regardless of whether their weights get downloaded/cached. Keeps the

@@ -1,27 +1,11 @@
-import click
-import torch
-import pandas as pd
-import mlflow
-import random
-from dotenv import load_dotenv
-from torch.utils.tensorboard import SummaryWriter
-from pathlib import Path
-from torch.utils.data import DataLoader
-import os
-from loguru import logger
-import datetime
+from __future__ import annotations
 
-from src.dataset.utils import generate_report
-from src.utils.azure_utils import AzureBlobStorage
-from src.models.model import GalaxyClassifier_ResNet
-from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_ml_logging
-from src.utils.cli_bootstrap import load_context
-from src.dataset.dataset import GalaxyDataset
-from src.training import train_epoch,validate_epoch
-from src.config import load_and_validate_config
-from src.training import CheckpointManager,validate_setup,upload_artifact,register_model,make_metrics, \
-raw_transforms, val_transforms
+import datetime
+import random
+from pathlib import Path
+
+import click
+
 from ml.pipeline import pipeline
 
 
@@ -32,6 +16,27 @@ from ml.pipeline import pipeline
 
 
 def train_default(cfg):
+    import mlflow
+    import pandas as pd
+    import torch
+    from loguru import logger
+    from torch.utils.data import DataLoader
+    from torch.utils.tensorboard import SummaryWriter
+
+    from src.dataset.dataset import GalaxyDataset
+    from src.dataset.utils import generate_report
+    from src.models.model import GalaxyClassifier_ResNet
+    from src.training import (
+        CheckpointManager,
+        make_metrics,
+        raw_transforms,
+        register_model,
+        train_epoch,
+        upload_artifact,
+        validate_epoch,
+        val_transforms,
+    )
+    from src.utils.azure_utils import AzureBlobStorage
 
     #configs
     #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
@@ -241,6 +246,8 @@ def train_default(cfg):
 
         writer.close()
         logger.success("Training complete.")
+        
+    mlflow.end_run()
 
 
 def train_hubble():
@@ -254,6 +261,11 @@ def train_dirilchled():
 @click.pass_context
 
 def train(ctx, variant):
+    import mlflow
+    from loguru import logger
+
+    from src.training import validate_setup
+    from src.utils.cli_bootstrap import load_context
 
     app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py, fallback to load_context if not present
     cfg = app_ctx.cfg

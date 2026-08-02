@@ -121,14 +121,14 @@ def promote_if_better(
 
     if current_champion is None or current_metric is None:
         logger.info("No current champion found for model {}. Promoting candidate version {} as the new champion.", registered_model_name, candidate_version)
-        client.set_registered_model_alias(registered_model_name, candidate_version, alias)
+        client.set_registered_model_alias(registered_model_name, alias, candidate_version)
         return True    
 
     logger.info("Comparing current champion version {} with metric {}={} to candidate version {} with metric {}={}", 
                 current_champion.version, metric_name, current_metric, candidate_version, metric_name, candidate_metric)
 
     if candidate_metric > current_metric + min_improvement:
-        client.set_registered_model_alias(registered_model_name, candidate_version, alias)
+        client.set_registered_model_alias(registered_model_name ,alias, candidate_version)
         logger.success("Current champion version {} is better than candidate version {}. No promotion.", current_champion.version, candidate_version)
 
         return True

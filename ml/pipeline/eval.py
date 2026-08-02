@@ -1,93 +1,140 @@
+from __future__ import annotations
+
+import datetime
 from pathlib import Path
 
-import mlflow
-import torch
-from ml.pipeline import pipeline
-from src.utils.yaml_utils import load_yaml
-from src.config import load_and_validate_config
-from src.utils.logging_config import setup_ml_logging
-from src.utils.cached_models import ModelLoader
-from src.dataset.dataset import GalaxyDataset
-from src.training.metrics import make_metrics, val_transforms
-from src.training.artifacts import promote_if_better
-
-import pandas as pd
-import datetime
-import os
 import click
-from mlflow.tracking import MlflowClient
-from src.utils.cli_bootstrap import load_context
 
-from loguru import logger
+
+from ml.pipeline import pipeline
 root = Path(__file__).resolve().parent.parent
 
+#no typing to lower the latnency of click cli command and avoid loading config multiple times in each command
+def eval(metrics:dict,model,cfg)-> dict:
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
 
-def eval(metrics:dict,model:torch.nn.Module,cfg)-> dict:
+
+    import pandas as pd
+    import torch
+    from loguru import logger
+
+    from src.dataset.dataset import GalaxyDataset
+    from src.training.metrics import val_transforms
+    from src.models.model import GalaxyClassifier_ResNet
 
     #Loading config context with better way than usign gloals which conflicts in cli
     cache_dir = cfg.storage.local.checkpoints.model_cache_dir
-    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
-
-
-
+    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) 
+    logger.info(f"Starting evaluation for experiment: {experiment_name}")
     logger.info(f"Loading model from cache dir: {cache_dir}")
-
+    num_class = cfg.variants[cfg.active_variant].num_classes
+ 
     
-
     labels = pd.read_csv(cfg.data.eval_path)
-    data_loader= GalaxyDataset(img_dir=cfg.data.img_dir, labels_df=labels, transform=val_transforms)
 
-    with mlflow.start_run(run_name=f"eval_{experiment_name}"):
-
+    data_loader = DataLoader(
+        GalaxyDataset(img_dir=cfg.data.img_dir, labels_df=labels, transform=val_transforms),
+        batch_size=32,  
+        shuffle=False,
+    )
+    try:
         model.eval()
-        for img,labels in data_loader:
-            with torch.no_grad():
-                outputs = model(img)
-                preds = torch.softmax(outputs, dim=1)
+    except Exception as e:
+        logger.error(f"Error occurred while perfoming evaluation: {e}")
+        #
+        model_skeleton = GalaxyClassifier_ResNet(N=2, k=2, num_classes=num_class)
 
-                for m in metrics.values():#update at each batch
-                    m.update(preds, labels)
-        results = {
-        "test_acc":               metrics["accuracy"].compute().item(),
-        "test_f1_micro":          metrics["f1_micro"].compute().item(),
-        "test_f1_macro":          metrics["f1_macro"].compute().item(),
-        "test_precision_macro":   metrics["precision_macro"].compute().item(),
-        "test_recall_macro":      metrics["recall_macro"].compute().item(),
-        "test_roc_auc":           metrics["roc_auc"].compute().item(),
-    }
+        #map model
+        missing, unexpected = model_skeleton.load_state_dict(model.state_dict(), strict=False)
+        model_skeleton.eval()
+        model = model_skeleton 
 
-        for m in metrics.values():
-            m.reset()
 
-        return results
+        if missing or unexpected:
+
+            logger.warning(f"Missing: {missing}, Unexpected: {unexpected}")
+            logger.exception(f"Error loading model state dict: {e}")
+
+        else:
+            logger.info("Model state dict loaded successfully into skeleton model.")
+            logger.info("No missing or unexpected keys found. Proceeding with evaluation.")
+        
+    for img,labels in tqdm(data_loader, desc="Evaluating", unit="batch"):
+        with torch.no_grad():
+            outputs = model(img)
+            preds = torch.softmax(outputs, dim=1)
+
+            for m in metrics.values():#update at each batch
+                m.update(preds, labels)
+    results = {
+                "acc":               metrics["accuracy"].compute().item(),
+                "f1_micro":          metrics["f1_micro"].compute().item(),
+                "f1_macro":          metrics["f1_macro"].compute().item(),
+                "precision_macro":   metrics["precision_macro"].compute().item(),
+                "recall_macro":      metrics["recall_macro"].compute().item(),
+                "roc_auc":           metrics["roc_auc"].compute().item(),
+                        }
+
+    for m in metrics.values():
+        m.reset()
+
+    return results
 
 
     
 @pipeline.command()
 @click.option('--run_id', required=True, help='MLflow run ID to evaluate. If not provided, the best model will be used.')
+
 @click.option('--variant', default="Default", help='Variant of the experiment to evaluate.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
-@click.option('--model_version', default=None, help='Version of the model to evaluate.')
+@click.option('--model-version', default=None, help='Version of the model to evaluate.')
 @click.option("--min-improvement", type=float, default=0.005, help="Minimum metric improvement required to promote")
-@click.option("--metric-name", type=str, default="test_f1_macro", help="Which computed metric drives the promotion decision")
+@click.option("--metric-name", type=str, default="f1_macro", help="Which computed metric drives the promotion decision")
+@click.option("--model-source", type=click.Choice(["mlflow", "cache"]), default="mlflow", help="Source of the model to evaluate (mlflow or cache)")
 @click.option("--alias", type=str,default="Champion", help="Alias for the registered model")
 @click.pass_context
-def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, alias):
+
+def evaluate(ctx, run_id, variant, model-version, min_improvement, metric_name, alias,model-source):
+    import mlflow
+    from loguru import logger
+    from mlflow.tracking import MlflowClient
+
+    from src.training.artifacts import promote_if_better
+    from src.training.metrics import make_metrics
+    from src.utils.cli_bootstrap import load_context
     
     app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py
     cfg = app_ctx.cfg
 
+    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
+
+
+    if Path(cfg.data.eval_path).exists() is False:
+        logger.error("Evaluation data not found at {}. Please run preprocessing first.", cfg.data.eval_path)
+        return
+
+    try:
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_experiment("Connection Test")
+        with mlflow.start_run(run_name="setup_validation"):
+            mlflow.log_param("validation", "success")
+        logger.info(f"MLflow connection OK ({MLFLOW_TRACKING_URI})")
+
+    except Exception as e:
+        logger.error(f"MLflow not reachable: {e}")
+        return
     active_var = cfg.active_variant
     dev = cfg.env.device
     experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
 
-    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
-
+    logger.info(f"Starting evaluation for variant '{variant}' with run_id '{run_id}' and model_version '{model_version}'")
 
 
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
 
+    logger.info(f"MLflow tracking URI: {MLFLOW_TRACKING_URI}")
     variant_cfg = cfg.variants[variant]
     experiment_root = variant_cfg.experiment.root
 
@@ -103,6 +150,7 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
 
     if model_version is None:
         # get the model version associated with the run_id
+        logger.info(f"Fetching model version for run_id '{run_id}' under variant '{variant}'")
         ver = client.search_model_versions(f"run_id='{run_id}'")
         if not ver:
             logger.error("No registered version for run_id {} under variant {}", run_id, variant)
@@ -111,12 +159,16 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
         model_name = ver[0].name
 
     else:
+        logger.info(f"Using provided model_version '{model_version}' for variant '{variant}'")  
         model_version = str(model_version)
         model_name = client.get_model_version(name=variant_cfg.mlflow.model_name, version=model_version).name
 
 
     model_uri = f"models:/{model_name}/{model_version}"   
+
+    logger.info(f"Loading model from MLflow URI: {model_uri}")
     model = mlflow.pytorch.load_model(model_uri)
+    logger.info(f"Model loaded successfully from {model_uri}")  
 
     # find which variant config this registered_model_name belongs to,
     matching_variant = next(
@@ -131,9 +183,11 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
  
 
     mlflow.set_experiment(experiment_name)
+    logger.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
 
     run_name = f"eval_{model_name}_v{model_version}_" + \
                datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    logger.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
 
     with mlflow.start_run(run_name=run_name) as run:
         logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")
@@ -160,6 +214,8 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
             alias=alias,
             min_improvement=min_improvement,
         )
+
+    mlflow.end_run()
 
 if __name__ == "__main__":
     evaluate()
