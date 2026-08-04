@@ -1,7 +1,7 @@
 
 [project]
 name = "galaxy-classification"
-version = "v0.6.0"
+version = "v0.8.0"
 description = "A package which everything to run galaxy classification"
 authors = [{name = "Yubik Nakarmi"}]
 license = "MIT"

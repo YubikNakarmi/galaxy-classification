@@ -87,14 +87,14 @@ def eval(metrics:dict,model,cfg)-> dict:
 @click.option('--run_id', required=True, help='MLflow run ID to evaluate. If not provided, the best model will be used.')
 
 @click.option('--variant', default="Default", help='Variant of the experiment to evaluate.',type=click.Choice(["Default", "Hubble", "Dirichlet"]))
-@click.option('--model-version', default=None, help='Version of the model to evaluate.')
+@click.option('--model_version', default=None, help='Version of the model to evaluate.')
 @click.option("--min-improvement", type=float, default=0.005, help="Minimum metric improvement required to promote")
-@click.option("--metric-name", type=str, default="f1_macro", help="Which computed metric drives the promotion decision")
-@click.option("--model-source", type=click.Choice(["mlflow", "cache"]), default="mlflow", help="Source of the model to evaluate (mlflow or cache)")
+@click.option("--metric_name", type=str, default="f1_macro", help="Which computed metric drives the promotion decision")
+@click.option("--model_source", type=click.Choice(["mlflow", "cache"]), default="mlflow", help="Source of the model to evaluate (mlflow or cache)")
 @click.option("--alias", type=str,default="Champion", help="Alias for the registered model")
 @click.pass_context
 
-def evaluate(ctx, run_id, variant, model-version, min_improvement, metric_name, alias,model-source):
+def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, alias,model_source):
     import mlflow
     from loguru import logger
     from mlflow.tracking import MlflowClient

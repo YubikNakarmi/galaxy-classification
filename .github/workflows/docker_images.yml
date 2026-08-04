@@ -56,3 +56,43 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+  
+  build-and-push-bentoml:
+
+    runs-on: ubuntu-latest
+    permissions: 
+      packages: write
+      contents: read
+    
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install bentoml
+          pip install -r bentoml_api/requirements.bentoml.txt
+
+      - name: Build Bento
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          bentoml build --version "$VERSION"
+         
+       
+      - name: Build Image
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          bentoml containerize galaxy_classification:$VERSION \
+          --image-tag ghcr.io/${{ github.repository }}-bento:$VERSION
+          --image-tag ghcr.io/${{ github.repository }}-bento:latest
+          
+      - name: Push Bento container
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          docker push ghcr.io/${{ github.repository }}-bento:$VERSION
+          docker push ghcr.io/${{ github.repository }}-bento:latest
+
+      

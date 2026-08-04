@@ -2,7 +2,7 @@ import base64
 import binascii
 import uuid
 from fastapi.concurrency import run_in_threadpool
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from celery.result import AsyncResult
 
 from api.classify.models import ClassificationResponseRecord, ImageUpload,Prediction
