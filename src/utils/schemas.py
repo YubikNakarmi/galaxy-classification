@@ -45,7 +45,6 @@ class CandidateMetadata:
     model_name: str
     experiment_name: str
     num_classes: int | None
-    cache_file: str
     cached_at: str
     save_path: str
     other_metrics: Optional[dict] = field(default_factory=dict)  # For any additional metrics

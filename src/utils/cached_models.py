@@ -323,7 +323,8 @@ class ModelLoader:
                 other_metrics: Optional[list[str]] = None,
                 variant: Optional[Literal["Default","Hubble","Dirlichlet"]] = "Default",
                 checksum_method: Literal["sha256","md5","sha1"] = "sha256",
-                checksum: bool = True):
+                checksum: bool = True,
+                ):
         """
         Initialize the ModelLoader.
 
@@ -340,7 +341,6 @@ class ModelLoader:
             variant: The variant of the model for metadata.
             checksum_method: The method to use for generating checksums. Options are "sha256", "md5", or "sha1".
             checksum: Whether to generate and store checksums for the model, also perform verification. Recommended to be True for data integrity verification.
-           
         """
 
         self.client = MlflowClient()
@@ -389,6 +389,9 @@ class ModelLoader:
             else:
                 raise ValueError("metadata_save_file_path must be set if cache_metadata=True and no metadata instance is passed.")
 
+        if self.local_cache and self.local_cache_dir is None:
+            logger.exception("local_cache_dir must be set if local_cache=True.")
+            raise ValueError("local_cache_dir must be set if local_cache=True.")
 
         if self.local_cache and self.local_cache_dir:
             self.local_cache_dir.mkdir(parents=True, exist_ok=True)
@@ -496,7 +499,6 @@ class ModelLoader:
         raise RuntimeError(f"Failed to load any model for experiment '{self.registered_model_name}' after checking top {self.top_n} runs.")
    
         
-
     def load_champion_model(self)->Optional[torch.nn.Module]:
 
         ''' load the champion model from MLflow using the alias "champion". 
@@ -548,7 +550,6 @@ class ModelLoader:
                     experiment_name=self.registered_model_name,
                     metric=metric,#dafulat f1_macro
                     num_classes=self.num_classes,
-                    cache_file=str(self._cache_path(champion_run_id)),
                     cached_at=datetime.now(timezone.utc).isoformat(),
                     save_path=str(self.local_cache_dir),
                     other_metrics=other_metrics
@@ -580,7 +581,7 @@ class ModelLoader:
 
         logger.info(f"Checking cache for run '{run_id}'")
 
-        cache_path = self._cache_path(run_id)
+        cache_path =  self._cache_path(run_id) if (self.local_cache and self.local_cache_dir) else None #gaurd for when local cache is none
 
         #local cache hit
         if self.local_cache and self.local_cache_dir and cache_path.exists():
@@ -687,7 +688,7 @@ class ModelLoader:
             logger.error("Local cache directory is not set; cannot save checksum.")
             raise
 
-        checksum_path = self._checksum_path(run_id)
+        checksum_path = self._checksum_path(save_path=path,run_id=run_id)
         checksum_path.write_text(checksum)
         logger.success(f"Checksum saved to {checksum_path}")
 
@@ -770,7 +771,6 @@ class ModelLoader:
                 experiment_name=self.registered_model_name,
                 metric=metric,
                 num_classes=self.num_classes,
-                cache_file=str(cache_path) if cache_path else None,
                 # only stamp cached_at if the weights are actually on disk already
                 cached_at=datetime.now(timezone.utc).isoformat(),
                 save_path=str(self.local_cache_dir) if self.local_cache_dir else None,
@@ -879,6 +879,7 @@ class ModelLoader:
 
         '''
         if self.local_cache_dir is None:
+            logger.error("local_cache_dir is not set; cannot compute cache path.")
             raise RuntimeError("local_cache_dir is not set; cannot compute cache path.")
 
         return self.local_cache_dir / f"{run_id}.pt" 
