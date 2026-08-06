@@ -2,10 +2,23 @@ from torch import nn
 
 class ResidualUnit(nn.Module):
 
-    ''' Resudual unit for resnet architecture.'''
+    ''' Each residual unit for resent groups.'''
 
 
-    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.8):
+    def __init__(self, in_channels:int,
+                 mid_channel:int ,
+                 out_channels:int, 
+                 stride:int=1,dropout_rate:float=0.8):
+
+        '''
+        Args:
+        in_channels (int): Number of input channels for the residual unit.
+        mid_channel (int): Number of channels in the intermediate convolutional layers.
+        out_channels (int): Number of output channels for the residual unit.
+        stride (int): Stride for the convolutional layers. Default is 1.
+        dropout_rate (float): Dropout rate for the dropout layer. Default is 0.8.
+
+        '''
         super(ResidualUnit, self).__init__()
 
         #block 1

@@ -46,7 +46,7 @@ number_requests = Counter('number_of_requests', 'Number of requests received', [
 class GalaxyClassification:
     
     def __init__(self):
-        ctx = load_context(service="ml")
+        ctx = load_context(service="bentoml")
         cfg = ctx.cfg
         
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)

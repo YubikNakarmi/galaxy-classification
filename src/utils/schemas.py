@@ -44,13 +44,13 @@ class CandidateMetadata:
     run_id: str
     model_name: str
     experiment_name: str
-    f1_macro: float | None
-    val_f1_macro: float | None
     num_classes: int | None
     cache_file: str
     cached_at: str
     save_path: str
     other_metrics: Optional[dict] = field(default_factory=dict)  # For any additional metrics
+    metric: dict = field(default_factory=dict)  # Store metrics as a dictionary
+
 
 @dataclass 
 class ModelMetadata: #for model specific metadata

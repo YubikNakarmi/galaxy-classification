@@ -10,7 +10,7 @@ Classes:
 '''
 
 import hashlib
-import json
+from pathlib import Path
 import os
 import mlflow
 from mlflow.tracking import MlflowClient 
@@ -22,6 +22,7 @@ from pathlib import Path
 from src.utils.schemas import CandidateMetadata,MetadataFile, VariantMetadata
 from dataclasses import asdict
 import hashlib
+import json
 from src.config import RootConfig
 
 root = Path(__file__).parent.parent.parent
@@ -32,23 +33,28 @@ class Metadata:
 
     Example:
         ```python
-        metadata = Metadata(save_path="./cache/model_metadata.json")
+        metadata = Metadata(save_file_path="./cache/model_metadata.json")
         loaded_metadata = metadata._load()
         print(loaded_metadata.Default.latest_update)
         ```
     
     """
         
-    def __init__(self,save_path:str|Path):
+    def __init__(self,save_file_path:str|Path):
         """
         Args:
-            save_path: The path to the JSON file where metadata will be stored.
+            save_file_path: The path to the JSON file where metadata will be stored.
             checksum: Whether to generate and store checksums for the metadata.
 
         """
     
-        self.save_path = Path(save_path)
-
+        self.save_path = Path(save_file_path)
+        if self.save_path.exists() and not self.save_path.is_file():
+            raise FileNotFoundError(f"{self.save_path} is not a file")
+        
+        if not self.save_path.exists():
+            os.makedirs(self.save_path.parent, exist_ok=True)
+           
 
     def _load(self) -> MetadataFile: #load joson 
         """
@@ -61,7 +67,7 @@ class Metadata:
             ValueError: If the metadata file is not a valid JSON file.
         Example:
             ```python
-            metadata = Metadata(save_path="./cache/model_metadata.json")
+            metadata = Metadata(save_file_path="./cache/model_metadata.json")
             loaded_metadata = metadata._load()
             print(loaded_metadata.Default.latest_update)
             ```
@@ -139,14 +145,17 @@ class Metadata:
     
 
 
-    def update_metadata(self,metadata:CandidateMetadata,
-                        variant:Literal["Default","Hubble","Dirichlet"]="Default",top_n:int=5)->Any:
+    def update_metadata(self,
+                        metadata:CandidateMetadata,metric:str,
+                        variant:Literal["Default","Hubble","Dirichlet"]="Default",
+                        top_n:int=5)->Any:
 
         '''Update the metadata file with new candidate metadata for a specific variant.
 
         Args:
             metadata: An instance of CandidateMetadata containing the new candidate's information.
             variant: The variant for which to update the metadata. Must be one of "Default", "Hubble", or "Dirichlet".
+            metric: The metric to use for sorting the candidates.
         
         Example:
             ```python hl_lines = 8
@@ -180,8 +189,8 @@ class Metadata:
                 selected.candidates.remove(existing)
             selected.candidates.append(metadata)
 
-            selected.candidates.sort(#sor the candidates after append
-            key=lambda c: (c.f1_macro if c.f1_macro is not None else float("-inf")),
+            selected.candidates.sort(#sor the candidates after append by metrics
+            key=lambda c: (c.metric.get(metric, 0) if c.metric.get(metric, 0) is not None else float("-inf")),
             reverse=True,)
 
             #drop candidates beyond top_n
@@ -205,6 +214,7 @@ class Metadata:
 
         except Exception as e:
             logger.error(f"Error updating metadata: {e}")
+            raise
 
     
     def __repr__(self):
@@ -308,8 +318,9 @@ class ModelLoader:
                 num_classes: int = 5,cache_metadata: bool = True, 
                 model_top_n: int = 5,
                 metadata: Optional[Metadata]= None,
-                metadata_save_path: Optional[str|Path] = "../../models/cached/metadata.json", 
-                metric:str = "val_f1_macro",
+                metadata_save_file_path: Optional[str|Path] = None,
+                metric:str = "f1_macro",
+                other_metrics: Optional[list[str]] = None,
                 variant: Optional[Literal["Default","Hubble","Dirlichlet"]] = "Default",
                 checksum_method: Literal["sha256","md5","sha1"] = "sha256",
                 checksum: bool = True):
@@ -317,18 +328,20 @@ class ModelLoader:
         Initialize the ModelLoader.
 
         Args:
+            registered_model_name: The name of the registered model in MLflow.
             local_cache: Whether to use local caching.
             local_cache_dir: The directory for local caching.
             num_classes: The number of classes for the model.
-            registered_model_name: The name of the registered model in MLflow.
             cache_metadata: Whether to cache metadata about the model. Recommended to be True for better validation and tracking of models.
             metadata: An instance of Metadata to manage model metadata. If None, a new Metadata instance will be created.
             metadata_save_path: The path to save the metadata.
-            variant: The variant of the model for metadata. 
+            metric: The primary metric to use for sorting and ranking models. Default is "f1_macro".
+            other_metrics: A list of other metrics to track for the model.
+            variant: The variant of the model for metadata.
             checksum_method: The method to use for generating checksums. Options are "sha256", "md5", or "sha1".
             checksum: Whether to generate and store checksums for the model, also perform verification. Recommended to be True for data integrity verification.
+           
         """
-        
 
         self.client = MlflowClient()
 
@@ -337,26 +350,44 @@ class ModelLoader:
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
         self.cache_metadata = cache_metadata
-        self.metadata_save_path = Path(metadata_save_path) if metadata_save_path else None
+        # Default metadata path is under the repository root: /models/cached/metadata.json
+        default_metadata_path = root / "models" / "cached" / "metadata.json"
+        self.metadata_save_path = Path(metadata_save_file_path) if metadata_save_file_path else default_metadata_path
         self.best_run_id = None  # Store the best run ID for later use
         self.variant = variant  # Store the variant for metadata
         self.metric = metric  # Store the metric for sorting runs
+        self.other_metrics = other_metrics if other_metrics else []  # Store any additional metrics for metadata
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
         self.top_n = model_top_n  # Store the top_n for metadata
         self.device = cfg.env.device  # Store the device for model loading
 
-        
 
-                
+        # consctructor conditions checks and creating files/dirs if needed       
         if self.cache_metadata:
+
+            logger.info(f"Cache metadata is enabled. Metadata will be saved to: {self.metadata_save_path}")
+
+            path = Path(self.metadata_save_path).resolve()
+
+            logger.info(f"Resolved metadata save path: {path}")
+            if path is not None:
+                if path.exists():
+                    if not path.is_file():
+                        raise FileNotFoundError(f"{path} is not a file")
+                else:
+                    logger.warning("Metadata file does not exist. Creating a new metadata file.")
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.touch(exist_ok=True)
+                    logger.success(f"Created metadata file at {path}")
+
             if metadata is not None:
-                self.metadata = metadata
+                self.metadata = metadata   
 
             elif self.metadata_save_path is not None:
-                self.metadata = Metadata(save_path=self.metadata_save_path)
+                self.metadata = Metadata(save_file_path=self.metadata_save_path)
             else:
-                raise ValueError("metadata_save_path must be set if cache_metadata=True and no metadata instance is passed.")
+                raise ValueError("metadata_save_file_path must be set if cache_metadata=True and no metadata instance is passed.")
 
 
         if self.local_cache and self.local_cache_dir:
@@ -425,10 +456,13 @@ class ModelLoader:
         if self.cache_metadata:
             self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
         try:
+            #try with mlflow to load top n 
             model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
 
             #self.metadata.update_metadata()
         except Exception as e:
+
+            #fallback to locl metadata if mlflow is unreachable
             logger.error(f"MLflow unreachable, attempting to load from local metadata fallback: {e}")
             return self._load_from_local_metadata()    
 
@@ -455,9 +489,10 @@ class ModelLoader:
                 return model
             
             except Exception as e:
+                logger.debug(f"Failed to load model from run '{run_id}' with {metric}: {metric} (Rank: {rank}). Error: {e}")
                 logger.error(f"Couldn't load the model from run_id:{run_id} continuing search")
                 continue
-
+        
         raise RuntimeError(f"Failed to load any model for experiment '{self.registered_model_name}' after checking top {self.top_n} runs.")
    
         
@@ -483,37 +518,42 @@ class ModelLoader:
         '''
 
         try:
+
+            #gaurd, try with mlflow fallabck to local metadata
             try:
+                logger.info(f"Attempting to load champion model for '{self.registered_model_name}' from MLflow alias 'champion'")
                 champion_version = self.client.get_model_version_by_alias(self.registered_model_name, "champion")
                 champion_run_id = champion_version.run_id
+
             except Exception:
                 logger.warning("Failed to load from MLflow alias; using local metadata to get run_id")
                 met = self.metadata
                 file = met._load()
-                champion_run_id = file[self.variant].candidates[-1].run_id #last run id from the variant metadata
+                champion_run_id = file[self.variant].candidates[0].run_id #first run id from the variant metadata
 
             run = self.client.get_run(champion_run_id)
-            f1_macro = run.data.metrics.get("f1_macro", None)
-            val_f1_macro = run.data.metrics.get("val_f1_macro", None)
-            other_metric = run.data.metrics.get(self.metric, None)
+            
+
+            other_metrics = {metric: run.data.metrics.get(metric, None) for metric in self.other_metrics}
+            metric = {self.metric: run.data.metrics.get(self.metric, None)}
 
             logger.success(f"Champion run ID: {champion_run_id}")
 
+        
             if self.cache_metadata and self.local_cache_dir:
                 met = CandidateMetadata(
                     rank=1,
                     run_id=champion_run_id,
                     model_name=self.registered_model_name,
                     experiment_name=self.registered_model_name,
-                    f1_macro=f1_macro,
-                    val_f1_macro=val_f1_macro, # Set to None or fetch from run data if available
+                    metric=metric,#dafulat f1_macro
                     num_classes=self.num_classes,
                     cache_file=str(self._cache_path(champion_run_id)),
                     cached_at=datetime.now(timezone.utc).isoformat(),
                     save_path=str(self.local_cache_dir),
-                    other_metrics={self.metric: other_metric} if other_metric is not None else {}
+                    other_metrics=other_metrics
                 )
-                self.metadata.update_metadata(met, variant=self.variant)
+                self.metadata.update_metadata(met,metric = self.metric ,variant=self.variant)
 
             return self.check_cache(champion_run_id)
 
@@ -537,6 +577,8 @@ class ModelLoader:
         ```
         
         '''
+
+        logger.info(f"Checking cache for run '{run_id}'")
 
         cache_path = self._cache_path(run_id)
 
@@ -611,9 +653,10 @@ class ModelLoader:
             raise RuntimeError(f"MLflow unreachable and no cached candidates for variant '{self.variant}'.")
 
         for c in candidates:
-            logger.info(f"[local fallback] Attempting run '{c.run_id}' (rank {c.rank}, {self.metric}={c.val_f1_macro})")
+            logger.info(f"[local fallback] Attempting run '{c.run_id}' (rank {c.rank}, {self.metric}={c.metric.get(self.metric, None)})")
             try:
                 return self.check_cache(c.run_id)
+            
             except Exception:
                 logger.error(f"[local fallback] Couldn't load run_id:{c.run_id}, continuing")
                 continue
@@ -711,32 +754,35 @@ class ModelLoader:
             return []
 
         synced = []
+
+        logger.info(f"Syncing top {len(model_list)} runs for '{self.registered_model_name}' to local metadata")
+
         for rank, run in enumerate(model_list, start=1):
             run_id = run.info.run_id
-            metric_val = run.data.metrics.get(self.metric, None)
             cache_path = self._cache_path(run_id) if self.local_cache_dir else None
+            other_metrics = {metric: run.data.metrics.get(metric, None) for metric in self.other_metrics}
+            metric = {self.metric: run.data.metrics.get(self.metric, None)}
 
             cand = CandidateMetadata(
                 rank=rank,
                 run_id=run_id,
                 model_name=self.registered_model_name,
                 experiment_name=self.registered_model_name,
-                f1_macro=run.data.metrics.get("f1_macro", None),
-                val_f1_macro=run.data.metrics.get("val_f1_macro", None),
+                metric=metric,
                 num_classes=self.num_classes,
                 cache_file=str(cache_path) if cache_path else None,
                 # only stamp cached_at if the weights are actually on disk already
-                cached_at=datetime.now(timezone.utc).isoformat() if (cache_path and cache_path.exists()) else None,
+                cached_at=datetime.now(timezone.utc).isoformat(),
                 save_path=str(self.local_cache_dir) if self.local_cache_dir else None,
-                other_metrics={self.metric: metric_val} if metric_val is not None else {}
+                other_metrics=other_metrics
             )
-            self.metadata.update_metadata(cand, variant=self.variant, top_n=self.top_n)
+            self.metadata.update_metadata(cand, metric=self.metric, variant=self.variant, top_n=self.top_n)# save synced to metatada
             synced.append(cand)
 
         logger.success(f"Synced top {len(synced)} candidate(s) metadata for '{self.registered_model_name}'")
         return synced
 
-    def _best_run(self,model_name:str,top_n:int=5, metric: str = "val_f1_macro"):
+    def _best_run(self,model_name:str,top_n:int=5, metric: str = "f1_macro"):
         '''Retrieve the best run based on the highest specified metric.
 
         Args:
@@ -750,25 +796,37 @@ class ModelLoader:
         Example:
         ```python
             runs = loader._best_run(model_name="galaxy-classification-default-experiments",
-                                    top_n=5, metric="val_f1_macro")
+                                    top_n=5, metric="f1_macro")
             for r in runs:
-                print(r.info.run_id, r.data.metrics.get("val_f1_macro"))
+                print(r.info.run_id, r.data.metrics.get("f1_macro"))
         ```
 
         '''
+        logger.info(f"Searching for top {top_n} runs for model '{model_name}' sorted by metric '{metric}'")
+        versions = self.client.search_model_versions(f"name='{model_name}'")
 
-        experiment_name = self.client.get_experiment_by_name(model_name) 
+        if not versions:
+            logger.error(f"No registered model found with name '{model_name}'")
+            return None
 
-        if experiment_name is None:
-            logger.error(f"No experiment found with name '{model_name}'")
+        #query all the experment ids for the model versions, as experment ids can be independent to model 
+        experiment_ids = {
+            self.client.get_run(v.run_id).info.experiment_id
+            for v in versions
+        }
+
+
+        if experiment_ids is None:
+            logger.error(f"No model found with name '{model_name}'")
             return None
 
         runs = self.client.search_runs(
-            experiment_ids=[experiment_name.experiment_id],
+            experiment_ids=list(experiment_ids),
             filter_string="attributes.status = 'FINISHED'",
             order_by=[f"metrics.{metric} DESC"],
             max_results=top_n,
             )
+        logger.success(f"Found {len(runs)} finished runs for model '{model_name}' sorted by metric '{metric}'")
 
         if not runs: 
             logger.error(f"No finished runs found for experiment '{model_name}'")

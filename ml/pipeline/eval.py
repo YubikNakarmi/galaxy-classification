@@ -204,6 +204,10 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
             logger.error("Metric '{}' not present in eval results; cannot promote.", metric_name)
             return
 
+        mlflow.set_tag("eval_metric", metric_name)
+        mlflow.set_tag("evaluated", "True")
+        mlflow.set_tag("evaluated_model_name", model_name)
+
 
         #promote the model if it meets the criteria
         promote_if_better(
@@ -214,6 +218,8 @@ def evaluate(ctx, run_id, variant, model_version, min_improvement, metric_name, 
             alias=alias,
             min_improvement=min_improvement,
         )
+
+        client.set_registered_model_tag(name=model_name, key="evaluated", value="True")
 
     mlflow.end_run()
 
