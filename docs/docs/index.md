@@ -1,5 +1,14 @@
 # Galaxy Classification System
 
+## Movitation
+The reason for me working of project is due to multitude of factors. Firstly, I was always interested in astronomy and Neural networks and I wanted to buiild something regarding Astronomy. Then there also the motivation to build something better than my lat project [AQI_predictor](https://github.com/YubikNakarmi/Aqi_predictor), which is pretty messy. I wanted to contiune to learn to build better systems wich more cleaner and maintainable code with also better organizations and potability. With as miminal use of AI as possible, except is somethign like comments, docstrings or documentation .Lastly, I also wanted to learn new tools for DevOPS, Mlops, and ML in general I leared tools like:
+- Pytorch
+- FastAPI
+- BentoML
+- Promethus
+- Grafana
+   and more
+
 
 ## Introduction
 This project was focused on building a custom ResNet model for classifying galaxy images using Galaxy Zoo 2 dataset. This projct not only focus on buidling and training the model, but also on the entire pipeline, including data preprocessing, model architecture design, training strategies, and evaluation metrics. Furthermore those processes are done with MLOps practices in mind, ensuring reproducibility and scalability. Lastly it is served using an API built with FastAPI, allowing for easy integration and deployment.
@@ -50,3 +59,5 @@ The project is structured as a microservices architecture, with each service res
     - `requirements.api.txt` — dependencies for the `api/` service.
 
 - [Docker Compose](../docs/infra/docker-compose.md) — service breakdown, ports, volumes, and healthchecks for the full stack.
+
+

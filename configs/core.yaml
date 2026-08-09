@@ -9,6 +9,21 @@ runtime:
 ml:
   config_file: configs/ml.yaml
 
+dirs:
+  logs: 
+    bentoml:
+      service: logs/bentoml/service.log
+      api: logs/bentoml/api.log
+      ml: logs/bentoml/ml.log
+
+  data: 
+    raw: data/raw
+    processed: data/processed
+    images: images
+    
+  models: models
+  artifacts: artifacts
+
 
 
   

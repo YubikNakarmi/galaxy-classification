@@ -18,6 +18,7 @@ class Context:
     root: Path
     cfg: RootConfig
     mlflow_tracking_uri: str
+    image_dir: Path
 
 def load_context( *,
     service: str = "ml",

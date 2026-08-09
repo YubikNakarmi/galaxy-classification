@@ -1,5 +1,17 @@
 [![Deploy Documentation](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml)
 
+
+
+## Movitation
+The reason for me working of project is due to multitude of factors. Firstly, I was always interested in astronomy and Neural networks and I wanted to buiild something regarding Astronomy. Then there also the motivation to build something better than my lat project [AQI_predictor](https://github.com/YubikNakarmi/Aqi_predictor), which is pretty messy. I wanted to contiune to learn to build better systems wich more cleaner and maintainable code with also better organizations and potability. With as miminal use of AI as possible, except is somethign like comments, docstrings or documentation .Lastly, I also wanted to learn new tools for DevOPS, Mlops, and ML in general I leared tools like:
+- Pytorch
+- FastAPI
+- BentoML
+- Promethus
+- Grafana
+   and more
+
+   
 # need to add stack 
 - hydra or omegaconf for config management.
 - I insted made by custom parser cuz I was too focuesed on the proj. 

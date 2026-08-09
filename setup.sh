@@ -41,7 +41,7 @@ bentoml_build()
 {
     try:
     echo "Building BentoML container..."
-    bentoml build --version 0.6.0 --containerize || bentoml update --version 0.6.0 --containerize
+    bentoml build --version $version --containerize || bentoml update --version 0.6.0 --containerize
 
 }
 

@@ -20,6 +20,7 @@ class LazyRootGroup(click.Group):
 
     def get_command(self, ctx, name):
         module_info = self.command_modules.get(name)
+
         if module_info is None:
             return None
 
