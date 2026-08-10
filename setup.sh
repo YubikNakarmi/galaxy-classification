@@ -9,7 +9,7 @@ fi
 dir_setup()
 {
 
-     echo "Creating project directories..."
+    echo "Creating project directories..."
     mkdir -p 
     
              logs/{reports,system,tensorboard,training} \

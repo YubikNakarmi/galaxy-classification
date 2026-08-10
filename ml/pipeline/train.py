@@ -268,7 +268,7 @@ def train(ctx, variant,evaluate):
     from loguru import logger
 
     from src.training import validate_setup
-    from src.utils.cli_bootstrap import load_context
+    from src.cli.cli_bootstrap import load_context
 
     app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py, fallback to load_context if not present
     cfg = app_ctx.cfg

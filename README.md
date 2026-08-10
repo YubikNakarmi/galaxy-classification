@@ -9,12 +9,10 @@ The reason for me working of project is due to multitude of factors. Firstly, I 
 - BentoML
 - Promethus
 - Grafana
-   and more
+and more
 
    
-# need to add stack 
-- hydra or omegaconf for config management.
-- I insted made by custom parser cuz I was too focuesed on the proj. 
+
 
 
 # DVC setup
@@ -123,11 +121,11 @@ alembic upgrade head
 
 
 
-# to do
-- champion model in eval.py prmotoin
--  loaga cahcne check champion
--  
+
 # Need to test
-- new cached
 - fastapi
-- cli training
+
+
+# need to add stack 
+- hydra or omegaconf for config management.
+- I insted made by custom parser cuz I was too focuesed on the proj. 
