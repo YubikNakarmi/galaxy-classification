@@ -10,6 +10,7 @@ class LazyRootGroup(click.Group):
 
     command_modules = {
         "pipeline": ("ml.pipeline", "pipeline"),
+        "setup": ("ml.setup", "setup"),
     }
 
     def list_commands(self, ctx):
@@ -26,7 +27,7 @@ class LazyRootGroup(click.Group):
         return getattr(module, command_name)
 
 
-@click.group(cls=LazyRootGroup)
+@click.group(cls=LazyRootGroup,help = "Command line interface for the Galaxy Classification project")
 def cli():
     """Command line interface for the Galaxy Classification project."""
     pass
