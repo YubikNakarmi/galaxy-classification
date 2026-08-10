@@ -1,5 +1,9 @@
 # Setup
 
+## Endpionts
+
+### `/default`
+
 ## Build & Containerize
 Firstly build the bentoml service using using the following command:
 

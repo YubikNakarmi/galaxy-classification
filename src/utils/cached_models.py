@@ -629,69 +629,8 @@ class ModelLoader:
 
         return model  
 
-    def _load_from_local_metadata(self) -> torch.nn.Module:
-
-        '''Used only when MLflow is unreachable. Reads previously-cached, already-ranked
-        candidates from the local metadata file.
-        
-       
-        Example:
-        ```python
-            # called internally by load_with_fallback when MLflow is unreachable
-            model = loader._load_from_local_metadata()
-        ```
-
-        '''
-
-        if not (self.cache_metadata and self.metadata_save_path and self.metadata_save_path.exists()):
-            raise RuntimeError("MLflow unreachable and no local metadata available to fall back on.")
-
-        file = self.metadata._load()
-
-        candidates = file[self.variant].candidates[:self.top_n]
-
-        if not candidates:
-            raise RuntimeError(f"MLflow unreachable and no cached candidates for variant '{self.variant}'.")
-
-        for c in candidates:
-            logger.info(f"[local fallback] Attempting run '{c.run_id}' (rank {c.rank}, {self.metric}={c.metric.get(self.metric, None)})")
-            try:
-                return self.check_cache(c.run_id)
-            
-            except Exception:
-                logger.error(f"[local fallback] Couldn't load run_id:{c.run_id}, continuing")
-                continue
-
-        raise RuntimeError(f"Failed to load any model for variant '{self.variant}' from local metadata fallback.")
-
     
-    def _save_checksum(self, run_id: str, checksum: str,save_path:Optional[str|Path]=None) -> None:
-
-        '''Save the checksum for a given run_id to a file in the local cache directory.
-        Args:
-            run_id: The MLflow run ID for which to save the checksum.
-            checksum: The checksum to save.
-            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
-        
-        Example:
-        ```python
-            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
-            loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
-        ```
-        '''
-
-        if save_path:
-            path = Path(save_path)
-        else:
-            path = self.local_cache_dir
-        if not self.local_cache_dir:
-            logger.error("Local cache directory is not set; cannot save checksum.")
-            raise
-
-        checksum_path = self._checksum_path(save_path=path,run_id=run_id)
-        checksum_path.write_text(checksum)
-        logger.success(f"Checksum saved to {checksum_path}")
-
+    
       
     def compare_checksum(self,run_id:str,checksum:Optional[str]=None)->bool:
 
@@ -780,7 +719,74 @@ class ModelLoader:
             synced.append(cand)
 
         logger.success(f"Synced top {len(synced)} candidate(s) metadata for '{self.registered_model_name}'")
-        return synced
+        return synced\
+
+    def azure_fallback(self,run_id:str)->torch.nn.Module:
+        pass
+
+    def _load_from_local_metadata(self) -> torch.nn.Module:
+    
+            '''Used only when MLflow is unreachable. Reads previously-cached, already-ranked
+            candidates from the local metadata file.
+            
+           
+            Example:
+            ```python
+                # called internally by load_with_fallback when MLflow is unreachable
+                model = loader._load_from_local_metadata()
+            ```
+    
+            '''
+    
+            if not (self.cache_metadata and self.metadata_save_path and self.metadata_save_path.exists()):
+                raise RuntimeError("MLflow unreachable and no local metadata available to fall back on.")
+    
+            file = self.metadata._load()
+    
+            candidates = file[self.variant].candidates[:self.top_n]
+    
+            if not candidates:
+                raise RuntimeError(f"MLflow unreachable and no cached candidates for variant '{self.variant}'.")
+    
+            for c in candidates:
+                logger.info(f"[local fallback] Attempting run '{c.run_id}' (rank {c.rank}, {self.metric}={c.metric.get(self.metric, None)})")
+                try:
+                    return self.check_cache(c.run_id)
+                
+                except Exception:
+                    logger.error(f"[local fallback] Couldn't load run_id:{c.run_id}, continuing")
+                    continue
+    
+            raise RuntimeError(f"Failed to load any model for variant '{self.variant}' from local metadata fallback.")
+    
+
+    def _save_checksum(self, run_id: str, checksum: str,save_path:Optional[str|Path]=None) -> None:
+
+        '''Save the checksum for a given run_id to a file in the local cache directory.
+        Args:
+            run_id: The MLflow run ID for which to save the checksum.
+            checksum: The checksum to save.
+            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
+        
+        Example:
+        ```python
+            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
+            loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
+        ```
+        '''
+
+        if save_path:
+            path = Path(save_path)
+        else:
+            path = self.local_cache_dir
+        if not self.local_cache_dir:
+            logger.error("Local cache directory is not set; cannot save checksum.")
+            raise
+
+        checksum_path = self._checksum_path(save_path=path,run_id=run_id)
+        checksum_path.write_text(checksum)
+        logger.success(f"Checksum saved to {checksum_path}")
+
 
     def _best_run(self,model_name:str,top_n:int=5, metric: str = "f1_macro"):
         '''Retrieve the best run based on the highest specified metric.

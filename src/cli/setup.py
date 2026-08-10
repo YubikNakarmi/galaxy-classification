@@ -16,5 +16,7 @@ def load_dataset(path:str|Path):
 
     )
 
+    df
+
 def make_dirs():
     pass

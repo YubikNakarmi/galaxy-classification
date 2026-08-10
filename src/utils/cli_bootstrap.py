@@ -41,6 +41,7 @@ def load_context( *,
     load_dotenv(env_path)
 
     core_cfg = load_yaml(core_yaml_path)
+    image_dir = Path(core_cfg["dirs"]["data"]["images"])
     if service == "ml":
         setup_ml_logging(core_cfg)
     else:
@@ -54,4 +55,5 @@ def load_context( *,
     logger.bind(component="bootstrap")
     
 
-    return Context(root=ROOT, cfg=cfg, mlflow_tracking_uri=mlflow_uri)
+    return Context(root=ROOT, cfg=cfg, 
+                   mlflow_tracking_uri=mlflow_uri, image_dir=image_dir)

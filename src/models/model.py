@@ -97,6 +97,12 @@ class GalaxyClassifier_ResNet(nn.Module):
             N (int): The number of residual units in each group. Default is 2.
             k (int): The width multiplier for the number of channels in the convolutional layers. Default is 2.
             num_classes (int): The number of output classes for classification. Default is 5.
+        
+        Example:
+            ``` python
+            model = GalaxyClassifier_ResNet(head="dropout", N=3, k=2, num_classes=5)
+            ```
+
 
         '''
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 
 import click
+from ml.cli import cli
 
 
 class LazyPipelineGroup(click.Group):
@@ -27,13 +28,14 @@ class LazyPipelineGroup(click.Group):
         return getattr(module, command_name)
 
 
-@click.group(cls=LazyPipelineGroup)
+@cli.group(cls=LazyPipelineGroup)
 @click.pass_context
 def pipeline(ctx):
     """ML pipeline commands.
 
-    example:
-        galax pipeline preprocess --run_preprocessing True --preprocess_type classic
+    example:\n
+        galax pipeline preprocess --run_preprocessing True \
+        --preprocess_type classic
     """
 
     from src.utils.cli_bootstrap import load_context

@@ -7,6 +7,7 @@ from pathlib import Path
 import click
 
 from ml.pipeline import pipeline
+from ml.pipeline.eval import evaluate
 
 
 
@@ -248,6 +249,7 @@ def train_default(cfg):
         logger.success("Training complete.")
         
     mlflow.end_run()
+    return run_id
 
 
 def train_hubble():
@@ -258,9 +260,10 @@ def train_dirilchled():
 # CLI entry
 @pipeline.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")
+@click.option("--evaluate", is_flag=True, default=False, help="Evaluate the model after training")
 @click.pass_context
 
-def train(ctx, variant):
+def train(ctx, variant,evaluate):
     import mlflow
     from loguru import logger
 
@@ -285,7 +288,11 @@ def train(ctx, variant):
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":
         mlflow.set_experiment(cfg.variant.experiment.root)
-        train_default(cfg)
+        run_id = train_default(cfg)
+
+        if evaluate:
+            evaluate(ctx, run_id=run_id, variant=variant, model_version=None, min_improvement=0.005, metric_name="f1_macro", alias="Champion", model_source="mlflow")
+
     
  
 if __name__ == "__main__":

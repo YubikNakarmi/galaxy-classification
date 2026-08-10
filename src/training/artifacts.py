@@ -2,7 +2,6 @@
 This module provides functions to register models with MLflow, upload training logs, reports, and tensorboard artifacts to Azure Blob Storage. 
 It also sets up logging configurations for both application and ML logging.'''
 
-from alembic.command import current
 import torch
 import mlflow
 from dotenv import load_dotenv
@@ -10,7 +9,6 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 import os
 from loguru import logger
-import datetime
 from mlflow.models.signature import infer_signature
 from mlflow.tracking import MlflowClient
 

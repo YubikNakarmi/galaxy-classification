@@ -6,13 +6,10 @@ import click
 
 
 class LazyRootGroup(click.Group):
-    """Load top-level commands only when they are requested."""
+    """Load the top-level pipeline command only when it is requested."""
 
     command_modules = {
         "pipeline": ("ml.pipeline", "pipeline"),
-        "train": ("ml.pipeline.train", "train"),
-        "evaluate": ("ml.pipeline.eval", "evaluate"),
-        "preprocess": ("ml.pipeline.preprocess", "preprocess"),
     }
 
     def list_commands(self, ctx):
