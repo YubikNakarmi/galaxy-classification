@@ -1,5 +1,33 @@
+#  Galaxy Classification
+ 
 [![Deploy Documentation](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml)
+ 
+An end-to-end MLOps pipeline for classifying galaxy morphologies from images, built with PyTorch, FastAPI, and BentoML — with full experiment tracking, data versioning, and observability baked in.
 
+> Full documentation is available at the [docs site](https://github.com/YubikNakarmi/galaxy-classification), generated via MkDocs and deployed automatically on push.
+ 
+---
+ 
+## Table of Contents
+
+ 
+- [Galaxy Classification](#galaxy-classification)
+  - [Table of Contents](#table-of-contents)
+  - [Movitation](#movitation)
+  - [Tech Stack](#tech-stack)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [File Setup](#file-setup)
+    - [DVC Setup](#dvc-setup)
+    - [Azure Blob Setup](#azure-blob-setup)
+  - [Database Migrations](#database-migrations)
+  - [Training](#training)
+    - [Training on a VM](#training-on-a-vm)
+  - [Testing](#testing)
+  - [Azurite (Local Blob Emulator) Testing](#azurite-local-blob-emulator-testing)
+  - [Roadmap / Known Improvements](#roadmap--known-improvements)
+  
+---
 
 
 ## Movitation
@@ -11,121 +39,147 @@ The reason for me working of project is due to multitude of factors. Firstly, I 
 - Grafana
 and more
 
-   
+
+## Tech Stack
+ 
+| Layer            | Tools |
+|-------------------|-------|
+| Modeling           | PyTorch |
+| Data & Pipeline Versioning | DVC |
+| Experiment Tracking | MLflow |
+| Serving            | FastAPI, BentoML |
+| Observability      | Prometheus, Grafana, Loki |
+| Infrastructure     | Terraform, Azure, Docker / Docker Compose |
+| Docs               | MkDocs |
+ 
 
 
+## Getting Started
 
-# DVC setup
+ 
+### Prerequisites
+ 
+- Python (see `pyproject.toml` / `uv.lock` for the pinned version)
+- [uv](https://docs.astral.sh/uv/) for dependency management
+- Docker & Docker Compose (for local infra)
+- An Azure Storage Account (or [Azurite](https://github.com/Azure/Azurite) for local emulation)
+
+
+### File Setup
+ 
+Create the following directories at the project root and add `.gitkeep` files to each, so they're tracked by git before any real data lands in them:
+ 
+```sh
+mkdir -p logs models data
+touch logs/.gitkeep models/.gitkeep data/.gitkeep
+```
+ 
+### DVC Setup
+ 
+Initialize DVC and configure an Azure remote for data/model versioning:
+ 
 ```sh
 dvc init
-```
-
-```sh
-az storage blob upload --account-name <storage_account_name> --container-name <container_name> --name <blob_name> --file <file_path>
-```
-
-
-```sh
+ 
+# Upload a file directly to blob storage (one-off)
+az storage blob upload \
+  --account-name <storage_account_name> \
+  --container-name <container_name> \
+  --name <blob_name> \
+  --file <file_path>
+ 
+# Track a file with DVC
 dvc add <file_path>
-```
-```sh
+ 
+# Configure the Azure remote
 dvc remote add -d azure_remote azure://<container_name>
-```
-```sh
 dvc remote modify azure_remote account_name <storage_account_name>
-```
-```sh
-dvc remote modify myremote --local connection_string "DefaultEndpointsProtocol=https;AccountName=<storage_account_name>;AccountKey=<storage_account_key>;EndpointSuffix=core.windows.net"
-```
-
-```sh
+ 
+# Authenticate — pick one:
+dvc remote modify azure_remote --local connection_string "DefaultEndpointsProtocol=https;AccountName=<storage_account_name>;AccountKey=<storage_account_key>;EndpointSuffix=core.windows.net"
+# or
 dvc remote modify azure_remote sas_token <generated_sas_token>
 ```
-
-# File setup
- make dirs `/logs`,`/models`,`/data` in the root of the project and add .gitkeep files to them.
-
-# Azure blob setup
-1. Create a storage account in Azure. or emulate using Azurite
-2. Create a container in the storage account.
-3. Generate a SAS token or Connection string for authentication.
-
-## Required containers
- - `mlflow` (for mlflow tracking backend)
- - `dvc-storage` (for dvc remote storage)
-
-
-
-## containers 
-- dvc-storage
-- mlflow
-- galaxy-classification-experiments
-- galaxy-classification-logs
-
-
-
-
-# improvement
-- cascading module loading problem while running scropts. Since the cutom moduels also realy on other modules the runtime is slow especially during importing of modules. This is not really a problem for ml (as they are mostly training eval, etc which take considerable time anyway).part of the projoect. But thsi can be improved. 
-- in model loader cahce  in bentoml, improve by addibn backup for mlflow faiilure bu scanning for previous best in cache or pulling form blob
-
-
-# vm training
-
-install  nvdia-smi 
-
-```
-pip uninstall torch torchvision -y
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-
-ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@20.204.16.165
-```
-
-
-
-# configs need to improve 
-- prevalidation of paths instead of sepearte on training
-
-
-# tests
-
-```
-pytest tests/test_checkpoint_manager.py
-
-pytsst -m integration -v
-```
-
-# azurite test
-```py
-
-from src.utils.azure_utils import AzureBlobStorage
-from pathlib import Path
-
-
-blob = AzureBlobStorage(storage_connection_string = "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;",
-)
-
-blob.container_name = "test"
-blob.print_info()
-```
-Total parameters: 61,187,525
-
-# improvements
-add cache for model instead of always loading
-
-# alembic 
-```sh 
+ 
+### Azure Blob Setup
+ 
+1. Create a storage account in Azure (or use **Azurite** for local emulation).
+2. Create the required containers within that account.
+3. Generate a SAS token or connection string for authentication.
+**Required containers:**
+ 
+| Container | Purpose |
+|---|---|
+| `dvc-storage` | DVC remote storage |
+| `mlflow` | MLflow tracking backend |
+| `galaxy-classification-experiments` | Experiment artifacts |
+| `galaxy-classification-logs` | Application/training logs |
+ 
+## Database Migrations
+ 
+Migrations are managed with Alembic:
+ 
+```sh
 alembic revision --autogenerate -m "init tables"
 alembic upgrade head
 ```
+ 
+## Training
+ 
+### Training on a VM
+ 
+For GPU training on a remote VM (e.g., Azure), make sure `nvidia-smi` is available, then install the CUDA-enabled PyTorch build:
+ 
+```sh
+pip uninstall torch torchvision -y
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+```
+ 
+To forward the MLflow UI from the VM to your local machine:
+ 
+```sh
+ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@<vm-ip>
+```
+ 
+> **Current model:** ~61.2M parameters (61,187,525).
+ 
+## Testing
+ 
+```sh
+# Run a single test module
+pytest tests/test_checkpoint_manager.py
+ 
+# Run integration tests
+pytest -m integration -v
+```
+ 
+## Azurite (Local Blob Emulator) Testing
+ 
+You can validate blob storage integration locally against [Azurite](https://github.com/Azure/Azurite) without touching real Azure resources:
+ 
+```python
+from src.utils.azure_utils import AzureBlobStorage
+ 
+blob = AzureBlobStorage(
+    storage_connection_string=(
+        "DefaultEndpointsProtocol=http;"
+        "AccountName=devstoreaccount1;"
+        "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;"
+        "BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+    )
+)
+ 
+blob.container_name = "test"
+blob.print_info()
+```
+ 
+## Roadmap / Known Improvements
+ 
+- **Slow module imports** — the custom module layer has cascading dependencies, which slows down script startup. Less of an issue for long-running ML jobs (training/eval), but worth addressing for shorter-lived scripts.
+- **Model cache resilience** — the BentoML model loader cache should fall back to the most recent locally cached "best" model (or pull directly from blob storage) if MLflow is unreachable.
+- **Model caching** — cache the loaded model instead of reloading it on every request.
+- **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
+- **Config management** — evaluate adopting Hydra or OmegaConf instead of the current custom-built parser, which was written under time pressure while focused on the rest of the project.
+- **FastAPI test coverage** — needs dedicated test coverage.
+ 
 
-
-
-
-# Need to test
-- fastapi
-
-
-# need to add stack 
-- hydra or omegaconf for config management.
-- I insted made by custom parser cuz I was too focuesed on the proj. 
