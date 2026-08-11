@@ -11,8 +11,11 @@ import time
 from typing import Optional
 from bentoml_api.schemas import ClassificationResult
 
-from bentoml_api.consts import TRANSFORM, DEVICE, DEFAULT_CLASS_NAMES,\
-default_model_name, hubble_model_name, dirichlet_model_name
+from bentoml_api.consts import (TRANSFORM, DEVICE, 
+                                DEFAULT_CLASS_NAMES,
+                                default_model_name,
+                                hubble_model_name,
+                                dirichlet_model_name)
 
 root = Path(__file__).parent.parent
 

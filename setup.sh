@@ -9,14 +9,10 @@ fi
 dir_setup()
 {
 
-    echo "Creating project directories..."
-    mkdir -p 
-    
-             logs/{reports,system,tensorboard,training} \
-             models/{checkpoints,cached} \
-             data/{raw,preprocessed} \
-             data/preprocessed/{labels,sample,split} \
-             logs/{reports,system,tensorboard,bentoml}
+    echo "Creating project files"
+    touch .env
+    touch /logs/bentoml/app.log
+
 }
 
 

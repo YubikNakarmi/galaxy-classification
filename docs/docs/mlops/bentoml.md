@@ -41,6 +41,9 @@ I used service and runner structure that seperates the model loading and inferen
 
 ![Bentoml](../assets/bentoml.png)
 
+!!! Note
+    This is a simplified version of the moderloader module architecture. More detailed can be found in [Registry](docs\docs\mlops\registry.md) and [Model Loader](docs\docs\development\utils) documentation.
+
 ## Services
 
 ### Galaxy Classification Service

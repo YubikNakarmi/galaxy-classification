@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends
 from celery.result import AsyncResult
 
-from api.classify.models import ClassificationResponseRecord, ImageUpload,Prediction
+from api.classify.models import ClassificationResponseRecord, ImageUpload
 from api.tasks import celery_app, classify_image
 from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 

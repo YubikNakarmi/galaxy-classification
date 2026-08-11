@@ -1,5 +1,4 @@
 import base64
-from git import db
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from celery import Celery

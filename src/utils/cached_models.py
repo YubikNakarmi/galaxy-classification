@@ -428,6 +428,8 @@ class ModelLoader:
         else: 
             hash_func = hashlib.sha1()
 
+        logger.info(f"Computing checksum for run '{run_id}' using {self.checksum_method}")
+
         #hash the saved model binary
         with open(self.local_cache_dir / f"{run_id}.pt", "rb") as f:
 
@@ -570,6 +572,10 @@ class ModelLoader:
             run_id: The MLflow run ID for which to check the cache.
         Returns:
             The loaded PyTorch model.
+
+        Raises:
+            Exception: If there is an error loading the model from the cache or MLflow.
+
         Example:
         ```python
             loader = ModelLoader(registered_model_name="my_model", local_cache=True,
@@ -805,6 +811,8 @@ class ModelLoader:
                                     top_n=5, metric="f1_macro")
             for r in runs:
                 print(r.info.run_id, r.data.metrics.get("f1_macro"))
+
+
         ```
 
         '''
@@ -826,13 +834,18 @@ class ModelLoader:
             logger.error(f"No model found with name '{model_name}'")
             return None
 
-        runs = self.client.search_runs(
-            experiment_ids=list(experiment_ids),
-            filter_string="attributes.status = 'FINISHED'",
-            order_by=[f"metrics.{metric} DESC"],
-            max_results=top_n,
-            )
-        logger.success(f"Found {len(runs)} finished runs for model '{model_name}' sorted by metric '{metric}'")
+        try:
+            runs = self.client.search_runs(
+                experiment_ids=list(experiment_ids),
+                filter_string="attributes.status = 'FINISHED'",
+                order_by=[f"metrics.{metric} DESC"],
+                max_results=top_n,
+                )
+            logger.success(f"Found {len(runs)} finished runs for model '{model_name}' sorted by metric '{metric}'")
+
+        except Exception as e:
+            logger.error(f"Error retrieving runs for model '{model_name}': {e}")
+            return None
 
         if not runs: 
             logger.error(f"No finished runs found for experiment '{model_name}'")

@@ -6,6 +6,11 @@ description = "A package which everything to run galaxy classification"
 authors = [{name = "Yubik Nakarmi"}]
 license = "MIT"
 readme = "README.md"
+dependencies = [
+    "mlflow==3.13",
+]
+
+requires-python = ">=3.12,<4"
 
 [build-system]
 requires = ["setuptools", "wheel"]
