@@ -20,10 +20,11 @@ from datetime import datetime, timezone
 from loguru import logger
 from pathlib import Path
 from src.utils.schemas import CandidateMetadata,MetadataFile, VariantMetadata
+from src.utils.validation import validate_mlflow_connection
 from dataclasses import asdict
 import hashlib
 import json
-from src.config import RootConfig
+from src.utils.bootstrap import Context
 
 root = Path(__file__).parent.parent.parent
 
@@ -40,21 +41,24 @@ class Metadata:
     
     """
         
-    def __init__(self,save_file_path:str|Path):
+    def __init__(self, save_file_path: str | Path | None = None, save_path: str | Path | None = None):
         """
         Args:
             save_file_path: The path to the JSON file where metadata will be stored.
-            checksum: Whether to generate and store checksums for the metadata.
-
+            save_path: Backward-compatible alias for save_file_path.
         """
-    
-        self.save_path = Path(save_file_path)
+        if save_file_path is None and save_path is None:
+            raise TypeError("Metadata requires save_file_path or save_path.")
+        if save_file_path is not None and save_path is not None:
+            raise TypeError("Use either save_file_path or save_path, not both.")
+
+        resolved = save_file_path if save_file_path is not None else save_path
+        self.save_path = Path(resolved)
         if self.save_path.exists() and not self.save_path.is_file():
             raise FileNotFoundError(f"{self.save_path} is not a file")
-        
+
         if not self.save_path.exists():
             os.makedirs(self.save_path.parent, exist_ok=True)
-           
 
     def _load(self) -> MetadataFile: #load joson 
         """
@@ -80,27 +84,31 @@ class Metadata:
             except json.JSONDecodeError:
                 raise ValueError(f"File {self.save_path} is not a valid JSON file.")
             
+        def _candidate_from_json(raw: dict) -> CandidateMetadata:# for legacy
+            item = dict(raw)
+            metric = dict(item.get("metric") or {})
+            for key in ("f1_macro", "val_f1_macro"):
+                if key in item and item.get(key) is not None and key not in metric:
+                    metric[key] = item[key]
+            item["metric"] = metric
+            item.setdefault("other_metrics", {})
+
+            allowed_fields = set(CandidateMetadata.__dataclass_fields__)
+            normalized = {key: value for key, value in item.items() if key in allowed_fields}
+            return CandidateMetadata(**normalized)
+
         metadata = MetadataFile(
             Default=VariantMetadata(
                 latest_update=data["Default"]["latest_update"],
-                candidates=[
-                    CandidateMetadata(**c)
-                    for c in data["Default"]["candidates"]
-                ],
+                candidates=[_candidate_from_json(c) for c in data["Default"]["candidates"]],
             ),
             Hubble=VariantMetadata(
                 latest_update=data["Hubble"]["latest_update"],
-                candidates=[
-                    CandidateMetadata(**c)
-                    for c in data["Hubble"]["candidates"]
-                ],
+                candidates=[_candidate_from_json(c) for c in data["Hubble"]["candidates"]],
             ),
             Dirichlet=VariantMetadata(
                 latest_update=data["Dirichlet"]["latest_update"],
-                candidates=[
-                    CandidateMetadata(**c)
-                    for c in data["Dirichlet"]["candidates"]
-                ],
+                candidates=[_candidate_from_json(c) for c in data["Dirichlet"]["candidates"]],
             ),
         )
 
@@ -146,7 +154,8 @@ class Metadata:
 
 
     def update_metadata(self,
-                        metadata:CandidateMetadata,metric:str,
+                        metadata:CandidateMetadata,
+                        metric: str | None = None,
                         variant:Literal["Default","Hubble","Dirichlet"]="Default",
                         top_n:int=5)->Any:
 
@@ -172,6 +181,14 @@ class Metadata:
         '''
 
         try:
+            valid_variants = {"Default", "Hubble", "Dirichlet"}
+            if variant not in valid_variants:
+                logger.error(f"Invalid metadata variant '{variant}'. Allowed variants: {sorted(valid_variants)}")
+                return None
+
+            if metric is None:
+                metric = metadata.metric.get("f1_macro") and "f1_macro" or metadata.metric.get("val_f1_macro") and "val_f1_macro" or "f1_macro"
+
             #empty init
             if not self.save_path.exists() or self.save_path.stat().st_size == 0:
                 logger.warning(f"Metadata file {self.save_path} missing or empty. Initializing with default structure.")
@@ -312,7 +329,7 @@ class ModelLoader:
     '''
 
     def __init__(self,registered_model_name:str,
-                cfg:RootConfig,
+                ctx:Context,
                 local_cache: bool = True,
                 local_cache_dir: Optional[str| Path] = None,
                 num_classes: int = 5,cache_metadata: bool = True, 
@@ -360,7 +377,8 @@ class ModelLoader:
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
         self.top_n = model_top_n  # Store the top_n for metadata
-        self.device = cfg.env.device  # Store the device for model loading
+        self.device = ctx.cfg.env.device  # Store the device for model loading
+        self.ctx = ctx  # Store the context for cfg, mlflow_tracking,etc
 
 
         # consctructor conditions checks and creating files/dirs if needed       
@@ -457,18 +475,17 @@ class ModelLoader:
             model = loader.load_with_fallback()
             ```
         '''
-
-        if self.cache_metadata:
-            self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
-        try:
+        if validate_mlflow_connection(self.ctx):#used instead of exception for low latency
+            if self.cache_metadata:      
+                    self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
+            
             #try with mlflow to load top n 
             model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
 
-            #self.metadata.update_metadata()
-        except Exception as e:
+        else:   # If MLflow is unreachable, proceed to load from local metadata
+            logger.warning("MLflow is unreachable, attempting to load from local metadata fallback.")
 
             #fallback to locl metadata if mlflow is unreachable
-            logger.error(f"MLflow unreachable, attempting to load from local metadata fallback: {e}")
             return self._load_from_local_metadata()    
 
         
@@ -608,6 +625,9 @@ class ModelLoader:
         logger.info(f"Cache miss for run '{run_id}', pulling from MLflow")
 
         #load form mlflow then save
+        if not validate_mlflow_connection(self.ctx):
+            logger.error(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
+            raise RuntimeError(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
         try:
             mlflow_model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 

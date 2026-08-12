@@ -1,3 +1,9 @@
+
+'''
+Context for project, including configuration and environment variables.
+This module provides a Context class that holds shared information for CLI commands, such as the root directory
+'''
+
 from __future__ import annotations
 
 from dataclasses import dataclass

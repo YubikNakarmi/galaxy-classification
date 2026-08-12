@@ -38,6 +38,6 @@ def pipeline(ctx):
         --preprocess_type classic
     """
 
-    from src.cli.cli_bootstrap import load_context
+    from src.utils.bootstrap import load_context
 
     ctx.obj = load_context(service="ml")

@@ -14,7 +14,7 @@ from src.utils.logging_config import intercept_stdlib_logging, setup_app_logging
 from bentoml_api.runners import (run_default_model, run_dirichlet_model, 
                                  run_hubble_model, build_gradcam)
 
-from src.cli.cli_bootstrap import load_context
+from src.utils.bootstrap import load_context
 
 from bentoml_api.consts import (TRANSFORM, DEVICE, 
                                 DEFAULT_CLASS_NAMES,

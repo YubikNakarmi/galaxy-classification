@@ -107,7 +107,7 @@ def evaluate(ctx, run_id, variant, model_version,
 
     from src.training.artifacts import promote_if_better
     from src.training.metrics import make_metrics
-    from src.cli.cli_bootstrap import load_context
+    from src.utils.bootstrap import load_context
     
     app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py
     cfg = app_ctx.cfg

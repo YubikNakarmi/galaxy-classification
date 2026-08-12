@@ -60,7 +60,7 @@ def preprocess(ctx, run_preprocessing,run_split,preprocess_type):
     from loguru import logger
 
     from src.dataset.label_preprocessing import Label_Processing_Classic
-    from src.cli.cli_bootstrap import load_context
+    from src.utils.bootstrap import load_context
      #custom contexxt to avaoid multi load
     app_ctx = ctx.obj or load_context(service="ml")#retrive from top level of click cmd in __init__py
 

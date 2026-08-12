@@ -18,12 +18,10 @@ def make_candidate(run_id, f1=0.5, rank=None):
         run_id=run_id,
         model_name="galaxy_classifier",
         experiment_name="galaxy_classifier",
-        f1_macro=f1,
-        val_f1_macro=f1,
         num_classes=5,
-        cache_file=f"/cache/{run_id}.pt",
         cached_at=datetime.now(timezone.utc).isoformat(),
         save_path="/cache",
+        metric={"f1_macro": f1, "val_f1_macro": f1},
     )
 
 
@@ -76,6 +74,39 @@ def test_load_roundtrip(metadata):
     assert loaded.Hubble.candidates == []
 
 
+def test_load_supports_legacy_metadata_fields(metadata):
+    legacy_payload = {
+        "Default": {
+            "latest_update": "2026-01-01T00:00:00+00:00",
+            "candidates": [{
+                "rank": 1,
+                "run_id": "legacy-run",
+                "model_name": "galaxy_classifier",
+                "experiment_name": "galaxy_classifier",
+                "num_classes": 5,
+                "f1_macro": 0.91,
+                "val_f1_macro": 0.88,
+                "cache_file": "/tmp/cache/legacy-run.pt",
+                "cached_at": "2026-01-01T00:00:00+00:00",
+                "save_path": "/tmp/cache",
+                "other_metrics": {"cache_file": "/tmp/cache/legacy-run.pt"},
+                "metric": {"f1_macro": 0.91, "val_f1_macro": 0.88},
+            }],
+        },
+        "Hubble": {"latest_update": "", "candidates": []},
+        "Dirichlet": {"latest_update": "", "candidates": []},
+    }
+    metadata.save_path.parent.mkdir(parents=True, exist_ok=True)
+    metadata.save_path.write_text(json.dumps(legacy_payload))
+
+    loaded = metadata._load()
+    candidate = loaded.Default.candidates[0]
+    assert candidate.run_id == "legacy-run"
+    assert candidate.metric["f1_macro"] == 0.91
+    assert candidate.metric["val_f1_macro"] == 0.88
+    assert not hasattr(candidate, "cache_file")
+
+
 # ---------- update_metadata ----------
 
 def test_update_metadata_creates_file_if_missing(metadata):
@@ -91,7 +122,7 @@ def test_update_metadata_dedups_by_run_id(metadata):
     metadata.update_metadata(make_candidate("run1", f1=0.9), variant="Default")
     loaded = metadata._load()
     assert len(loaded.Default.candidates) == 1
-    assert loaded.Default.candidates[0].f1_macro == 0.9
+    assert loaded.Default.candidates[0].metric["f1_macro"] == 0.9
 
 
 def test_update_metadata_sorts_by_f1_macro_descending(metadata):

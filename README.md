@@ -15,14 +15,16 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
   - [Table of Contents](#table-of-contents)
   - [Movitation](#movitation)
   - [Tech Stack](#tech-stack)
+  - [Running](#running)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [File Setup](#file-setup)
     - [DVC Setup](#dvc-setup)
     - [Azure Blob Setup](#azure-blob-setup)
   - [Database Migrations](#database-migrations)
-  - [Training](#training)
+  - [Training \& eval](#training--eval)
     - [Training on a VM](#training-on-a-vm)
+    - [Eval](#eval)
   - [Testing](#testing)
   - [Azurite (Local Blob Emulator) Testing](#azurite-local-blob-emulator-testing)
   - [Roadmap / Known Improvements](#roadmap--known-improvements)
@@ -52,6 +54,21 @@ and more
 | Infrastructure     | Terraform, Azure, Docker / Docker Compose |
 | Docs               | MkDocs |
  
+## Running
+
+The project itself is build using microservice architecture. The project is divided into 3 main services:
+- **Training Service**: This service is responsible for training the model. It uses PyTorch for model training and DVC for data versioning. It also tracks experiments using MLflow.
+- **Serving Service**: This service is responsible for serving the trained model. It uses FastAPI and BentoML for serving the model. It also exposes metrics for Prometheus and Grafana.
+- **inference Service**: This service is responsible for making predictions using the trained model. It uses FastAPI and BentoML for serving the model. It also exposes metrics for Prometheus and Grafana.
+
+!!! Note 
+    There are also other serverices but these 3 are main services. 
+
+`docker-compose.yml` is provided to run the services locally. You can run the services using the following command:
+
+```sh
+docker-compose up #runs all which might not be necessary
+```
 
 
 ## Getting Started
@@ -124,7 +141,7 @@ alembic revision --autogenerate -m "init tables"
 alembic upgrade head
 ```
  
-## Training
+## Training & eval
  
 ### Training on a VM
  
@@ -140,6 +157,14 @@ To forward the MLflow UI from the VM to your local machine:
 ```sh
 ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@<vm-ip>
 ```
+
+Run training script:
+
+```sh
+galax pipeline train --variant <variant_name> --run-eval=True
+```
+### Eval
+Eval requires run id
  
 > **Current model:** ~61.2M parameters (61,187,525).
  

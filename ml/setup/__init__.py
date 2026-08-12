@@ -29,7 +29,7 @@ class LazyPipelineGroup(click.Group):
 @click.pass_context
 def setup(ctx):
     '''Setup commands for the Galaxy Classification project.'''
-    from src.cli.cli_bootstrap import load_context
+    from src.utils.bootstrap import load_context
     
     ctx.obj = load_context(service="cli")
     

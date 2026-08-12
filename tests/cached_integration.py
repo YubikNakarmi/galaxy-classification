@@ -1,5 +1,5 @@
 from src.utils.cached_models import ModelLoader
-from src.cli.cli_bootstrap import load_context
+from src.utils.bootstrap import load_context
 import pytest
 
 @pytest.fixture

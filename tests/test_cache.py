@@ -76,9 +76,11 @@ def _candidate(run_id, f1, loader):
     from datetime import datetime, timezone
     return CandidateMetadata(
         rank=None, run_id=run_id, model_name=loader.registered_model_name,
-        experiment_name=loader.registered_model_name, f1_macro=f1, val_f1_macro=f1,
-        num_classes=loader.num_classes, cache_file=str(loader._cache_path(run_id)),
-        cached_at=datetime.now(timezone.utc).isoformat(), save_path=str(loader.local_cache_dir),
+        experiment_name=loader.registered_model_name,
+        num_classes=loader.num_classes,
+        cached_at=datetime.now(timezone.utc).isoformat(),
+        save_path=str(loader.local_cache_dir),
+        metric={"f1_macro": f1, "val_f1_macro": f1},
     )
 
 

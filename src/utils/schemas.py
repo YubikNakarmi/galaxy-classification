@@ -29,11 +29,10 @@ from pathlib import Path
 #             "run_id": "",
 #             "model_name": "",
 #             "experiment_name": "",
-#             "val_f1_macro": None,
 #             "num_classes": None,
-#             "cache_file": "",
 #             "cached_at": "",
-#             "save_path": ""
+#             "save_path": "",
+#             "metric": {}
 #         }
 
 #         return top_json_format, candidates_json_format
