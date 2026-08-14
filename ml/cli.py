@@ -4,8 +4,24 @@ import importlib
 
 import click
 
+BANNER =r"""
+✦   .        *       .    ✦        .
+    *    .        ✦          *
+  ✦        .    *       .        ✦
 
-class LazyRootGroup(click.Group):
+   ██████╗  █████╗ ██╗      █████╗ ██╗  ██╗
+  ██╔════╝ ██╔══██╗██║     ██╔══██╗╚██╗██╔╝
+  ██║  ███╗███████║██║     ███████║ ╚███╔╝
+  ██║   ██║██╔══██║██║     ██╔══██║ ██╔██╗
+  ╚██████╔╝██║  ██║███████╗██║  ██║██╔╝ ██╗
+   ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝
+
+  ✦        .    *       .        ✦
+    *    .        ✦          *
+✦   .        *       .    ✦        .
+"""
+
+class LazyRootGroup(click.Group):# duplocated on sublevels instead of single import from /src to avaoid deps chaining
     """Load the top-level pipeline command only when it is requested."""
 
     command_modules = {
@@ -36,16 +52,21 @@ def get_version() -> str:
 
 @click.group(cls=LazyRootGroup,context_settings={
         "help_option_names": ["-h", "--help"]},
-    no_args_is_help=True,
+    invoke_without_command=True,
     help = "Command line interface for the Galaxy Classification project",
     epilog="Run galax COMMAND --help for more information on a command."
     )
 
 @click.version_option(version=get_version(), prog_name="galaxy-classification")
-
-def cli():
+@click.pass_context
+def cli(ctx):
     """Command line interface for the Galaxy Classification project."""
-    pass
+    click.secho(BANNER, fg="cyan", bold=True)
+
+    if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
+        click.echo(ctx.get_help())
+
+
 
 @cli.command()
 def status():

@@ -32,7 +32,7 @@ class LazyPipelineGroup(click.Group):
 @cli.group(cls=LazyPipelineGroup)
 @click.pass_context
 def cache(ctx):
-    """ML pipeline commands.
+    """Manage model cache.
 
     example:\n
         galax cache import --checkpoint_path <path> --variant <variant_name> --num_classes <num_classes> [--run_id <run_id>] [--file_dir <file_dir>]
