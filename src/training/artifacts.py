@@ -14,7 +14,6 @@ from mlflow.tracking import MlflowClient
 
 from src.utils.azure_utils import AzureBlobStorage
 from src.utils.yaml_utils import load_yaml
-from src.utils.logging_config import setup_ml_logging
 from src.config import load_and_validate_config
 
 

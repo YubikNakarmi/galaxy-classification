@@ -11,6 +11,7 @@ class LazyRootGroup(click.Group):
     command_modules = {
         "pipeline": ("ml.pipeline", "pipeline"),
         "setup": ("ml.setup", "setup"),
+        "cache": ("ml.cache", "cache"),
     }
 
     def list_commands(self, ctx):

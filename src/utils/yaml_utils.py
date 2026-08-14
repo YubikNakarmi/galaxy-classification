@@ -1,9 +1,6 @@
 
 import yaml
 from pathlib import Path
-from loguru import logger
-from dotenv import load_dotenv
-from src.utils.logging_config import setup_app_logging
 
 
 def load_yaml(path: str | Path)-> dict:

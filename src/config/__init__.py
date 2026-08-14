@@ -2,7 +2,7 @@ from __future__ import annotations
  
 from pathlib import Path
  
-from src.utils import load_yaml
+from src.utils.yaml_utils import load_yaml
 from src.config.schema import RootConfig
 from .parser import parse_config, RootConfig
  

@@ -34,7 +34,7 @@ _FMT_CONSOLE = (
 )
 
 
-def _configure(cfg: dict, service: str, json_logs: bool):
+def _configure(cfg: dict, service: str, json_logs: bool,verbose: bool = True):
     logger.remove()
     logger.configure(extra={"service": service})
 
@@ -64,19 +64,20 @@ def _configure(cfg: dict, service: str, json_logs: bool):
             enqueue=True,
         )
 
-    logger.info(f"logging configured (service={service}, json={json_logs})")
+    if verbose:
+        logger.info(f"logging configured (service={service}, json={json_logs})")
 
 
-def setup_app_logging(config: dict, service: str = "app", json_logs: bool = None):
+def setup_app_logging(config: dict, service: str = "app", json_logs: bool = None, verbose: bool = True):
     cfg = config["logging"]["app"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
-    _configure(cfg, service, json_logs)
+    _configure(cfg, service, json_logs, verbose)
 
 
-def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None):
+def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None, verbose: bool = True):
     cfg = config["logging"]["ml"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
-    _configure(cfg, service, json_logs)
+    _configure(cfg, service, json_logs, verbose)
 
 
 class InterceptHandler(logging.Handler):

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import importlib
-
 import click
 from ml.cli import cli
 
 
 class LazyPipelineGroup(click.Group):
+    
     """Load pipeline commands only when they are invoked."""
 
     command_modules = {
@@ -19,6 +18,8 @@ class LazyPipelineGroup(click.Group):
         return sorted(self.command_modules)
 
     def get_command(self, ctx, name):
+        import importlib
+
         module_info = self.command_modules.get(name)
         if module_info is None:
             return None
@@ -34,10 +35,9 @@ def cache(ctx):
     """ML pipeline commands.
 
     example:\n
-        galax pipeline preprocess --run_preprocessing True \
-        --preprocess_type classic
+        galax cache import --checkpoint_path <path> --variant <variant_name> --num_classes <num_classes> [--run_id <run_id>] [--file_dir <file_dir>]
     """
 
     from src.utils.bootstrap import load_context
 
-    ctx.obj = load_context(service="ml")
+    ctx.obj = load_context(service="ml",verbose=False)  # Load ML context for pipeline commands

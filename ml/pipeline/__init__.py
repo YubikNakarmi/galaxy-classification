@@ -40,4 +40,4 @@ def pipeline(ctx):
 
     from src.utils.bootstrap import load_context
 
-    ctx.obj = load_context(service="ml")
+    ctx.obj = load_context(service="ml",verbose=False)  # Load ML context for pipeline commands

@@ -10,8 +10,7 @@ from typing import Optional
 from dataclasses import dataclass
 
 from src.config.schema import RootConfig
-from src.utils import setup_ml_logging
-from src.utils import load_yaml
+
 from loguru import logger
 
 root = Path(__file__).parent.parent.parent
