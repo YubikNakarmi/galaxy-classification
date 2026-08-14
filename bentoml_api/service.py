@@ -26,19 +26,12 @@ from bentoml_api.consts import (TRANSFORM, DEVICE,
 from loguru import logger
 
 root = Path(__file__).parent.parent
-load_dotenv(root / '.env')
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 if str(root) not in sys.path:
     sys.path.insert(0, str(root))
 
-# loggings (no down stream setup)
-file_config = root / 'configs' / 'core.yaml'
-log_yaml = load_yaml(file_config)
-log_json = os.getenv("LOG_JSON", "True").lower() in ("true", "1", "yes")
 
-setup_app_logging(log_yaml,service = "Bentoml",json_logs = log_json)
-intercept_stdlib_logging() # logs stdlib to loguru in container logs
+
 
 # Prometheus metrics
 h = Histogram('request_latency_seconds', 'Request latency in seconds', ['endpoint'])
@@ -51,20 +44,25 @@ number_requests = Counter('number_of_requests', 'Number of requests received', [
 class GalaxyClassification:
     
     def __init__(self):
-        ctx = load_context(service="bentoml")
-        cfg = ctx.cfg
+        ctx = load_context(service="bentoml")#project contexts
+        intercept_stdlib_logging() #for cotainers
         
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_tracking_uri(ctx.mlflow_tracking_uri)
 
         modelloader_default = ModelLoader(registered_model_name=default_model_name,
                                           local_cache=True, local_cache_dir=root / "models/cached",
-                                          cfg = cfg,
+                                          ctx = ctx,
                                           model_top_n = 3,metric = "f1_macro")
 
-        def_model= modelloader_default.load_champion_model() 
+        try:
+            def_model= modelloader_default.load_champion_model() 
 
-        self.default_model = def_model if def_model else \
-        modelloader_default.load_with_fallback().eval().to(DEVICE)#change to "eval_f1_macro" on production
+            self.default_model = def_model if def_model else \
+            modelloader_default.load_with_fallback().eval().to(DEVICE)#change to "eval_f1_macro" on production
+        except:
+            logger.critical("Failed to load default model. Exiting.")
+            logger.info("Please add model using the 'galax cache import' command or check the model registry.")
+            sys.exit(1)
         
 
         #self.hubble_model = load_best_model(experiment_name=experiment_root_hubble).eval().to(DEVICE)
