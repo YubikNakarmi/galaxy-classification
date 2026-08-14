@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+WORKDIR /pipeline
+
+COPY src/ src/
+COPY logs/system/ logs/system/
+COPY ml/ ml/
+COPY configs/ configs/
+
+COPY pyproject.toml uv.lock ./
+
+RUN uv sync --extra ml --frozen
+
+
+
+
+
+

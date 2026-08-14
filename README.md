@@ -28,6 +28,7 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
   - [Testing](#testing)
   - [Azurite (Local Blob Emulator) Testing](#azurite-local-blob-emulator-testing)
   - [Roadmap / Known Improvements](#roadmap--known-improvements)
+  - [Sources / References](#sources--references)
   
 ---
 
@@ -39,6 +40,7 @@ The reason for me working of project is due to multitude of factors. Firstly, I 
 - BentoML
 - Promethus
 - Grafana
+- Alembic
 and more
 
 
@@ -80,6 +82,18 @@ docker-compose up #runs all which might not be necessary
 - [uv](https://docs.astral.sh/uv/) for dependency management
 - Docker & Docker Compose (for local infra)
 - An Azure Storage Account (or [Azurite](https://github.com/Azure/Azurite) for local emulation)
+
+**Using uv**
+```bash
+uv sync --all-extras # for all deps
+
+uv sync --api # for api deps only
+```
+
+**With pip**
+```bash
+pip install -r requirements.txt
+```
 
 
 ### File Setup
@@ -205,6 +219,9 @@ blob.print_info()
 - **Model caching** — cache the loaded model instead of reloading it on every request.
 - **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
 - **Config management** — evaluate adopting Hydra or OmegaConf instead of the current custom-built parser, which was written under time pressure while focused on the rest of the project.
-- **FastAPI test coverage** — needs dedicated test coverage.
+- **more variants** — add more model variants to experiment with, including larger models and different architectures.
  
 
+## Sources / References
+- [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
+- [Galaxy Morphology Classification with Deep Convolutional Neural Networks](https://arxiv.org/abs/1807.10406)

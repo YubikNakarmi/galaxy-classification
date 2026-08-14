@@ -9,9 +9,10 @@ COPY setup.py .
 COPY alembic_migrations/ ./alembic_migrations/
 COPY alembic.ini .
 
+COPY pyproject.toml uv.lock ./
 
-RUN pip install --no-cache-dir \
-    -r api/requirements.api.txt \
+RUN uv sync --extra api --frozen
 
-RUN pip install --no-cache-dir -e .
+EXPOSE 8000
 
+CMD ["uv", "run", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

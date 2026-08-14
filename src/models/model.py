@@ -38,8 +38,9 @@ class ResidualUnit(nn.Module):
         self.relu3 = nn.ReLU(inplace=True)
         self.conv3 = nn.Conv2d(mid_channel, out_channels, kernel_size=1, stride=1, padding=0)#shrink feature map with stride
 
-        '''if the dimensions of the input and output don't match,
-        we need to use a convolution to match them for the residual connection'''
+        # if the dimensions of the input and output don't match,
+        # we need to use a convolution to match them for the residual connection
+
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
@@ -103,7 +104,6 @@ class GalaxyClassifier_ResNet(nn.Module):
             model = GalaxyClassifier_ResNet(head="dropout", N=3, k=2, num_classes=5)
             ```
 
-
         '''
 
 
@@ -124,7 +124,7 @@ class GalaxyClassifier_ResNet(nn.Module):
         
         self.fc      = nn.Linear(2048*k, num_classes) #k = 2
 
-        for m in self.modules():# he initializiing to help with convergence as per 
+        for m in self.modules():# he initialization to help with convergence 
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 

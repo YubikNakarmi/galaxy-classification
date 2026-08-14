@@ -84,7 +84,8 @@ class Metadata:
             except json.JSONDecodeError:
                 raise ValueError(f"File {self.save_path} is not a valid JSON file.")
             
-        def _candidate_from_json(raw: dict) -> CandidateMetadata:# for legacy
+        # for legacy     
+        def _candidate_from_json(raw: dict) -> CandidateMetadata:
             item = dict(raw)
             metric = dict(item.get("metric") or {})
             for key in ("f1_macro", "val_f1_macro"):
@@ -477,7 +478,7 @@ class ModelLoader:
         '''
         if validate_mlflow_connection(self.ctx):#used instead of exception for low latency
             if self.cache_metadata:      
-                    self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
+                self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
             
             #try with mlflow to load top n 
             model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
@@ -745,7 +746,7 @@ class ModelLoader:
             synced.append(cand)
 
         logger.success(f"Synced top {len(synced)} candidate(s) metadata for '{self.registered_model_name}'")
-        return synced\
+        return synced
 
     def azure_fallback(self,run_id:str)->torch.nn.Module:
         pass

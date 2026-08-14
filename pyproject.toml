@@ -6,49 +6,82 @@ description = "A package which everything to run galaxy classification"
 authors = [{name = "Yubik Nakarmi"}]
 license = "MIT"
 readme = "README.md"
+
 dependencies = [
-    "mlflow==3.13",
-]
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.14,<3",
+    "loguru>=0.7,<1",
+    "PyYAML>=6.0,<7",
+    "python-dotenv>=1.2,<2",
+    "dvc==3.67.1",
+    "dvc-azure==3.1.0",
+    "azure-core==1.41.0",
+    "azure-identity==1.25.3",
+    "azure-storage-blob==12.29.0"]
 
 requires-python = ">=3.12,<4"
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[project.urls]
-Homepage = "https://github.com/yubik/galaxy-classification"
-Repository = "https://github.com/yubik/galaxy-classification.git"
 
 [project.optional-dependencies]
-dev = ["pytest", "black", "flake8"]
-
-
-dependencies = [
-     "torch>=2.12,<3",
-    "torchvision>=0.27,<1",
-    "numpy>=2.4,<3",
-    "pandas>=2.3,<3",
-    "scikit-learn>=1.8,<2",
-    "matplotlib>=3.10,<4",
-    "opencv-python>=4.13,<5",
-
-    "fastapi>=0.136,<1",
-    "uvicorn>=0.47,<1",
-    "pydantic>=2.13,<3",
-
-    "mlflow>=3.13,<4",
-    "bentoml>=1.4,<2",
-    "dvc>=3.67,<4",
-    "dvc-azure>=3.1,<4",
-
-    "azure-storage-blob>=12.29,<13",
-    "azure-identity>=1.25,<2",
-
-    "hydra-core>=1.3,<2",
-    "loguru>=0.7,<1",
-    "python-dotenv>=1.2,<2",
+api = [
+    "fastapi==0.136.1",
+    "uvicorn==0.47.0",
+    "SQLAlchemy==2.0.49",
+    "celery==5.6.3",
+    "azure-core==1.41.0",
+    "azure-identity==1.25.3",
+    "azure-storage-blob==12.29.0",
 ]
+
+bentoml = [
+    "bentoml==1.4.39",
+    "torch==2.12.0",
+    "torchvision==0.27.0",
+    "torchmetrics==1.9.0",
+    "grad-cam==1.5.5",
+    "mlflow==3.13.0",
+    "numpy==2.4.6",
+    "pandas==2.3.3",
+    "azure-core==1.41.0",
+    "azure-identity==1.25.3",
+    "azure-storage-blob==12.29.0",
+]
+
+ml = [
+    "torch==2.12.0",
+    "torchvision==0.27.0",
+    "torchmetrics==1.9.0",
+    "numpy==2.4.6",
+    "pandas==2.3.3",
+    "scikit-learn==1.9.0",
+    "matplotlib==3.11.1",
+    "seaborn==0.13.2",
+    "grad-cam==1.5.5",
+    "mlflow==3.13.0",
+    "dvc==3.67.1",
+    "dvc-azure==3.1.0",
+    "azure-core==1.41.0",
+    "azure-identity==1.25.3",
+    "azure-storage-blob==12.29.0",
+    "tqdm==4.67.3",
+]
+
+dev = [
+    "pytest==9.1.1",
+    "ruff",
+]
+
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.6.15",
+    "mkdocs-git-revision-date-localized-plugin==1.5.2",
+    "mkdocs-minify-plugin==0.8.0",
+    "mkdocs-awesome-pages-plugin==2.10.1",
+    "pymdown-extensions==10.21.3",
+    "mkdocstrings[python]>=0.18",
+]
+
+
 
 [tool.setuptools.packages.find]
 include = ["src", 
@@ -58,3 +91,12 @@ include = ["src",
 
 [project.scripts]
 galax = "ml.cli:cli"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/yubik/galaxy-classification"
+Repository = "https://github.com/yubik/galaxy-classification.git"
+
