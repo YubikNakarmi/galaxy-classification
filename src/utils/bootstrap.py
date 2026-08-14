@@ -30,7 +30,7 @@ def load_context( *,
     service: str = "ml",
     env_path: Path | None = None,
     ml_yaml_path: Path | None = None,
-    core_yaml_path: Path | None = None,verbose: bool = True)-> Context:
+    core_yaml_path: Path | None = None,verbose: bool = True,std_out: bool = True)-> Context:
 
     ''' Core context file used my ML CLI to avoid reloading config and logging setup in each command. '''
     from dotenv import load_dotenv
@@ -49,10 +49,10 @@ def load_context( *,
     core_cfg = load_yaml(core_yaml_path)
     image_dir = Path(core_cfg["dirs"]["data"]["images"])
     if service == "ml":
-        setup_ml_logging(core_cfg,verbose=verbose)
+        setup_ml_logging(core_cfg,verbose=verbose,std_out=std_out)
     else:
         json_logs = os.getenv("LOG_JSON", "false").lower() in ("true", "1", "yes")
-        setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose)
+        setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose,std_out=std_out)
 
     cfg = load_and_validate_config(ml_yaml_path, root=ROOT, env_path=env_path)
 

@@ -148,6 +148,7 @@ nav:
   - Getting started:
       - Overview: getting-started/index.md
       - Prerequisites: getting-started/prerequisites.md
+      - CLI: getting-started/cli.md
       - Quick start: getting-started/quickstart.md
       - Configuration: getting-started/configuration.md
       - Running locally: getting-started/running-locally.md
@@ -201,6 +202,7 @@ nav:
 
   - Development:
       - Overview: development/index.md 
+      - CLI: development/cli.md
       - configs: development/configs.md
       - logging: development/logging.md
       - Adding a new class: development/new-class.md

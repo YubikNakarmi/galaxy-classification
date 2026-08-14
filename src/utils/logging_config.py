@@ -34,24 +34,25 @@ _FMT_CONSOLE = (
 )
 
 
-def _configure(cfg: dict, service: str, json_logs: bool,verbose: bool = True):
+def _configure(cfg: dict, service: str, json_logs: bool,verbose: bool = True,std_out: bool = True):
     logger.remove()
     logger.configure(extra={"service": service})
 
-    if json_logs:# in docker container, JSON format
-        logger.add(
-            sys.stdout,
-            level=cfg["level"],
-            serialize=True,
-            colorize=False,
-        )
-    else:
-        logger.add(
-            sys.stdout,
-            level=cfg["level"],
-            format=_FMT_CONSOLE,
-            colorize=True,
-        )
+    if std_out:
+        if json_logs:# in docker container, JSON format
+            logger.add(
+                sys.stdout,
+                level=cfg["level"],
+                serialize=True,
+                colorize=False,
+            )
+        else:
+            logger.add(
+                sys.stdout,
+                level=cfg["level"],
+                format=_FMT_CONSOLE,
+                colorize=True,
+            )
 
     if cfg.get("file"):# for human readable in log file
         logger.add(
@@ -68,16 +69,16 @@ def _configure(cfg: dict, service: str, json_logs: bool,verbose: bool = True):
         logger.info(f"logging configured (service={service}, json={json_logs})")
 
 
-def setup_app_logging(config: dict, service: str = "app", json_logs: bool = None, verbose: bool = True):
+def setup_app_logging(config: dict, service: str = "app", json_logs: bool = None, verbose: bool = True,std_out: bool = True):
     cfg = config["logging"]["app"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
-    _configure(cfg, service, json_logs, verbose)
+    _configure(cfg, service, json_logs, verbose, std_out)
 
 
-def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None, verbose: bool = True):
+def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None, verbose: bool = True,std_out: bool = True):
     cfg = config["logging"]["ml"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
-    _configure(cfg, service, json_logs, verbose)
+    _configure(cfg, service, json_logs, verbose, std_out)
 
 
 class InterceptHandler(logging.Handler):

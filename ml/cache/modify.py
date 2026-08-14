@@ -25,8 +25,11 @@ def modify(ctx):
 @click.option("--file_dir", default = root / "models" / "cached",type=str, required=False, 
               help="Directory where the model files are located")
 
-def import_model(ctx):
+def import_model(ctx,variant:str, checkpoint_path:str, num_classes:int, run_id:str, file_dir:str):
     from src.utils.cached_models import ModelLoader
+    from rich.console import Console
+    console = Console()
+    console.print(f"Importing model from checkpoint: {ctx.params['checkpoint_path']}", style="bold green")
     import torch
 
 

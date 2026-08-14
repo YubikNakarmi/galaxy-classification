@@ -31,5 +31,5 @@ def setup(ctx):
     '''Setup commands for the Galaxy Classification project.'''
     from src.utils.bootstrap import load_context
     
-    ctx.obj = load_context(service="cli")
+    ctx.obj = load_context(service="cli",std_out=False)  # Load ML context for setup commands
     

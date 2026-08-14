@@ -27,8 +27,27 @@ class LazyRootGroup(click.Group):
         module = importlib.import_module(module_name)
         return getattr(module, command_name)
 
+def get_version() -> str:
+    from importlib.metadata import PackageNotFoundError,version
+    try:
+        return version("galaxy-classification")
+    except PackageNotFoundError:
+        return "dev"
 
-@click.group(cls=LazyRootGroup,help = "Command line interface for the Galaxy Classification project")
+@click.group(cls=LazyRootGroup,context_settings={
+        "help_option_names": ["-h", "--help"]},
+    no_args_is_help=True,
+    help = "Command line interface for the Galaxy Classification project",
+    epilog="Run galax COMMAND --help for more information on a command."
+    )
+
+@click.version_option(version=get_version(), prog_name="galaxy-classification")
+
 def cli():
     """Command line interface for the Galaxy Classification project."""
     pass
+
+@cli.command()
+def status():
+    """Check the status of the CLI."""
+    click.echo("CLI is operational.")

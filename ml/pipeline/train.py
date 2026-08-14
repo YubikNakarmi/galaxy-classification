@@ -7,7 +7,6 @@ from pathlib import Path
 import click
 
 from ml.pipeline import pipeline
-from ml.pipeline.eval import evaluate
 
 
 
@@ -16,7 +15,7 @@ from ml.pipeline.eval import evaluate
 
 
 
-def train_default(cfg):
+def train_default(cfg,console):# no console type hint for fast CLI
     import mlflow
     import pandas as pd
     import torch
@@ -49,6 +48,8 @@ def train_default(cfg):
     #trainin start
 
     logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
+    console.print(f"[bold green]Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}[/bold green]")    
+
     logger.info(
         "Training configuration | device={} | seed={} | batch_size={} | num_epochs={} | train_path={} | val_path={}",
         cfg.env.device,
@@ -58,6 +59,9 @@ def train_default(cfg):
         cfg.data.train_path,
         cfg.data.val_path,
     )
+
+    
+
     random.seed(cfg.env.seed)
     torch.manual_seed(cfg.env.seed)
     torch.cuda.manual_seed_all(cfg.env.seed)
@@ -269,6 +273,9 @@ def train(ctx, variant,evaluate):
 
     from src.training import validate_setup
     from src.utils.bootstrap import load_context
+    from rich.console import Console
+    from ml.pipeline.eval import evaluate as eval
+    console = Console()
 
     app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py, fallback to load_context if not present
     cfg = app_ctx.cfg
@@ -283,15 +290,20 @@ def train(ctx, variant,evaluate):
             cfg.storage.local.logs.tensorboard_dir]):
         
         logger.error("Setup validation failed. Exiting.")
+        console.print("[bold red]Setup validation failed. Please check the logs for details.[/bold red]") 
         return
         
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":
         mlflow.set_experiment(cfg.variant.experiment.root)
-        run_id = train_default(cfg)
+        run_id = train_default(cfg,console)
+        console.print("[bold green]Training complete.[/bold green]")
 
         if evaluate:
-            evaluate(ctx, run_id=run_id, variant=variant, model_version=None, min_improvement=0.005, metric_name="f1_macro", alias="Champion", model_source="mlflow")
+            console.print("[bold green]Starting evaluation of the trained model...[/bold green]")
+            eval(ctx, run_id=run_id, variant=variant, model_version=None,
+                  min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
+                  model_source="mlflow")
 
     
  
