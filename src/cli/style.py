@@ -13,7 +13,7 @@ class UI:
         ui.trace(f"Raw tensor: {tensor}")    # only shown at level 3 
     ```
     """
-    def __init__(self, verbose: Literal[1,2,3] = 1, console=None):
+    def __init__(self, verbose: int = 0, console=None):
       
         self.theme ={
             "info": "bright_blue",
@@ -25,7 +25,6 @@ class UI:
             "banner": "bold magenta",
         }
         
-
         self.verbose = verbose
         self._console = console
 
@@ -39,11 +38,11 @@ class UI:
             self._console = Console(theme = Theme(self.theme))
         return self._console
 
-    def print(self, style:Optional[str],*args,**kwargs):
+    def print(self,*args,**kwargs):
         self.console.print(*args, **kwargs)
 
     def success(self, message: str,style:Optional[str]=None):
-        self.console.print(f"[success]✔[/success]  {message}",style = style)
+        self.console.print(f"[success]✔[/success] {message}",style = style)
 
     def warning(self, message: str,style:Optional[str]=None):
         self.console.print(f"[warning]⚠[/warning] {message}",style = style)
@@ -53,14 +52,14 @@ class UI:
 
     # verbosity gated    
     def info(self, message:str,style:Optional[str]=None):
-        if self.verbose >=1:
-            self.console.print(f"[info]ℹ[/info]{message}",style = style)
+        if self.verbose >=0:
+            self.console.print(f"[info]ℹ[/info] {message}",style = style)
 
     def debug(self, message:str,style:Optional[str]=None):
-        if self.verbose >=2:
+        if self.verbose >=1:
             self.console.print(f"[debug]•[/debug] {message}",style = style)
 
     def trace(self, message:str,style:Optional[str]=None):
-        if self.verbose >=3:
+        if self.verbose >=2:
             self.console.print(f"[trace] {message}[/trace] ",style = style)
 
