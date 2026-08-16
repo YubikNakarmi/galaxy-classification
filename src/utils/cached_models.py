@@ -8,6 +8,7 @@ Classes:
     - Metadata: A base class for managing metadata about models.
     - ModelMetadata: A class for managing metadata specific to a model, including checksum generation.
 '''
+from __future__ import annotations
 
 import hashlib
 from pathlib import Path

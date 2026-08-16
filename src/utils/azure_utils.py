@@ -12,7 +12,7 @@ Example:
     ```
     
 """
-
+from __future__ import annotations #delay evaluation of type annotations
 import os, uuid
 from azure.storage.blob import BlobServiceClient, ContainerClient
 from dotenv import load_dotenv

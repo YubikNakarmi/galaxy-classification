@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .schema import *
 
 def _parse_env(raw: dict) -> EnvConfig:

@@ -16,6 +16,7 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
   - [Movitation](#movitation)
   - [Tech Stack](#tech-stack)
   - [Running](#running)
+  - [CLI](#cli)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [File Setup](#file-setup)
@@ -72,6 +73,7 @@ The project itself is build using microservice architecture. The project is divi
 docker-compose up #runs all which might not be necessary
 ```
 
+## CLI 
 
 ## Getting Started
 
@@ -85,7 +87,7 @@ docker-compose up #runs all which might not be necessary
 
 **Using uv**
 ```bash
-uv sync --all-extras # for all deps
+uv sync --all-extras --frozen # for all deps
 
 uv sync --api # for api deps only
 ```
@@ -215,7 +217,7 @@ blob.print_info()
 ## Roadmap / Known Improvements
  
 - **cli**, adding rich on training cli, whileusing loguru for logs. Summary and art in clie with status of current and configs. 
-- **Slow module imports** — the custom module layer has cascading dependencies, which slows down script startup. Less of an issue for long-running ML jobs (training/eval), but worth addressing for shorter-lived scripts.
+- **import model**
 - **Model cache resilience** — the BentoML model loader cache should fall back to the most recent locally cached "best" model (or pull directly from blob storage) if MLflow is unreachable.
 - **Model caching** — cache the loaded model instead of reloading it on every request.
 - **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
