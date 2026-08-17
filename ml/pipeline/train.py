@@ -317,7 +317,8 @@ def train_dirilchled():
 @click.option("--evaluate", is_flag=True, default=False, help="Evaluate the model after training")
 @click.pass_context
 
-def train(ctx, variant,evaluate):
+def train(ctx, variant:str, evaluate:bool):
+
     import mlflow
     from loguru import logger
 

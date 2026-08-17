@@ -25,6 +25,7 @@ class Context:
     cfg: RootConfig
     mlflow_tracking_uri: str
     image_dir: Path
+    model_metadata_path:Path
 
 def load_context( *,
     service: str = "ml",
@@ -59,7 +60,11 @@ def load_context( *,
     mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
 
     logger.bind(component="bootstrap")
+
+    metadata = core_cfg["ml"]["metadata"]["path"]
     
 
     return Context(root=ROOT, cfg=cfg, 
-                   mlflow_tracking_uri=mlflow_uri, image_dir=image_dir)
+                   mlflow_tracking_uri=mlflow_uri, 
+                   image_dir=image_dir,
+                   model_metadata_path=metadata)

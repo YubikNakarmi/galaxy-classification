@@ -74,3 +74,7 @@ logger.info("fastapi startup complete")
 ```
 ---
 ## Module usage
+
+## Bootstrap
+
+`src.utils.bootstrap` defines a central logging and configurations with logging already setup which can is used through the project. 

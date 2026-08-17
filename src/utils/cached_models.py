@@ -43,7 +43,8 @@ class Metadata:
     
     """
         
-    def __init__(self, save_file_path: str | Path | None = None, save_path: str | Path | None = None):
+    def __init__(self, save_file_path: Optional[str | Path] = None, 
+                 save_path: Optional[str | Path] = None):
         """
         Args:
             save_file_path: The path to the JSON file where metadata will be stored.
@@ -342,8 +343,9 @@ class ModelLoader:
         ```
     """
 
-    def __init__(self,registered_model_name:str,
+    def __init__(self,
                 ctx:Context,
+                registered_model_name:Optional[str]=None,
                 local_cache: bool = True,
                 local_cache_dir: Optional[str| Path] = None,
                 num_classes: int = 5,cache_metadata: bool = True, 
@@ -495,7 +497,10 @@ class ModelLoader:
         if validate_mlflow_connection(self.ctx):#used instead of exception for low latency
             if self.cache_metadata:      
                 self.sync_metadata_with_mlflow()  # Sync metadata with MLflow before loading
-            
+
+            if not self.registered_model_name:
+                logger.exception("registred model name not provided cant search from mlflow")
+                raise
             #try with mlflow to load top n 
             model_list = self._best_run(self.registered_model_name,top_n=self.top_n, metric=self.metric)
 

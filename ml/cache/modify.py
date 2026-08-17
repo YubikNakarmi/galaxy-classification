@@ -20,23 +20,24 @@ root = Path(__file__).parent.parent.parent
 @click.option('--model_name', type=str, required=True, help='Registered model name to import')
 @click.option('--variant', type=str, required=True, help='Variant name to import')
 @click.option("--num_classes", default = 5,type=int, required=True, help="Number of classes in the model")
+
 @click.option("--run_id", default = f"manual_{uuid.uuid4()}",type=str, required=False, help="Run ID for the model")
 @click.option("--metric_name", default = "vf1_macro",type=str, required=False, help="Metric name to extract from checkpoint")
 @click.option("--metric", default = None,type=float, required=False, help="Metric value to use if not present in checkpoint")
-@click.option("--local_cache_dir", default = root / "models" / "cached",type=str, required=False, 
+@click.option("--local_cache_dir", default = None,type=str, required=False, 
               help="Directory to store cached models")
 @click.option("--metadata_save_file_path", default = root / "models" / "cached" / "model.json",type=str, 
               required=False, help="Path to save the metadata JSON file")
 
 def import_model(ctx,variant:str, 
-                 checkpoint_path:str, 
+                 checkpoint_path:str|Path, 
                  num_classes:int, 
                  run_id:str, 
                  metric_name:str,
                  metric:float,
                  model_name:str,
-                 local_cache_dir:str,
-                 metadata_save_file_path:str):
+                 local_cache_dir:str | Path,
+                 metadata_save_file_path:str|Path):
     
     from src.utils.cached_models import ModelLoader
     from src.cli.style import UI
@@ -63,13 +64,26 @@ def import_model(ctx,variant:str,
         raise ValueError(f"Invalid variant '{variant}'. Must be one of {VARS}.")
     
     try:
+
+        if not local_cache_dir: 
+            local_cache_dir = Path(cfg.storage.local.checkpoints.model_cache_dir)
+            logger.warning("defaulting to config file cache directory")
+            ui.warning("Local cache dir is empty")
+
+        ui.info(f"cache dir set to {local_cache_dir}")
+
     
         loader = ModelLoader(
-            registered_model_name=model_name, ctx=contxt,
-            local_cache=True, local_cache_dir=local_cache_dir,
+            registered_model_name=model_name, 
+            ctx=contxt,
+            local_cache=True, 
+            local_cache_dir=local_cache_dir,
             metadata_save_file_path = metadata_save_file_path,
-            num_classes=num_classes, cache_metadata=True,
-            variant=variant, metric=metric_name, checksum=True,
+            num_classes=num_classes, 
+            cache_metadata=True,
+            variant=variant, 
+            metric=metric_name, 
+            checksum=True,
         )
         
         #checkpoint format and extract state_dict and metric if present
@@ -115,7 +129,7 @@ def import_model(ctx,variant:str,
 
     except Exception as e:
         logger.error(f"Failed to import checkpoint: {e}")
-        ui.error(f"Failed to import checkpoint: {e}",exec=True)
+        ui.error(f"Failed to import checkpoint: {e}",show_execption=True)
         raise 
 
 

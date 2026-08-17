@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Optional,Literal
 from pathlib import Path
+from collections.abc import Iterator
+
 
 
 
@@ -37,6 +39,7 @@ from pathlib import Path
 
 #         return top_json_format, candidates_json_format
 
+# Schemas for cached_models.py
 @dataclass
 class CandidateMetadata:
     rank: int | None
@@ -51,7 +54,7 @@ class CandidateMetadata:
 
 
 @dataclass 
-class ModelMetadata: #for model specific metadata, main cancidate class, and other candidates
+class ModelMetadata: #for model specific metadata, main candidate class, and other candidates
     run_id: str
     model_name: str
     metric: dict
@@ -59,10 +62,18 @@ class ModelMetadata: #for model specific metadata, main cancidate class, and oth
     checksum: Optional[str] = None
 
 @dataclass
-class VariantMetadata:
+class VariantMetadata: 
     candidates: list[CandidateMetadata] = field(default_factory=list)
     latest_update: str = ""
 
+    def __iter__(self)-> Iterator[CandidateMetadata]:
+        return iter(self.candidates)
+    
+    def __len__(self):
+        return len(self.candidates)
+
+    def __getitem__(self, index: int) -> CandidateMetadata:
+        return self.candidates[index]
 @dataclass
 class MetadataFile: #top level
     Default: VariantMetadata = field(default_factory=VariantMetadata)
@@ -72,3 +83,11 @@ class MetadataFile: #top level
     #for easy access to variants
     def __getitem__(self,variant:Literal["Default", "Hubble", "Dirichlet"]):
         return getattr(self,variant)
+
+    #for easier iteration with loops
+    def __iter__(self):
+        yield from (
+            ("Default", self.Default),
+            ("Hubble", self.Hubble),
+            ("Dirichlet", self.Dirichlet),
+        )

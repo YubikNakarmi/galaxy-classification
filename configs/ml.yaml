@@ -144,6 +144,8 @@ storage:
 
     predictions:
       dir: models/predictions/
+    
+   
 
   cloud: #blob dirs
     dvc:
