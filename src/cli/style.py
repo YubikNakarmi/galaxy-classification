@@ -52,14 +52,14 @@ class UI:
 
     # verbosity gated    
     def info(self, message:str,style:Optional[str]=None):
-        if self.verbose >=0:
+        if self.verbose >=1:
             self.console.print(f"[info]ℹ[/info] {message}",style = style)
 
     def debug(self, message:str,style:Optional[str]=None):
-        if self.verbose >=1:
+        if self.verbose >=2:
             self.console.print(f"[debug]•[/debug] {message}",style = style)
 
     def trace(self, message:str,style:Optional[str]=None):
-        if self.verbose >=2:
+        if self.verbose >=3:
             self.console.print(f"[trace] {message}[/trace] ",style = style)
 

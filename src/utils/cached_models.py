@@ -242,93 +242,100 @@ class Metadata:
 
 class ModelLoader:
 
-    '''A class to load the best model from MLflow, with optional local caching.
-    
-        Example: Minimal usage (no caching, no metadata)
+    """A class to load the best model from MLflow, with optional local caching.
+
+    Examples:
+        Minimal usage (no caching, no metadata):
+
         ```python
-                loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache=False,
-                    cache_metadata=False,
-                )
-                model = loader.load_with_fallback(top_n=5)
+            loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache=False,
+                cache_metadata=False,
+            )
+            model = loader.load_with_fallback(top_n=5)
         ```
 
-            Example: Local caching only (no metadata tracking)
+            Local caching only (no metadata tracking):
+
         ```python
-                loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache=True,
-                    local_cache_dir="./models/cached",
-                    num_classes=5,
-                    cache_metadata=False,
-                )
-                model = loader.load_with_fallback(top_n=5)
+            loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache=True,
+                local_cache_dir="./models/cached",
+                num_classes=5,
+                cache_metadata=False,
+            )
+            model = loader.load_with_fallback(top_n=5)
         ```
 
-            Example: Full setup — caching + metadata + checksum verification (recommended)
+            Full setup — caching + metadata + checksum verification (recommended):
+
         ```python
-                loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache=True,
-                    local_cache_dir="./models/cached",
-                    num_classes=5,
-                    cache_metadata=True,
-                    metadata_save_path="./models/cached/metadata.json",
-                    variant="Default",
-                    metric="val_f1_macro",
-                    checksum=True,
-                    checksum_method="sha256",
-                )
-                model = loader.load_with_fallback(top_n=5)
+            loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache=True,
+                local_cache_dir="./models/cached",
+                num_classes=5,
+                cache_metadata=True,
+                metadata_save_path="./models/cached/metadata.json",
+                variant="Default",
+                metric="val_f1_macro",
+                checksum=True,
+                checksum_method="sha256",
+            )
+            model = loader.load_with_fallback(top_n=5)
         ```
 
-            Example: Loading the champion model directly (BentoML service startup)
+            Loading the champion model directly (BentoML service startup):
+
         ```python
-                loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache=True,
-                    local_cache_dir="./models/cached",
-                    num_classes=5,
-                    variant="Default",
-                )
-                model = loader.load_champion_model()
-                if model is None:
-                    raise RuntimeError("No champion model available; check MLflow connectivity")
-                model.eval()
+            loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache=True,
+                local_cache_dir="./models/cached",
+                num_classes=5,
+                variant="Default",
+            )
+            model = loader.load_champion_model()
+            if model is None:
+                raise RuntimeError("No champion model available; check MLflow connectivity")
+            model.eval()
         ```
 
-            Example: Passing a pre-configured Metadata instance (shared across variants)
-        ```python
-                shared_metadata = Metadata(save_path="./models/cached/metadata.json")
+            Passing a pre-configured `Metadata` instance (shared across variants):
 
-                default_loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache_dir="./models/cached",
-                    num_classes=5,
-                    metadata=shared_metadata,
-                    variant="Default",
-                )
-                hubble_loader = ModelLoader(
-                    registered_model_name="galaxy-classification-hubble",
-                    local_cache_dir="./models/cached",
-                    num_classes=10,
-                    metadata=shared_metadata,
-                    variant="Hubble",
-                )
+        ```python
+            shared_metadata = Metadata(save_path="./models/cached/metadata.json")
+
+            default_loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache_dir="./models/cached",
+                num_classes=5,
+                metadata=shared_metadata,
+                variant="Default",
+            )
+            hubble_loader = ModelLoader(
+                registered_model_name="galaxy-classification-hubble",
+                local_cache_dir="./models/cached",
+                num_classes=10,
+                metadata=shared_metadata,
+                variant="Hubble",
+            )
         ```
 
-            Example: Syncing metadata without loading a model (e.g. a periodic refresh job)
+            Syncing metadata without loading a model (e.g. a periodic refresh job):
+
         ```python
-                loader = ModelLoader(
-                    registered_model_name="galaxy-classification-default",
-                    local_cache_dir="./models/cached",
-                    num_classes=5,
-                    variant="Default",
-                )
-                candidates = loader.sync_metadata_with_mlflow()
+            loader = ModelLoader(
+                registered_model_name="galaxy-classification-default",
+                local_cache_dir="./models/cached",
+                num_classes=5,
+                variant="Default",
+            )
+            candidates = loader.sync_metadata_with_mlflow()
         ```
-    '''
+    """
 
     def __init__(self,registered_model_name:str,
                 ctx:Context,
@@ -428,13 +435,14 @@ class ModelLoader:
         Args:
             run_id: The MLflow run ID for which to compute the checksum.
 
-        ```python
-            loader = ModelLoader(registered_model_name="my_model", local_cache=True,
-                                local_cache_dir="./cache", num_classes=5)
-            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
-            print(checksum)
-            >>> "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3..."
-        ```
+        Example:
+            ```python
+                loader = ModelLoader(registered_model_name="my_model", local_cache=True,
+                                    local_cache_dir="./cache", num_classes=5)
+                checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
+                print(checksum)
+                >>> "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3..."
+            ```
         '''
 
         if self.local_cache_dir is None:
@@ -529,14 +537,14 @@ class ModelLoader:
             The loaded PyTorch model if successful, None otherwise.
         
         Example:
-        ```python
-            loader = ModelLoader(registered_model_name="galaxy-classification-default",
-                                local_cache=True, local_cache_dir="./cache",
-                                num_classes=5, variant="Default")
-            model = loader.load_champion_model()
-            if model is not None:
-                model.eval()
-        ```
+            ```python
+                loader = ModelLoader(registered_model_name="galaxy-classification-default",
+                                    local_cache=True, local_cache_dir="./cache",
+                                    num_classes=5, variant="Default")
+                model = loader.load_champion_model()
+                if model is not None:
+                    model.eval()
+            ```
         
         '''
 
@@ -596,11 +604,11 @@ class ModelLoader:
             Exception: If there is an error loading the model from the cache or MLflow.
 
         Example:
-        ```python
+            ```python
             loader = ModelLoader(registered_model_name="my_model", local_cache=True,
                                 local_cache_dir="./cache", num_classes=5)
             model = loader.check_cache(run_id="e3b866df7f01417fb0db72e0da051f23")
-        ```
+            ```
         
         '''
 
@@ -702,14 +710,14 @@ class ModelLoader:
             cache_metadata is disabled or no runs were found.
 
         Example:
-        ```python
+            ```python
             loader = ModelLoader(registered_model_name="galaxy-classification-default",
                                 local_cache=True, local_cache_dir="./cache",
                                 num_classes=5, variant="Default",top_n=5)
             candidates = loader.sync_metadata_with_mlflow()
             for c in candidates:
                 print(c.rank, c.run_id, c.val_f1_macro)
-        ```
+            ```
         '''
 
         if not self.cache_metadata:
@@ -759,10 +767,10 @@ class ModelLoader:
             
            
             Example:
-            ```python
+                ```python
                 # called internally by load_with_fallback when MLflow is unreachable
                 model = loader._load_from_local_metadata()
-            ```
+                ```
     
             '''
     
@@ -797,10 +805,10 @@ class ModelLoader:
             save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
         
         Example:
-        ```python
+            ```python
             checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
             loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
-        ```
+            ```
         '''
 
         if save_path:
@@ -828,14 +836,12 @@ class ModelLoader:
             A list of the top N runs based on the specified metric.
 
         Example:
-        ```python
-            runs = loader._best_run(model_name="galaxy-classification-default-experiments",
-                                    top_n=5, metric="f1_macro")
-            for r in runs:
-                print(r.info.run_id, r.data.metrics.get("f1_macro"))
-
-
-        ```
+            ```python
+                runs = loader._best_run(model_name="galaxy-classification-default-experiments",
+                                        top_n=5, metric="f1_macro")
+                for r in runs:
+                    print(r.info.run_id, r.data.metrics.get("f1_macro"))
+            ```
 
         '''
         logger.info(f"Searching for top {top_n} runs for model '{model_name}' sorted by metric '{metric}'")
@@ -884,11 +890,14 @@ class ModelLoader:
         
         Args:
             run_id: The MLflow run ID for which to compute the checksum path.
-            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
+            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. 
+            If not provided, the default local cache directory is used.
+
         Example:
             ```python
             >>> modelloader._checksum_path("12345",path="./path/to/metadata/12345.sha256")
             PosixPath('path/to/metadata/12345.sha256')
+            ```
         '''
         if not self.local_cache_dir:
             logger.error("Local cache directory is not set; cannot compute checksum path.")
@@ -913,10 +922,10 @@ class ModelLoader:
             run_id: The MLflow run ID for which to compute the cache path.
         
         Example:
-        ```python
-            >>> loader._cache_path("e3b866df7f01417fb0db72e0da051f23")
-            PosixPath('models/cached/e3b866df7f01417fb0db72e0da051f23.pt')
-        ```
+            ```python
+                >>> loader._cache_path("e3b866df7f01417fb0db72e0da051f23")
+                PosixPath('models/cached/e3b866df7f01417fb0db72e0da051f23.pt')
+            ```
 
         '''
         if self.local_cache_dir is None:

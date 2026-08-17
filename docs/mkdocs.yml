@@ -71,8 +71,10 @@ plugins:
           paths: ["..", "../src"]
           options:
             show_root_heading: true
-            show_source: false
             filters: ["!^__"]
+            docstring_style: google
+            docstring_section_style: spacy   # or "table"/"list" 
+            merge_init_into_class: true
 
   - awesome-pages
 

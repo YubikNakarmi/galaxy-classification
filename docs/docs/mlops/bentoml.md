@@ -39,7 +39,7 @@ docker compose up bentoml
 # Structure
 I used service and runner structure that seperates the model loading and inference from the main service. This is done to make the code more modular and easier to maintain. The service is responsible for handling the requests and responses, while the runner is responsible for loading the model and running the inference. This structure also allows for easy scaling of the service by adding more runners as needed.
 
-![Bentoml](../assets/bentoml.png)
+![Bentoml](../assets/architecture/bentoml.png)
 
 !!! Note
     This is a simplified version of the moderloader module architecture. More detailed can be found in [Registry](docs\docs\mlops\registry.md) and [Model Loader](docs\docs\development\utils) documentation.

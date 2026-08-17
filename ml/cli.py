@@ -60,13 +60,13 @@ def get_version() -> str:
     )
 
 @click.version_option(version=get_version(), prog_name="galaxy-classification")
-@click.option("--Verbose", "-v", count=True, help="Increase verbosity level (-v,-vv,-vvv).")
+@click.option("--verbose", "-v", count=True, help="Increase verbosity level (-v,-vv,-vvv).")
 @click.pass_context
-def cli(ctx,Verbose):
+def cli(ctx,verbose):
     """Command line interface for the Galaxy Classification project."""
     click.secho(BANNER, fg="cyan", bold=True)
-    ctx.obj = UI(verbose = Verbose)  # to avaoid conflict with app contexxt used downstream
-    ctx.mets["ui"] = ctx.obj #string typed extract with ui = cts["ui"]
+    ctx.obj = UI(verbose)  # to avaoid conflict with app contexxt used downstream
+    ctx.meta["ui"] = ctx.obj #string typed extract with ui = cts["ui"]
     if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
         click.echo(ctx.get_help())
 
