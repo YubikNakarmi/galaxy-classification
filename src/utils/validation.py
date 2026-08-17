@@ -1,5 +1,8 @@
-from src.utils.bootstrap import Context,load_context
+from __future__ import annotations
 
+from src.utils.bootstrap import Context
+from pathlib import Path
+from typing import Literal
 
 def validate_mlflow_connection(ctx: Context) -> bool:
     from urllib.request import Request, urlopen
@@ -15,4 +18,52 @@ def validate_mlflow_connection(ctx: Context) -> bool:
     except Exception:
         return False
 
+class UnsafeCacheDirError(Exception):
+    """Raised when a local_cache_dir resolves to a path outside the project root."""
+    pass
+
+def validate_path_exists(root: str|Path,
+                          path: list[str | Path],
+                          create: bool = True,
+                          kind:Literal["dir", "file"] = "dir") -> bool:
+
+    from pathlib import Path
+
+   
+
+    root = Path(root).resolve()
+    ok = True
+
+
+    for p in path:
+
+        p = Path(p)
+
+        candidate = (root / p).resolve() if not Path(p).is_absolute() else Path(p).resolve()
+
+        try:
+            candidate.relative_to(root)
+        except ValueError:
+            raise UnsafeCacheDirError(
+                f"local_cache_dir '{path}' resolves to '{candidate}', "
+                f"which is outside the project root '{root}'. "
+                f"Use a path relative to the project (e.g. 'models/cached')."
+            )
+
+        if candidate.exists():
+            continue  
+
+        if not create:
+            ok = False
+            continue
+
+        if kind == "dir":
+            candidate.mkdir(parents=True, exist_ok=True)
+        elif kind == "file":
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            candidate.touch(exist_ok=True)
+        else:
+            raise ValueError(f"kind must be 'dir' or 'file', got {kind!r}")
+        
+    return ok
 

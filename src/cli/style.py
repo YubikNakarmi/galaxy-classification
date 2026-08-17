@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import Literal,Optional
+
+from gitdb import exc
 class UI:
     """
     A simple UI class for printing in consonle with rich formatting and verbosity control.
@@ -13,18 +15,21 @@ class UI:
         ui.trace(f"Raw tensor: {tensor}")    # only shown at level 3 
     ```
     """
-    def __init__(self, verbose: int = 0, console=None):
-      
-        self.theme ={
-            "info": "bright_blue",
-            "success": "bold spring_green2",
-            "warning": "bold gold3",
-            "error": "bold deep_pink3",
-            "debug": "grey50",
-            "trace": "dim grey37",
-            "banner": "bold magenta",
-        }
-        
+    def __init__(self, verbose: int = 0, console=None,
+                 theme:Optional[dict[str,str]]=None):
+        if theme is not None:
+            self.theme = theme
+        else:
+            self.theme ={
+                "info": "bright_blue",
+                "success": "bold spring_green2",
+                "warning": "bold gold3",
+                "error": "bold red",
+                "debug": "grey50",
+                "trace": "dim grey37",
+                "banner": "bold magenta",
+            }
+            
         self.verbose = verbose
         self._console = console
 
@@ -42,14 +47,16 @@ class UI:
         self.console.print(*args, **kwargs)
 
     def success(self, message: str,style:Optional[str]=None):
-        self.console.print(f"[success]✔[/success] {message}",style = style)
+        self.console.print(f"[success]✔ {message}[/success] ",style = style)
 
     def warning(self, message: str,style:Optional[str]=None):
-        self.console.print(f"[warning]⚠[/warning] {message}",style = style)
+        self.console.print(f"[warning]⚠[/warning] [white]{message}[/white]",style = style)
 
-    def error(self, message: str,style:Optional[str]=None):
-        self.console.print(f"[error]✖[/error] {message}",style = style)
+    def error(self, message: str,style:Optional[str]=None, exec:bool=False):
+        self.console.print(f"[error]✖ {message}[/error] ",style = style)
 
+        if exec:
+            self.console.print_exception(show_locals=self.verbose >= 3,max_frames=5)
     # verbosity gated    
     def info(self, message:str,style:Optional[str]=None):
         if self.verbose >=1:

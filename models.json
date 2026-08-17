@@ -1,0 +1,54 @@
+{
+  "Default": {
+    "candidates": [
+      {
+        "rank": 1,
+        "run_id": "manual_8c8e5d6c-5c34-4f75-af83-58c545c9a9bb",
+        "model_name": "default",
+        "experiment_name": "default",
+        "num_classes": 5,
+        "cached_at": "2026-08-17T13:10:22.320109+00:00",
+        "save_path": "tests",
+        "other_metrics": {},
+        "metric": {
+          "test": 0.1
+        }
+      },
+      {
+        "rank": 2,
+        "run_id": "manual_9bca5bf3-7ff8-4497-bcec-50d3aea7c4e3",
+        "model_name": "default",
+        "experiment_name": "default",
+        "num_classes": 5,
+        "cached_at": "2026-08-17T13:11:12.189405+00:00",
+        "save_path": "tests",
+        "other_metrics": {},
+        "metric": {
+          "test": 0.1
+        }
+      },
+      {
+        "rank": 3,
+        "run_id": "manual_ac7cc3cd-6f9b-4708-bbd7-bb0bc57a983b",
+        "model_name": "default",
+        "experiment_name": "default",
+        "num_classes": 5,
+        "cached_at": "2026-08-17T13:20:26.255928+00:00",
+        "save_path": "tests",
+        "other_metrics": {},
+        "metric": {
+          "test": 0.1
+        }
+      }
+    ],
+    "latest_update": "2026-08-17T13:20:26.256928+00:00"
+  },
+  "Hubble": {
+    "candidates": [],
+    "latest_update": ""
+  },
+  "Dirichlet": {
+    "candidates": [],
+    "latest_update": ""
+  }
+}

@@ -51,7 +51,7 @@ class CandidateMetadata:
 
 
 @dataclass 
-class ModelMetadata: #for model specific metadata
+class ModelMetadata: #for model specific metadata, main cancidate class, and other candidates
     run_id: str
     model_name: str
     metric: dict

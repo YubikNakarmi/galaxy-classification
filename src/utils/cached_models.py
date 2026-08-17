@@ -26,6 +26,7 @@ from dataclasses import asdict
 import hashlib
 import json
 from src.utils.bootstrap import Context
+from src.utils.validation import validate_path_exists
 
 root = Path(__file__).parent.parent.parent
 
@@ -70,6 +71,7 @@ class Metadata:
         Raises:
             FileNotFoundError: If the metadata file does not exist.
             ValueError: If the metadata file is not a valid JSON file.
+            
         Example:
             ```python
             metadata = Metadata(save_file_path="./cache/model_metadata.json")
@@ -125,8 +127,11 @@ class Metadata:
             data: A dictionary containing the data to be written to the JSON file.
         
         """
+        dirname = os.path.dirname(file_path) 
 
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        if dirname: #escaping on root saveath
+            os.makedirs(dirname, exist_ok=True)
+
         with open(file_path, "w", encoding="utf-8") as file:
             json.dump(data, file, indent=2, ensure_ascii=False, default=self._json_default)
 
@@ -248,92 +253,92 @@ class ModelLoader:
         Minimal usage (no caching, no metadata):
 
         ```python
-            loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache=False,
-                cache_metadata=False,
-            )
-            model = loader.load_with_fallback(top_n=5)
+        loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache=False,
+            cache_metadata=False,
+        )
+        model = loader.load_with_fallback(top_n=5)
         ```
 
             Local caching only (no metadata tracking):
 
         ```python
-            loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache=True,
-                local_cache_dir="./models/cached",
-                num_classes=5,
-                cache_metadata=False,
-            )
-            model = loader.load_with_fallback(top_n=5)
+        loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache=True,
+            local_cache_dir="./models/cached",
+            num_classes=5,
+            cache_metadata=False,
+        )
+        model = loader.load_with_fallback(top_n=5)
         ```
 
             Full setup — caching + metadata + checksum verification (recommended):
 
         ```python
-            loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache=True,
-                local_cache_dir="./models/cached",
-                num_classes=5,
-                cache_metadata=True,
-                metadata_save_path="./models/cached/metadata.json",
-                variant="Default",
-                metric="val_f1_macro",
-                checksum=True,
-                checksum_method="sha256",
-            )
-            model = loader.load_with_fallback(top_n=5)
+        loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache=True,
+            local_cache_dir="./models/cached",
+            num_classes=5,
+            cache_metadata=True,
+            metadata_save_path="./models/cached/metadata.json",
+            variant="Default",
+            metric="val_f1_macro",
+            checksum=True,
+            checksum_method="sha256",
+        )
+        model = loader.load_with_fallback(top_n=5)
         ```
 
             Loading the champion model directly (BentoML service startup):
 
         ```python
-            loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache=True,
-                local_cache_dir="./models/cached",
-                num_classes=5,
-                variant="Default",
-            )
-            model = loader.load_champion_model()
-            if model is None:
-                raise RuntimeError("No champion model available; check MLflow connectivity")
-            model.eval()
+        loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache=True,
+            local_cache_dir="./models/cached",
+            num_classes=5,
+            variant="Default",
+        )
+        model = loader.load_champion_model()
+        if model is None:
+            raise RuntimeError("No champion model available; check MLflow connectivity")
+        model.eval()
         ```
 
             Passing a pre-configured `Metadata` instance (shared across variants):
 
         ```python
-            shared_metadata = Metadata(save_path="./models/cached/metadata.json")
+        shared_metadata = Metadata(save_path="./models/cached/metadata.json")
 
-            default_loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache_dir="./models/cached",
-                num_classes=5,
-                metadata=shared_metadata,
-                variant="Default",
-            )
-            hubble_loader = ModelLoader(
-                registered_model_name="galaxy-classification-hubble",
-                local_cache_dir="./models/cached",
-                num_classes=10,
-                metadata=shared_metadata,
-                variant="Hubble",
-            )
+        default_loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache_dir="./models/cached",
+            num_classes=5,
+            metadata=shared_metadata,
+            variant="Default",
+        )
+        hubble_loader = ModelLoader(
+            registered_model_name="galaxy-classification-hubble",
+            local_cache_dir="./models/cached",
+            num_classes=10,
+            metadata=shared_metadata,
+            variant="Hubble",
+        )
         ```
 
-            Syncing metadata without loading a model (e.g. a periodic refresh job):
+        Syncing metadata without loading a model (e.g. a periodic refresh job):
 
         ```python
-            loader = ModelLoader(
-                registered_model_name="galaxy-classification-default",
-                local_cache_dir="./models/cached",
-                num_classes=5,
-                variant="Default",
-            )
-            candidates = loader.sync_metadata_with_mlflow()
+        loader = ModelLoader(
+            registered_model_name="galaxy-classification-default",
+            local_cache_dir="./models/cached",
+            num_classes=5,
+            variant="Default",
+        )
+        candidates = loader.sync_metadata_with_mlflow()
         ```
     """
 
@@ -390,23 +395,20 @@ class ModelLoader:
         self.ctx = ctx  # Store the context for cfg, mlflow_tracking,etc
 
 
-        # consctructor conditions checks and creating files/dirs if needed       
         if self.cache_metadata:
 
             logger.info(f"Cache metadata is enabled. Metadata will be saved to: {self.metadata_save_path}")
 
             path = Path(self.metadata_save_path).resolve()
 
+            try:
+                validate_path_exists(root=root, path=[path], create=True, kind="file")
+            except:
+                logger.exception(f"Failed to validate or create metadata save path: {path}")
+                raise ValueError(f"Failed to validate or create metadata save path: {path}")
+        
             logger.info(f"Resolved metadata save path: {path}")
-            if path is not None:
-                if path.exists():
-                    if not path.is_file():
-                        raise FileNotFoundError(f"{path} is not a file")
-                else:
-                    logger.warning("Metadata file does not exist. Creating a new metadata file.")
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.touch(exist_ok=True)
-                    logger.success(f"Created metadata file at {path}")
+           
 
             if metadata is not None:
                 self.metadata = metadata   
@@ -421,7 +423,12 @@ class ModelLoader:
             raise ValueError("local_cache_dir must be set if local_cache=True.")
 
         if self.local_cache and self.local_cache_dir:
-            self.local_cache_dir.mkdir(parents=True, exist_ok=True)
+            try:
+                validate_path_exists(root=root, path=[self.local_cache_dir], create=True, kind="dir")
+            except:
+                logger.exception(f"Failed to validate or create local_cache_dir: {self.local_cache_dir}")
+                raise ValueError(f"Failed to validate or create local_cache_dir: {self.local_cache_dir}")
+
 
         if self.cache_metadata and not variant:
             logger.error("Variant must be provided if cache_metadata is True.")
@@ -796,32 +803,7 @@ class ModelLoader:
             raise RuntimeError(f"Failed to load any model for variant '{self.variant}' from local metadata fallback.")
     
 
-    def _save_checksum(self, run_id: str, checksum: str,save_path:Optional[str|Path]=None) -> None:
-
-        '''Save the checksum for a given run_id to a file in the local cache directory.
-        Args:
-            run_id: The MLflow run ID for which to save the checksum.
-            checksum: The checksum to save.
-            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
-        
-        Example:
-            ```python
-            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
-            loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
-            ```
-        '''
-
-        if save_path:
-            path = Path(save_path)
-        else:
-            path = self.local_cache_dir
-        if not self.local_cache_dir:
-            logger.error("Local cache directory is not set; cannot save checksum.")
-            raise
-
-        checksum_path = self._checksum_path(save_path=path,run_id=run_id)
-        checksum_path.write_text(checksum)
-        logger.success(f"Checksum saved to {checksum_path}")
+    
 
 
     def _best_run(self,model_name:str,top_n:int=5, metric: str = "f1_macro"):
@@ -880,7 +862,38 @@ class ModelLoader:
             return None
         return runs
 
+    def _save_checksum(self, run_id: str, checksum: str,save_path:Optional[str|Path]=None) -> None:
+    
+        '''Save the checksum for a given run_id to a file in the local cache directory.
+        Args:
+            run_id: The MLflow run ID for which to save the checksum.
+            checksum: The checksum to save.
+            save_path: Optional; if provided, the path to the directory where the checksum file will be saved. If not provided, the default local cache directory is used.
+        
+        Example:
+            ```python
+            checksum = loader.compute_checksum(run_id="e3b866df7f01417fb0db72e0da051f23")
+            loader._save_checksum(run_id="e3b866df7f01417fb0db72e0da051f23", checksum=checksum)
+            ```
+        '''
 
+        if save_path:
+            path = Path(save_path)
+            logger.debug(f"Using provided save_path for checksum: {path}")
+
+        else:
+            path = None
+            logger.debug(f"Using default local cache directory for checksum: {path}")
+
+        if not self.local_cache_dir:
+            logger.error("Local cache directory is not set; cannot save checksum.")
+            raise
+
+        
+        checksum_path = self._checksum_path(save_path=path,run_id=run_id)
+        
+        checksum_path.write_text(checksum)
+        logger.success(f"Checksum saved to {checksum_path}")
 
     def _checksum_path(self, run_id: str, save_path: Optional[str | Path] = None) -> Path:
     
@@ -899,20 +912,37 @@ class ModelLoader:
             PosixPath('path/to/metadata/12345.sha256')
             ```
         '''
+
         if not self.local_cache_dir:
             logger.error("Local cache directory is not set; cannot compute checksum path.")
-            raise
+            raise RuntimeError("Local cache directory is not set; cannot compute checksum path.")
+        
         if save_path:
             path = Path(save_path)
+            validate_path_exists(root=root, path=[path], create=True, kind="file") #enforce file type
+
+            logger.debug(f"Using provided save_path for checksum path: {path}")
         else:
             path = self._cache_path(run_id)
+            logger.debug(f"Using default local cache directory for checksum path: {path}")
 
         return path.with_suffix(f".{self.checksum_method}")
 
-    def _init_model(self) -> torch.nn.Module:
+    def _init_model(self,variant:Literal["Default", "Hubble", "Dirichlet"]="Default", N: int=2, k: int=2) -> torch.nn.Module:
+        """Initialize a new instance of the model architecture.
         
-        from src.models.model import GalaxyClassifier_ResNet
-        return GalaxyClassifier_ResNet(N=2, k=2, num_classes=self.num_classes)# for proper mapping
+        Args:
+            variant: The variant of the model to initialize.
+            N: Number of blocks in each group. 
+            k: Widening factor. 
+        """
+        if variant not in ["Default", "Hubble", "Dirichlet"]:
+            logger.error(f"Invalid model variant '{variant}'. Allowed variants: ['Default', 'Hubble', 'Dirichlet']")
+            raise ValueError(f"Invalid model variant '{variant}'. Allowed variants: ['Default', 'Hubble', 'Dirichlet']")
+
+        if variant == "Default":
+            from src.models.model import GalaxyClassifier_ResNet
+            return GalaxyClassifier_ResNet(N=N, k=k, num_classes=self.num_classes)# for proper mapping
     
     def _cache_path(self, run_id: str) -> Path:
 
@@ -931,6 +961,8 @@ class ModelLoader:
         if self.local_cache_dir is None:
             logger.error("local_cache_dir is not set; cannot compute cache path.")
             raise RuntimeError("local_cache_dir is not set; cannot compute cache path.")
+        
+        logger.debug(f"Computing cache path for run '{run_id}' in directory '{self.local_cache_dir /f'{run_id}.pt'}'")
 
         return self.local_cache_dir / f"{run_id}.pt" 
     

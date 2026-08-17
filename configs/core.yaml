@@ -6,6 +6,16 @@ system:
 runtime:
   mode: local   # local or cloud
 
+cli:
+    style:
+      info: "bright_blue"
+      success: "bold spring_green2"
+      warning: "bold gold3"
+      error: "bold deep_pink3"
+      debug: "grey50"
+      trace: "dim grey37"
+      banner: "bold magenta"
+        
 ml:
   config_file: configs/ml.yaml
 
