@@ -5,13 +5,11 @@ import os
 from PIL import Image
 import pandas as pd
 from pathlib import Path
-from src.utils.logging_config import setup_ml_logging
-from src.utils.yaml_utils import load_yaml
+
 from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent.parent
-log_config = config = load_yaml(root / 'configs' / 'core.yaml')
-setup_ml_logging(log_config)
+
 
 
 class GalaxyDataset(Dataset):

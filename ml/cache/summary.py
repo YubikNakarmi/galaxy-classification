@@ -6,8 +6,11 @@ from ml.cache import cache
 @click.option("--maximum_rows",default = 5)
 @click.pass_context
 def show_all(ctx,metadata_path,maximum_rows):
+
     from src.utils.bootstrap import load_context
     from src.cli.style import UI
+
+
     from src.utils.cached_models import Metadata
     from pathlib import Path
     from loguru import logger
@@ -23,7 +26,7 @@ def show_all(ctx,metadata_path,maximum_rows):
         cfg = contxt.cfg
 
         met_path = contxt.model_metadata_path if metadata_path is None else metadata_path
-        
+
         met = Metadata(save_file_path= root / met_path)
         data = (met._load())
 

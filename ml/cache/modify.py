@@ -93,6 +93,7 @@ def import_model(ctx,variant:str,
             if extracted_metric is None:
                 logger.error(
                     f"No '{metric_name}' found in checkpoint and none supplied via val_metric — ")
+                
                 ui.error(
                     f"No '{metric_name}' found in checkpoint and none supplied via val_metric — ")
                 raise ValueError(
@@ -103,29 +104,39 @@ def import_model(ctx,variant:str,
 
         test_model = loader._init_model()
         test_model.load_state_dict(state_dict, strict=True) #map strictly to the skeleton
+        ui.debug("mapped model with strict to skeleton")
 
         cache_path = loader._cache_path(run_id)
-        torch.save(state_dict, cache_path)
-        logger.debug(f"Saved model state dict to cache: {cache_path}")
+        with ui.console.status(f"[info]Saving model to {cache_path}[/info]"):
 
-        checksum = loader.compute_checksum(run_id)
-        loader._save_checksum(run_id, checksum)
+            torch.save(state_dict, cache_path)
+            logger.debug(f"Saved model state dict to cache: {cache_path}")
 
-        cand = CandidateMetadata(
-            rank=0,
-            run_id=run_id,
-            model_name=model_name,
-            experiment_name=model_name,
-            metric={metric_name: metric},
-            num_classes=num_classes,
-            cached_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            save_path=str(loader.local_cache_dir),
-            other_metrics={},
-        )
-        
-        loader.metadata.update_metadata(cand, metric=metric_name, variant=variant, top_n=loader.top_n)
-        logger.success(f"Imported checkpoint as run_id={run_id}, {metric_name}={metric}")
-        ui.success(f"Imported checkpoint as run_id={run_id}, {metric_name}={metric}")
+            checksum = loader.compute_checksum(run_id)
+            loader._save_checksum(run_id, checksum)
+
+            cand = CandidateMetadata(
+                rank=0,
+                run_id=run_id,
+                model_name=model_name,
+                experiment_name=model_name,
+                metric={metric_name: metric},
+                num_classes=num_classes,
+                cached_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                save_path=str(loader.local_cache_dir),
+                other_metrics={},
+            )
+            
+            loader.metadata.update_metadata(cand, metric=metric_name, variant=variant, top_n=loader.top_n)
+            logger.success(f"Imported checkpoint as run_id={run_id}, {metric_name}={metric}")
+
+            ui.summary("Imported Checkpoint Successfully",{
+                "run_id": run_id, 
+                "metric":f"{metric_name}={metric}",
+                "cache_path":str(cache_path),
+            })
+
+            ui.success(f"Imported checkpoint as run_id={run_id}, {metric_name}={metric}")
 
     except Exception as e:
         logger.error(f"Failed to import checkpoint: {e}")

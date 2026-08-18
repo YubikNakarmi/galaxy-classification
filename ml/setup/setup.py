@@ -5,7 +5,7 @@ import click
 
 
 @setup.command
-@click.argument("--extra_dirs", default="", help="Comma-separated list of extra directories to create.")
+@click.option("--extra_dirs", default="", help="Comma-separated list of extra directories to create.")
 def mkdirs():
 
     from loguru import logger

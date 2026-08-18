@@ -32,3 +32,7 @@ galax pipeline train --variant="default"
 
 galax -vv pipeline train --variant="default" # level 2
 ```
+
+```sh
+$ galax -vv cache import --checkpoint_path="models\cached\9e2fb45714864e35bf92fc2223d7e7fe.pt" --variant="Default" --num_classes=5 --model_name="default" --local_cache_dir="tests" --metadata_save_file_path="models.json" --metric_name="test" --metric=0.1
+```

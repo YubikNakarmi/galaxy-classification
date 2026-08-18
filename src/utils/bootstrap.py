@@ -31,7 +31,8 @@ def load_context( *,
     service: str = "ml",
     env_path: Path | None = None,
     ml_yaml_path: Path | None = None,
-    core_yaml_path: Path | None = None,verbose: bool = True,std_out: bool = True)-> Context:
+    core_yaml_path: Path | None = None,verbose: bool = True,
+    std_out: bool = False)-> Context:
 
     ''' Core context file used my ML CLI to avoid reloading config and logging setup in each command. '''
     from dotenv import load_dotenv

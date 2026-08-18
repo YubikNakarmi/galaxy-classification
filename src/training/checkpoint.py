@@ -14,7 +14,6 @@ from src.config.schema import RootConfig
 from loguru import logger
 
 root = Path(__file__).parent.parent.parent
-log_file = root / "configs" / "core.yaml"
 @dataclass
 class CheckpointState:
     start_epoch: int

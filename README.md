@@ -217,6 +217,7 @@ blob.print_info()
 ## Roadmap / Known Improvements
  
 - **cli**, adding rich on training cli, whileusing loguru for logs. Summary and art in clie with status of current and configs. 
+- **cli**- pass ui to child
 - **import model**
 - **Model cache resilience** — the BentoML model loader cache should fall back to the most recent locally cached "best" model (or pull directly from blob storage) if MLflow is unreachable.
 - **Model caching** — cache the loaded model instead of reloading it on every request.

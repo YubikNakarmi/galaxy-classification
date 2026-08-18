@@ -7,7 +7,6 @@ import click
 from typing import TYPE_CHECKING
 #type checking without importing on runtime
 if TYPE_CHECKING:
-    from src.dataset.dataset import GalaxyDataset
     from src.config import RootConfig
 
 
@@ -15,7 +14,7 @@ from ml.pipeline import pipeline
 root = Path(__file__).resolve().parent.parent
 
 #no typing to lower the latnency of click cli command and avoid loading config multiple times in each command
-def eval(metrics:dict,model:GalaxyDataset,cfg:RootConfig)-> dict:
+def eval(metrics:dict,model,cfg)-> dict:
 
     from torch.utils.data import DataLoader
     from tqdm import tqdm
