@@ -30,6 +30,7 @@ class LazyRootGroup(click.Group):# duplocated on sublevels instead of single imp
         "pipeline": ("ml.pipeline", "pipeline"),
         "setup": ("ml.setup", "setup"),
         "cache": ("ml.cache", "cache"),
+        "status": ("ml.cli", "status"),
     }
 
     def list_commands(self, ctx):
@@ -74,6 +75,15 @@ def cli(ctx,verbose):
 
 
 @cli.command()
-def status():
-    """Check the status of the CLI."""
-    click.echo("CLI is operational.")
+@click.pass_context
+def status(ctx):
+    """Check the status for the project"""
+
+    ui = ctx.obj or ctx.meta.get("ui") or UI(verbose=0)
+
+    ui.rule("[bold green]Project Status[/bold green]", style="bold green",
+            align="center",characters="─",width=80)
+
+    ui.print("[bold cyan]Model Cache Summary: [/bold cyan]")
+    
+

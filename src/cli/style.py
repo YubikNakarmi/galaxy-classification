@@ -5,15 +5,19 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from rich.console import Console
 
+from rich.rule import Rule
 from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import (
     Progress, SpinnerColumn, BarColumn, TextColumn,
     TimeRemainingColumn, MofNCompleteColumn,
 )
+from rich.tree import Tree
 from rich.table import Table
 from rich.panel import Panel
 from contextlib import contextmanager
+from src.config import RootConfig
+from pydantic import BaseModel
 
 class UI:
     """
@@ -111,9 +115,28 @@ class UI:
         body = "\n".join(f"[bold]{k}:[/bold] {v}" for k, v in items.items())
         self.console.print(Panel(body, title=title, border_style="success"))
 
+    def rule(self, title: str = "",style:Optional[str]=None, 
+             align: str = "center",
+             characters: str = "─",width:Optional[int]=None):
+        """Print a rule with optional title and style.
+        
+        Args:
+            title: The title of the rule. Can use inline markup for styling.
+            style: The style of the rule.
+            align: The alignment of the rule.
+            characters: The characters to use for the rule.
+            width: The width of the rule.
+        Example:
+            ```python
+            ui = UI(verbose=2)
+            ui.rule("[bold green]Project Status[/bold green]", style="bold green",align="center",characters=".",width=80)
+            ```
+        """
 
-    def rule(self, title: str = "",style:Optional[str]=None):
-        self.console.rule(f"[banner]{title}[/banner]", style=style)
+
+        self.console.print(Rule(title, style=style, 
+                                align=align,characters=characters),
+                                  width=width) #rich doesnt have width optoin limit to deafult print width
 
     @contextmanager
     def status(self, message, spinner="dots", level=0): #editable levels
@@ -270,6 +293,26 @@ class _TrainSession:
         self.history.append({"epoch": self._current_epoch, **final_stats})
         self.live.update(self._render())
 
+
+class ConfigTree:
+
+    def __init__(self,config:RootConfig|dict|BaseModel, ui:UI):
+
+        self.config = config
+        self.ui = ui
+
+    def _add_fields(self, tree: Tree):
+        pass
+
+    def build_config_tree(self, cfg: BaseModel, label: str = "RootConfig") -> Tree:
+        tree = Tree(f"[bold cyan]{label}[/bold cyan]")
+        self._add_fields(tree)
+        return tree
+
+  
+
+    def show_config(self, cfg: BaseModel):
+        Console().print(self.build_config_tree(cfg))
 
 
 

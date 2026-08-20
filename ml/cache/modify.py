@@ -176,6 +176,8 @@ def _extract_checkpoint_info(checkpoint_path: str | Path, device) -> tuple[dict,
     )
 
 @cache.command()
+@click.option("--run_id", default = None,type=str, required=False, help="Run ID for the model to modify")
+@click.option("--promote", is_flag=True, default=False, help="Promote the model to champion")
 @click.pass_context
 def modify(ctx):
     pass
