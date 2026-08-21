@@ -84,6 +84,24 @@ def status(ctx):
     ui.rule("[bold green]Project Status[/bold green]", style="bold green",
             align="center",characters="─",width=80)
 
-    ui.print("[bold cyan]Model Cache Summary: [/bold cyan]")
-    
+    from rich.table import Table
+    from rich import box
 
+    from src.cli.style import UI
+
+    variants = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+    variants.add_column(style="bold")
+    variants.add_column()
+    variants.add_row("[bold yellow] Variants:[/bold yellow]", "")
+    variants.add_row("  Default", f"[success]✓[/success] 5 candidates | champion: 9e2fb457... (val_f1_macro=0.217) | updated 2026-08-06")
+    variants.add_row("  Hubble", "[warning]⚠[/warning] no candidates yet")
+    variants.add_row("  Dirichlet", "[warning]⚠[/warning] no candidates yet")
+
+    variants.add_row("\n[bold]Data:[/bold]", "")
+    variants.add_row("  Images", "[success]✓[/success] 5,000 images | 5,000 downloaded | 5,000 verified")
+    ui.console.print(variants)    
+
+    variants.add_row("\n[bold]Environment:[/bold]", "")
+    variants.add_row("  Python", "[error]✓[/error] Python 3.11.4 | venv: galaxy-classification-dev")
+
+    varaints.add_row("")

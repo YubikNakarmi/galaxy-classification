@@ -65,6 +65,7 @@ class UI:
         self.table = TableUI(self)#composition
         self.progress = ProgressUI(self)
         self.train = TrainDashboard(self)   
+        self.tree = TreeUI(self)
 
        
     @property
@@ -138,14 +139,17 @@ class UI:
                                 align=align,characters=characters),
                                   width=width) #rich doesnt have width optoin limit to deafult print width
 
+    
+  
     @contextmanager
     def status(self, message, spinner="dots", level=0): #editable levels
         if self.verbose >= level:
             with self.console.status(message, spinner=spinner) as status:
                 yield status
 class TableUI:
-    def __init__(self,ui:UI):
+    def __init__(self,ui:UI,table:Optional[Table|None]=None):
         self.ui = ui
+        self.table = table#custom obj
 
     def show(self,columns:list[str],
                rows:Sequence[Sequence[str]],
@@ -153,11 +157,14 @@ class TableUI:
                show_header:bool=True,
                header_style:str="bold blue"):
 
-        
+        if self.table:
+                    table = self.table
+
         table = Table(title=title,
                                 show_header=show_header,
                                 header_style=header_style)
-        
+    
+
         for col in columns:
             table.add_column(col)
 
@@ -208,6 +215,7 @@ class _TrainSession:
         self.epochs = epochs
         self.steps_per_epoch = steps_per_epoch
         self.history = history
+    
 
         self.epoch_progress = Progress(
             TextColumn("[bold cyan]Epoch"),
@@ -293,6 +301,21 @@ class _TrainSession:
         self.history.append({"epoch": self._current_epoch, **final_stats})
         self.live.update(self._render())
 
+class TreeUI:
+    def __init__(self, ui: UI):
+        self.ui = ui
+
+    def show(self, root_label: str, items: dict[str, str]):
+        tree = Tree(f"[bold cyan]{root_label}[/bold cyan]")
+        for key, value in items.items():
+            tree.add(f"[bold]{key}:[/bold] {value}")
+
+            if isinstance(value, dict):
+                sub_tree = Tree(f"[bold]{key}[/bold]")
+                for sub_key, sub_value in value.items():
+                    sub_tree.add(f"[bold]{sub_key}:[/bold] {sub_value}")
+                tree.add(sub_tree)
+        self.ui.console.print(tree)
 
 class ConfigTree:
 

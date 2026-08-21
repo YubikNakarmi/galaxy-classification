@@ -330,9 +330,10 @@ def train_dirilchled():
 @pipeline.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")
 @click.option("--evaluate", is_flag=True, default=False, help="Evaluate the model after training")
+@click.option("--show_config", is_flag=True, default=False, help="Show the configuration before training")
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool):
+def train(ctx, variant:str, evaluate:bool, show_config:bool):
 
     import mlflow
     from loguru import logger
@@ -340,6 +341,7 @@ def train(ctx, variant:str, evaluate:bool):
     from src.training import validate_setup
     from src.utils.bootstrap import load_context
     from ml.pipeline.eval import evaluate as eval
+    from src.cli.utils import ConfigUI
 
 
 
@@ -350,10 +352,14 @@ def train(ctx, variant:str, evaluate:bool):
     cfg = app_ctx.cfg
     MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
-    ui.info()
+    if show_config:
+        config_ui = ConfigUI(ui)
+        config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
+        return  # Exit after showing the configuration
+
     if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
-               mlflow_tracking_uri=MLFLOW_TRACKING_URI,
-               
+                mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+                
             create_dirs =   [cfg.storage.local.checkpoints.dir,
             cfg.storage.local.logs.reports_dir,
             cfg.storage.local.logs.tensorboard_dir]):
@@ -361,6 +367,10 @@ def train(ctx, variant:str, evaluate:bool):
         logger.error("Setup validation failed. Exiting.")
         ui.error("setup validation failed. Please check the logs for details.")
         return
+    
+  
+
+   
         
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":

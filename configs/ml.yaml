@@ -3,9 +3,9 @@ active_variant: Default
 
 env:
   name: galaxy_classification_env
-  python_version: 3.14.4
+  python_version: 3.12.10
   seed: 42
-  device: cpu # Change to cuda on VM[cpu,cuda]
+  device: cuda # Change to cuda on VM[cpu,cuda]
   num_workers: 4
 
 mode: cloud # options: local, cloud
