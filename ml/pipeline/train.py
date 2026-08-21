@@ -5,15 +5,8 @@ import random
 from pathlib import Path
 
 import click
-from gto import ui
-
 from ml.pipeline import pipeline
 from src.cli.style import UI
-
-
-
-
-
 
 
 
@@ -330,19 +323,14 @@ def train_dirilchled():
 @pipeline.command()
 @click.option("--variant", type=str, default="Default", help="Training variant to use")
 @click.option("--evaluate", is_flag=True, default=False, help="Evaluate the model after training")
-@click.option("--show_config", is_flag=True, default=False, help="Show the configuration before training")
+@click.option("-c","--status","show_config", is_flag=True, default=False, help="Show the configuration before training")
+@click.option("--checkpoint_run_id", type=str, default=None, help="Run ID of the checkpoint to resume from")
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool, show_config:bool):
+def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:str):
 
-    import mlflow
-    from loguru import logger
-
-    from src.training import validate_setup
     from src.utils.bootstrap import load_context
-    from ml.pipeline.eval import evaluate as eval
     from src.cli.utils import ConfigUI
-
 
 
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
@@ -353,25 +341,41 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool):
     MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
     if show_config:
-        config_ui = ConfigUI(ui)
-        config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
-        return  # Exit after showing the configuration
+        with ui.status("Displaying current configuration...", spinner="dots") as status:
+            config_ui = ConfigUI(ui)
+            config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
+            return  # Exit after showing the configuration
 
-    if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
-                mlflow_tracking_uri=MLFLOW_TRACKING_URI,
-                
-            create_dirs =   [cfg.storage.local.checkpoints.dir,
-            cfg.storage.local.logs.reports_dir,
-            cfg.storage.local.logs.tensorboard_dir]):
         
-        logger.error("Setup validation failed. Exiting.")
-        ui.error("setup validation failed. Please check the logs for details.")
-        return
+    with ui.status("Starting training process...", spinner="dots") as status:
+
+        status.update("Importing required modules...")
+
+        import mlflow
+        from loguru import logger
+        from src.training import validate_setup
+        from ml.pipeline.eval import evaluate as eval
+
+
+
+
     
-  
+        status.update("Validating setup...")
+        if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
+                    mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+                    
+                create_dirs =   [cfg.storage.local.checkpoints.dir,
+                cfg.storage.local.logs.reports_dir,
+                cfg.storage.local.logs.tensorboard_dir]):
+            
+            logger.error("Setup validation failed. Exiting.")
+            ui.error("setup validation failed. Please check the logs for details.")
+            return
 
-   
-        
+        status.update("starting training for variant: {}".format(variant))
+
+    
+            
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":
         mlflow.set_experiment(cfg.variant.experiment.root)
@@ -382,8 +386,8 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool):
             ui.rule("Evaluating the trained model...", style="bold spring_green2")
             ui.info("Starting evaluation of the trained model...")
             eval(ctx, run_id=run_id, variant=variant, model_version=None,
-                  min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
-                  model_source="mlflow")
+                min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
+                model_source="mlflow")
 
     
  

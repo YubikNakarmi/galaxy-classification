@@ -131,8 +131,8 @@ class StorageConfig:
 @dataclass
 class CheckpointTrainConfig:
     resume_from_checkpoint: bool
-    local_checkpoint_path: Path
-    checkpoint_restore_path: str       # blob path, not a local Path
+    local_checkpoint_path: Optional[Path]
+    checkpoint_restore_path: Optional[str]       # blob path, not a local Path
     checkpoint_resume_hard: bool
     run_id: Optional[str] = None  # Optional run_id for checkpointing, can be None if not specified
  

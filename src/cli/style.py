@@ -15,9 +15,13 @@ from rich.progress import (
 from rich.tree import Tree
 from rich.table import Table
 from rich.panel import Panel
+from rich.style import Style
 from contextlib import contextmanager
 from src.config import RootConfig
 from pydantic import BaseModel
+from pathlib import Path
+
+
 
 class UI:
     """
@@ -42,6 +46,7 @@ class UI:
             "trace": "grey50",
             "banner": "bold magenta",
             }
+
 
     
     def __init__(self, verbose: int = 0, 
@@ -139,7 +144,16 @@ class UI:
                                 align=align,characters=characters),
                                   width=width) #rich doesnt have width optoin limit to deafult print width
 
-    
+    def link_path(self,path: str|Path) -> str:
+
+        path = Path(path)
+
+        uri = path.resolve().as_uri() #multi platform
+
+        if not uri.startswith("file:///"):
+            uri = f"file:///{uri}"
+
+        return f"[link={uri}]{path}[/link]"
   
     @contextmanager
     def status(self, message, spinner="dots", level=0): #editable levels
@@ -309,13 +323,16 @@ class TreeUI:
         tree = Tree(f"[bold cyan]{root_label}[/bold cyan]")
         for key, value in items.items():
             tree.add(f"[bold]{key}:[/bold] {value}")
-
-            if isinstance(value, dict):
-                sub_tree = Tree(f"[bold]{key}[/bold]")
-                for sub_key, sub_value in value.items():
-                    sub_tree.add(f"[bold]{sub_key}:[/bold] {sub_value}")
-                tree.add(sub_tree)
+            
         self.ui.console.print(tree)
+        
+    def _add_config_tree(self, parent, name, config):
+        branch = parent.add(f"[bold]{name}[/bold]")
+
+        for key, value in vars(config).items():
+            branch.add(
+                f"[dim]{key}[/dim]: {value}"
+            )
 
 class ConfigTree:
 

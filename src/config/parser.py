@@ -115,8 +115,8 @@ def _parse_train(raw: dict, root: Path) -> TrainConfig:
     return TrainConfig(
         checkpoints=CheckpointTrainConfig(
             resume_from_checkpoint=bool(ckpt["resume_from_checkpoint"]),
-            local_checkpoint_path=root / ckpt["local_checkpoint_path"],
-            checkpoint_restore_path=ckpt["checkpoint_restore_path"],
+            local_checkpoint_path=(root / ckpt["local_checkpoint_path"]) if ckpt.get("local_checkpoint_path") else None,
+            checkpoint_restore_path=ckpt["checkpoint_restore_path"] if ckpt.get("checkpoint_restore_path") else None,
             checkpoint_resume_hard=bool(ckpt["checkpoint_resume_hard"]),
             run_id=ckpt.get("run_id"),
         ),

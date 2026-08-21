@@ -1,6 +1,7 @@
 
+from __future__ import annotations
+
 from dotenv import load_dotenv
-from loguru import logger
 import os
 from typing import Literal
 from dataclasses import dataclass
