@@ -346,7 +346,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
             config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
             return  # Exit after showing the configuration
 
-        
+    #slower importing time so modules were put below    
     with ui.status("Starting training process...", spinner="dots") as status:
 
         status.update("Importing required modules...")
@@ -356,10 +356,6 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
         from src.training import validate_setup
         from ml.pipeline.eval import evaluate as eval
 
-
-
-
-    
         status.update("Validating setup...")
         if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
                     mlflow_tracking_uri=MLFLOW_TRACKING_URI,
@@ -373,8 +369,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
             return
 
         status.update("starting training for variant: {}".format(variant))
-
-    
+ 
             
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     if variant == "Default":
@@ -389,7 +384,6 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
                 min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                 model_source="mlflow")
 
-    
- 
+
 if __name__ == "__main__":
     train()

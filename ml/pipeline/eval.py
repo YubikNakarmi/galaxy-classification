@@ -3,6 +3,8 @@ import datetime
 from pathlib import Path
 
 import click
+from src.cli.style import UI
+
 
 from typing import TYPE_CHECKING
 #type checking without importing on runtime
@@ -104,133 +106,154 @@ def evaluate(ctx, run_id, variant, model_version,
     
     
     '''
-    import mlflow
-    from loguru import logger
-    from mlflow.tracking import MlflowClient
-
-    from src.training.artifacts import promote_if_better
-    from src.training.metrics import make_metrics
     from src.utils.bootstrap import load_context
+    from src.cli.utils import ConfigUI
     
-    app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py
-    cfg = app_ctx.cfg
+    
+    ui = ctx.find_object(UI) or UI(verbose=0)
 
-    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
+    with ui.status("Loading configuration...") as status:
+
+        import mlflow
+        from loguru import logger
+        from mlflow.tracking import MlflowClient
+
+        from src.training.artifacts import promote_if_better
+        from src.training.metrics import make_metrics
+        from src.utils.bootstrap import load_context
+        
+        app_ctx = ctx.obj or load_context(service="ml") #retrive from top level of click cmd in __init__py
+        cfg = app_ctx.cfg
+
+        MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
 
-    if Path(cfg.data.eval_path).exists() is False:
-        logger.error("Evaluation data not found at {}. Please run preprocessing first.", cfg.data.eval_path)
-        return
+        status.update("Validating configuration and MLflow connection...")
 
-    try:
+        if Path(cfg.data.eval_path).exists() is False:
+            logger.error("Evaluation data not found at {}. Please run preprocessing first.", cfg.data.eval_path)
+            return
+
+        try:
+            mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+            mlflow.set_experiment("Connection Test")
+            with mlflow.start_run(run_name="setup_validation"):
+                mlflow.log_param("validation", "success")
+            logger.info(f"MLflow connection OK ({MLFLOW_TRACKING_URI})")
+
+        except Exception as e:
+            logger.error(f"MLflow not reachable: {e}")
+            return
+        active_var = cfg.active_variant
+        dev = cfg.env.device
+        experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
+
+
+        logger.info(f"Starting evaluation for variant '{variant}' with run_id '{run_id}' and model_version '{model_version}'")
+        ui.debug(f"Active variant: {active_var}, Device: {dev}, Experiment name: {experiment_name}")
+
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        mlflow.set_experiment("Connection Test")
-        with mlflow.start_run(run_name="setup_validation"):
-            mlflow.log_param("validation", "success")
-        logger.info(f"MLflow connection OK ({MLFLOW_TRACKING_URI})")
-
-    except Exception as e:
-        logger.error(f"MLflow not reachable: {e}")
-        return
-    active_var = cfg.active_variant
-    dev = cfg.env.device
-    experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
-
-
-    logger.info(f"Starting evaluation for variant '{variant}' with run_id '{run_id}' and model_version '{model_version}'")
-
-
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-
-    logger.info(f"MLflow tracking URI: {MLFLOW_TRACKING_URI}")
-    variant_cfg = cfg.variants[variant]
-    experiment_root = variant_cfg.experiment.root
 
 
 
-    client = MlflowClient()
-
-    if run_id is None:
-
-        raise ValueError("Run ID must be provided to evaluate a specific model.")
-
-    model_name = None
-
-    if model_version is None:
-        # get the model version associated with the run_id
-        logger.info(f"Fetching model version for run_id '{run_id}' under variant '{variant}'")
-        ver = client.search_model_versions(f"run_id='{run_id}'")
-        if not ver:
-            logger.error("No registered version for run_id {} under variant {}", run_id, variant)
-            return
-        model_version = ver[0].version
-        model_name = ver[0].name
-
-    else:
-        logger.info(f"Using provided model_version '{model_version}' for variant '{variant}'")  
-        model_version = str(model_version)
-        model_name = client.get_model_version(name=variant_cfg.mlflow.model_name, version=model_version).name
+        logger.info(f"MLflow tracking URI: {MLFLOW_TRACKING_URI}")
+        ui.info(f"MLflow tracking URI: {MLFLOW_TRACKING_URI}")
+        variant_cfg = cfg.variants[variant]
 
 
-    model_uri = f"models:/{model_name}/{model_version}"   
 
-    logger.info(f"Loading model from MLflow URI: {model_uri}")
-    model = mlflow.pytorch.load_model(model_uri)
-    logger.info(f"Model loaded successfully from {model_uri}")  
+        client = MlflowClient()
 
-    # find which variant config this registered_model_name belongs to,
-    matching_variant = next(
-        (v for v in cfg.variants.values() if v.mlflow.model_name == model_name),
-        None,
-    )
-    if matching_variant is None:
-        logger.error("Could not match registered model '{}' to any variant in ml.yaml", model_name)
-        return
+        if run_id is None:
 
-    experiment_name = f"{matching_variant.experiment.root}_eval"
- 
+            raise ValueError("Run ID must be provided to evaluate a specific model.")
 
-    mlflow.set_experiment(experiment_name)
-    logger.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
+        model_name = None
 
-    run_name = f"eval_{model_name}_v{model_version}_" + \
-               datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    logger.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
+        if model_version is None:
+            # get the model version associated with the run_id
+            logger.info(f"Fetching model version for run_id '{run_id}' under variant '{variant}'")
+            ui.info(f"Fetching model version for run_id '{run_id}' under variant '{variant}'")
 
-    with mlflow.start_run(run_name=run_name) as run:
-        logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")
-       
-        metrics   = make_metrics(cfg.variant.num_classes, dev)
-        results = eval(metrics, model,cfg=cfg)
+            ver = client.search_model_versions(f"run_id='{run_id}'")
+            if not ver:
+                logger.error("No registered version for run_id {} under variant {}", run_id, variant)
+                ui.error("No registered version for run_id {} under variant {}", run_id, variant)
+                return
+            model_version = ver[0].version
+            model_name = ver[0].name
 
-    
-        mlflow.log_metrics(results)
-        logger.info("Eval results | {}", results)
-
-        candidate_metric = results.get(metric_name)
-        if candidate_metric is None:
-            logger.error("Metric '{}' not present in eval results; cannot promote.", metric_name)
-            return
-
-        mlflow.set_tag("eval_metric", metric_name)
-        mlflow.set_tag("evaluated", "True")
-        mlflow.set_tag("evaluated_model_name", model_name)
+        else:
+            logger.info(f"Using provided model_version '{model_version}' for variant '{variant}'")  
+            ui.info
+            model_version = str(model_version)
+            model_name = client.get_model_version(name=variant_cfg.mlflow.model_name, version=model_version).name
 
 
-        #promote the model if it meets the criteria
-        promote_if_better(
-            registered_model_name=model_name,
-            candidate_version=model_version,
-            candidate_metric=candidate_metric,
-            metric_name=metric_name,
-            alias=alias,
-            min_improvement=min_improvement,
+        model_uri = f"models:/{model_name}/{model_version}"   
+
+        logger.info(f"Loading model from MLflow URI: {model_uri}")
+        ui.info(f"Loading model from MLflow URI: {model_uri}")
+
+        model = mlflow.pytorch.load_model(model_uri)
+        logger.info(f"Model loaded successfully from {model_uri}")  
+        ui.info(f"Model loaded successfully from {model_uri}")
+
+        # find which variant config this registered_model_name belongs to,
+        matching_variant = next(
+            (v for v in cfg.variants.values() if v.mlflow.model_name == model_name),
+            None,
         )
+        if matching_variant is None:
+            logger.error("Could not match registered model '{}' to any variant in ml.yaml", model_name)
+            ui.error("Could not match registered model '{}' to any variant in ml.yaml", model_name)
 
-        client.set_registered_model_tag(name=model_name, key="evaluated", value="True")
+            return
 
-    mlflow.end_run()
+        experiment_name = f"{matching_variant.experiment.root}_eval"
+        ui.trace(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")   
+    
+
+        mlflow.set_experiment(experiment_name)
+        logger.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
+
+        run_name = f"eval_{model_name}_v{model_version}_" + \
+                datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        logger.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
+
+        with mlflow.start_run(run_name=run_name) as run:
+            logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")
+        
+            metrics   = make_metrics(cfg.variant.num_classes, dev)
+            results = eval(metrics, model,cfg=cfg)
+
+        
+            mlflow.log_metrics(results)
+            logger.info("Eval results | {}", results)
+
+            candidate_metric = results.get(metric_name)
+            if candidate_metric is None:
+                logger.error("Metric '{}' not present in eval results; cannot promote.", metric_name)
+                return
+
+            mlflow.set_tag("eval_metric", metric_name)
+            mlflow.set_tag("evaluated", "True")
+            mlflow.set_tag("evaluated_model_name", model_name)
+
+
+            #promote the model if it meets the criteria
+            promote_if_better(
+                registered_model_name=model_name,
+                candidate_version=model_version,
+                candidate_metric=candidate_metric,
+                metric_name=metric_name,
+                alias=alias,
+                min_improvement=min_improvement,
+            )
+
+            client.set_registered_model_tag(name=model_name, key="evaluated", value="True")
+
+        mlflow.end_run()
 
 if __name__ == "__main__":
     evaluate()

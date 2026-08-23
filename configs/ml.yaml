@@ -5,11 +5,10 @@ env:
   name: galaxy_classification_env
   python_version: 3.12.10
   seed: 42
-  device: cuda # Change to cuda on VM[cpu,cuda]
+  device: cpu # Change to cuda on VM[cpu,cuda]
   num_workers: 4
 
 mode: cloud # options: local, cloud
-
 
 
 variants:
@@ -204,6 +203,7 @@ train:
   regularization:
     dropout: 0.2
     gradient_clipping: true
+    
   mlflow:
     log_data: true
     log_model: true

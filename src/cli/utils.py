@@ -8,6 +8,7 @@ from rich.console import Group
 from rich.rule import Rule
 from rich.text import Text
 from pathlib import Path
+from src.config import RootConfig
 
 
 
@@ -17,7 +18,7 @@ class ConfigUI:
         self.ui = ui
         self.root = Path(__file__).parent.parent.parent
 
-    def show_train_config(self,cfg, variant, mlflow_uri):
+    def show_train_config(self,cfg:RootConfig, variant, mlflow_uri):
 
         self.ui.rule(
             "[bold green]Current Configuration[/bold green]",
@@ -38,7 +39,7 @@ class ConfigUI:
         cuda_warning:bool = False
 
         if cfg.env.device == "cuda":
-            summary.add_row("Configured for CUDA", "True")
+            summary.add_row("Configured for CUDA", "[green]True[/green]")
             cuda_stats = get_cuda_stats()
             if not cuda_stats:
                 summary.add_row("[error]CUDA Available[/error]", "[error]False[/error]")
@@ -61,14 +62,15 @@ class ConfigUI:
         #     self.ui.warning("[error]CUDA is configured but not available. Check your GPU setup.[/error]")
                             
         tree = Tree(
-            "\n[bold cyan]Current Configuration[/bold cyan]",
+            "\n[bold cyan]Training Configuration[/bold cyan]",
             guide_style="dim cyan",
         )
 
         training = tree.add("[bold green]Training[/bold green]")
         checkpoints = training.add("[bold yellow]Checkpoints[/bold yellow]")
 
-        checkpoints.add(f"Enabled: {cfg.train.checkpoints.resume_from_checkpoint}")
+        checkpoints.add(f"Enabled: [red]{cfg.train.checkpoints.resume_from_checkpoint}[red]" if 
+                        not cfg.train.checkpoints.resume_from_checkpoint else "[green]Enabled: False[green]")
 
         if cfg.train.checkpoints.resume_from_checkpoint:
             run_id = cfg.train.checkpoints.run_id
@@ -116,18 +118,29 @@ class ConfigUI:
 
         if cuda_warning:
             warning = Text(
-                "⚠ CUDA is configured but not available. Check your GPU setup.",
+                "\n⚠ CUDA is configured but not available. Check your GPU setup.",
                 style="bold red",
             )
+        else:
+            warning = None
 
+        training.add(f"Batch Size: {cfg.train.batch_size}")
+        training.add(f"[bold]Epochs: {cfg.train.num_epochs}[/bold]")
+        training.add(f"Learning Rate: {cfg.train.learning_rate}")
+        training.add(f"Optimizer: {cfg.train.optimizer}")
+        training.add(f"Scheduler: {cfg.train.scheduler.type}")
+
+
+        #groupd sequentially
         content = Group(
             summary,
-            warning if warning else "",Rule(style="cyan"),
+            warning if warning else "",Rule(style="cyan"),#cant use normal obj print, as it needs to be renderable
             tree,
         )
 
         self.ui.print(Panel(content, border_style="cyan", padding=(0, 1)),width=80)
-        self.ui.print(f"Full configuration at: {self.ui.link_path(self.root / 'configs' / 'ml.yaml')} ", style="cyan", justify="left")
+        self.ui.print(f"Full configuration at: {self.ui.link_path(self.root / 'configs' / 'ml.yaml')} ", 
+                      style="cyan", justify="left")
 
 
        

@@ -11,7 +11,7 @@ class LazyPipelineGroup(click.Group):
     command_modules = {
         "modify": ("ml.cache.modify", "modify"),
         "import": ("ml.cache.modify", "import_model"),
-        "show_local_cache":("ml.cache.summary","show_all")
+        "show-local-cache":("ml.cache.summary","show_all")
         
     }
 

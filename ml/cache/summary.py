@@ -1,7 +1,7 @@
 import click
 from ml.cache import cache
 
-@cache.command(name="current_cache")
+@cache.command(name="current-cache")
 @click.option("--metadata_path",default=None,help="")
 @click.option("--maximum_rows",default = 5)
 @click.pass_context
@@ -16,7 +16,6 @@ def show_all(ctx,metadata_path,maximum_rows):
     from loguru import logger
 
     root = root = Path(__file__).parent.parent.parent
-
 
     try:
 
