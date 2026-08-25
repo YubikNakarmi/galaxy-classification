@@ -151,10 +151,11 @@ storage:
       container: dvc-storage #stores training data like raw,preprocessed,split
 
     experiments: 
-      container: galaxy-experiments #for models
+      container: galaxy-experiments #for models/logs
       
     # inside galaxy-classification-experiments/<experiment_name>/..
     logs:
+      container: galaxy-experiments
       dir: logs/
 
     tensorboard:
@@ -165,6 +166,7 @@ storage:
       dir: models/ #{run_id}/models/best.pt
 
     predictions:
+      container: galaxy-experiments
       dir: predictions/
 
 augmentation: {

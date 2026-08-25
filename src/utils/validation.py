@@ -45,7 +45,7 @@ def validate_path_exists(root: str|Path,
             candidate.relative_to(root)
         except ValueError:
             raise UnsafeCacheDirError(
-                f"local_cache_dir '{path}' resolves to '{candidate}', "
+                f"dir '{path}' resolves to '{candidate}', "
                 f"which is outside the project root '{root}'. "
                 f"Use a path relative to the project (e.g. 'models/cached')."
             )

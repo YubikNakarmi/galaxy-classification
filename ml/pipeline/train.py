@@ -321,7 +321,7 @@ def train_dirilchled():
     pass
 # CLI entry
 @pipeline.command()
-@click.option("--variant", type=str, default="Default", help="Training variant to use")
+@click.option("--variant", type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", help="Training variant to use")
 @click.option("--evaluate", is_flag=True, default=False, help="Evaluate the model after training")
 @click.option("-c","--status","show_config", is_flag=True, default=False, help="Show the configuration before training")
 @click.option("--checkpoint_run_id", type=str, default=None, help="Run ID of the checkpoint to resume from")

@@ -13,6 +13,7 @@ class LazyPipelineGroup(click.Group):
         "train": ("ml.pipeline.train", "train"),
         "evaluate": ("ml.pipeline.eval", "evaluate"),
         "preprocess": ("ml.pipeline.preprocess", "preprocess"),
+        
     }
 
     def list_commands(self, ctx):

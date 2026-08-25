@@ -5,6 +5,9 @@ import importlib
 import click
 
 from src.cli.style import UI
+from typing import Literal
+
+
 
 BANNER =r"""
 ✦   .        *       .    ✦        .
@@ -31,6 +34,8 @@ class LazyRootGroup(click.Group):# duplocated on sublevels instead of single imp
         "setup": ("ml.setup", "setup"),
         "cache": ("ml.cache", "cache"),
         "status": ("ml.cli", "status"),
+        "log":("ml.cli","log"),
+        "bentoml":("ml.wrappers.bentoml","bentoml")
     }
 
     def list_commands(self, ctx):
@@ -87,21 +92,88 @@ def status(ctx):
     from rich.table import Table
     from rich import box
 
-    from src.cli.style import UI
+    #mlflow status
+    #api status
+    #env status
+    #some cfg
+    #core cfgs
+    #dirs checks
 
-    variants = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
-    variants.add_column(style="bold")
-    variants.add_column()
-    variants.add_row("[bold yellow] Variants:[/bold yellow]", "")
-    variants.add_row("  Default", f"[success]✓[/success] 5 candidates | champion: 9e2fb457... (val_f1_macro=0.217) | updated 2026-08-06")
-    variants.add_row("  Hubble", "[warning]⚠[/warning] no candidates yet")
-    variants.add_row("  Dirichlet", "[warning]⚠[/warning] no candidates yet")
+   
+   
 
-    variants.add_row("\n[bold]Data:[/bold]", "")
-    variants.add_row("  Images", "[success]✓[/success] 5,000 images | 5,000 downloaded | 5,000 verified")
-    ui.console.print(variants)    
+@cli.group()
+@click.pass_context
+def log(ctx):
+    pass
 
-    variants.add_row("\n[bold]Environment:[/bold]", "")
-    variants.add_row("  Python", "[error]✓[/error] Python 3.11.4 | venv: galaxy-classification-dev")
+@log.command("show")
+@click.pass_context
+@click.option("--type",default="ml",type=click.Choice(["ml","app"]),required=True,)
+@click.option("--level",type=click.Choice(["DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]))
+@click.option("--lines",default=50 ,type=int)
+@click.option("--service",default=None,help="filter by service")
 
-    varaints.add_row("")
+def log_show(ctx,type,level,lines,service):
+
+    from loguru import logger
+    from src.utils.yaml_utils import load_yaml
+    from src.utils.logging_config import setup_ml_logging, setup_app_logging
+    from pathlib import Path
+
+    #log format in regex
+    LOG_PATTERN = (
+    r"(?P<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \| "
+    r"(?P<level>\w+)\s*\| "
+    r"(?P<service>[^|]+?) \| "
+    r"(?P<name>[^:]+):(?P<function>[^:]+):(?P<line>\d+) - "
+    r"(?P<message>.*)")
+
+
+
+    ROOT = Path(__file__).resolve().parent.parent 
+
+
+
+    ui = ctx.find_object(UI) or UI(verbose=1)
+    
+    ml_yaml_path = ROOT / "configs" / "ml.yaml"
+    core_yaml_path = ROOT / "configs" / "core.yaml"
+
+    if type=="ml":
+        ui.trace("using ml mode")
+        core_cfg = load_yaml(core_yaml_path)
+        log_path =  ROOT / core_cfg["logging"]["ml"]["file"]
+
+        if not log_path.exists():
+            ui.warning(f"No log file found at {log_path}")
+            return
+
+        records = list(logger.parse(str(log_path), LOG_PATTERN))
+
+        if level:
+            records = [r for r in records if r["level"].upper() == level.upper()]
+        #filter services if needed
+        if service:
+            records = [r for r in records if r["service"].strip() == service]
+
+        for r in records[-lines:]:
+            lvl = r["level"].upper()
+            loc = f"{r['name']}:{r['function']}:{r['line']}"
+            text = f"{r['time']} [{lvl}] ({loc}) {r['message']}"
+
+            if lvl == "ERROR":
+                ui.console.print(f"[error]{text}[/error]")
+            elif lvl == "WARNING":
+                ui.console.print(f"[warning]{text}[/warning]")
+            elif lvl == "SUCCESS":
+                ui.console.print(f"[success]{text}[/success]")
+            else:
+                ui.console.print(f"[dim]{text}[/dim]")
+
+        
+
+        
+
+
+

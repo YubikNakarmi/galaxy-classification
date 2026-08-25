@@ -181,3 +181,8 @@ def _extract_checkpoint_info(checkpoint_path: str | Path, device) -> tuple[dict,
 @click.pass_context
 def modify(ctx):
     pass
+
+
+@cache.command()
+def clean(ctx):
+    pass
