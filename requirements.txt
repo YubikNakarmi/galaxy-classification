@@ -17,7 +17,7 @@ appdirs==1.4.4
 argcomplete==3.6.3
 asgiref==3.11.1
 asttokens==3.0.1
-asyncssh==2.23.0
+asyncssh==2.23.1
 atpublic==7.0.0
 attrs==26.1.0
 azure-core==1.41.0
