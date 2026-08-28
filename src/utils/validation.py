@@ -25,7 +25,8 @@ class UnsafeCacheDirError(Exception):
 def validate_path_exists(root: str|Path,
                           path: list[str | Path],
                           create: bool = True,
-                          kind:Literal["dir", "file"] = "dir") -> bool:
+                          kind:Literal["dir", "file"] = "dir",
+                          validate_root: bool = True) -> bool:
 
     from pathlib import Path
 
@@ -41,14 +42,15 @@ def validate_path_exists(root: str|Path,
 
         candidate = (root / p).resolve() if not Path(p).is_absolute() else Path(p).resolve()
 
-        try:
-            candidate.relative_to(root)
-        except ValueError:
-            raise UnsafeCacheDirError(
-                f"dir '{path}' resolves to '{candidate}', "
-                f"which is outside the project root '{root}'. "
-                f"Use a path relative to the project (e.g. 'models/cached')."
-            )
+        if validate_root:#only validate if the candidate path is within the root if validate_root is True
+            try:
+                candidate.relative_to(root)
+            except ValueError:
+                raise UnsafeCacheDirError(
+                    f"dir '{path}' resolves to '{candidate}', "
+                    f"which is outside the project root '{root}'. "
+                    f"Use a path relative to the project (e.g. 'models/cached')."
+                )
 
         if candidate.exists():
             continue  

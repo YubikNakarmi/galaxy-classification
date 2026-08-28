@@ -15,7 +15,7 @@ from rich.progress import (
 from rich.tree import Tree
 from rich.table import Table
 from rich.panel import Panel
-from rich.style import Style
+from loguru import logger
 from contextlib import contextmanager
 from src.config import RootConfig
 from pydantic import BaseModel
@@ -87,28 +87,35 @@ class UI:
 
     def success(self, message: str,style:Optional[str]=None):
         self.console.print(f"[success]✔ {message}[/success] ",style = style)
+        logger.success(message)
 
     def warning(self, message: str,style:Optional[str]=None):
         self.console.print(f"[warning]⚠[/warning] [white] {message}[/white]",style = style)
+        logger.warning(message)
 
     def error(self, message: str,style:Optional[str]=None, show_execption:bool=False):
         self.console.print(f"[error]✖ {message}[/error] ",style = style)
+        logger.error(message)
 
         if show_execption:
             self.console.print_exception(show_locals=self.verbose >= 3,max_frames=5)
+            logger.exception(message)
             
     # verbosity gated    
     def info(self, message:str,style:Optional[str]=None):
         if self.verbose >=1:
             self.console.print(f"[info]ℹ[/info] {message}",style = style)
+        logger.info(message)
 
     def debug(self, message:str,style:Optional[str]=None):
         if self.verbose >=2:
             self.console.print(f"[debug]•[/debug] {message}",style = style)
+            logger.debug(message)
 
     def trace(self, message:str,style:Optional[str]=None):
         if self.verbose >=3:
             self.console.print(f"[trace] {message}[/trace] ",style = style)
+            logger.trace(message)
 
 
     def summary(self, title: str, items: dict[str, str]):

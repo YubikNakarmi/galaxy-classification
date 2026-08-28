@@ -11,6 +11,12 @@ root = Path(__file__).parent.parent.parent
 
 
 
+@cache.command(name="export")
+@click.pass_context
+@click.option("--model_path", default=None, type=str, required=True, help="Path to the model file to export")
+def export_model(ctx):
+    from src.cli.utils import ModelExporter
+
 
 
 @cache.command(name="import")

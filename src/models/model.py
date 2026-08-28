@@ -133,7 +133,7 @@ class GalaxyClassifier_ResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        out = self.conv1(x)             # [128, 128] input 
+        out = self.conv1(x)             # [3,128, 128] input 
         out = self.maxpool1(out) 
         out = self.group2(out)         
         out = self.group3(out)         
