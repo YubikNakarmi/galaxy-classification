@@ -83,7 +83,9 @@ docs = [
     "mkdocstrings[python]>=0.18",
 ]
 
-
+extra_cli=[
+    
+]
 
 [tool.setuptools.packages.find]
 include = ["src", 

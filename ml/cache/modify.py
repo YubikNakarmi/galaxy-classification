@@ -13,10 +13,29 @@ root = Path(__file__).parent.parent.parent
 
 @cache.command(name="export")
 @click.pass_context
-@click.option("--model_path", default=None, type=str, required=True, help="Path to the model file to export")
-def export_model(ctx):
-    from src.cli.utils import ModelExporter
+@click.option("--model_path","-p" ,default=None, type=str, required=True, help="Path to the model file to export")
+@click.option("--export_path", "-e", default=None, type=str, required=True, help="Path to save the exported model")
+@click.option("--format", "-f", default="onnx", type=click.Choice(["onnx", "torchscript", "tensorrt"]), required=True, help="Export format")
 
+def export_model(ctx, model_path:str, export_path:str, format:str):
+    from src.models.io import ModelExporter
+
+    ui = ctx.find_object(UI) or UI(verbose=0)
+    exporter = ModelExporter(
+        model_path=model_path,
+        export_path=export_path,
+        ui=ui
+    )
+
+    if format == "onnx":
+        exporter.export_onnx()
+    elif format == "torchscript":
+        exporter.export_torchscript()
+    elif format == "tensorrt":
+        exporter.export_tensorRT()
+    else:
+        ui.error(f"Unsupported export format: {format}")
+        raise ValueError(f"Unsupported export format: {format}")
 
 
 @cache.command(name="import")
