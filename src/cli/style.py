@@ -51,13 +51,15 @@ class UI:
     
     def __init__(self, verbose: int = 0, 
                  console:Optional[Console| None] = None,
-                 theme:Optional[dict[str,str]]=None,):
+                 theme:Optional[dict[str,str]]=None,
+                 log:bool=True):
         """
         Constructor for UI class
         Args:
             verbose: Verbose level from 0 to 3, 0 being default. 
             console: Rich console instance if required, the class initialized it by default. 
             theme: If you want custom theme of the ui levels youc an pass it. 
+            log: If you want to disable logging, you can set this to False.
         """
 
         if theme is not None:
@@ -71,6 +73,7 @@ class UI:
         self.progress = ProgressUI(self)
         self.train = TrainDashboard(self)   
         self.tree = TreeUI(self)
+        self.log = log #if you want to disable logging for some reason, you can set this to False
 
        
     @property
@@ -87,35 +90,47 @@ class UI:
 
     def success(self, message: str,style:Optional[str]=None):
         self.console.print(f"[success]✔ {message}[/success] ",style = style)
-        logger.success(message)
+        if self.log:
+            logger.opt(depth=1).success(message) #one step up from the curr file for proper file resolution
 
     def warning(self, message: str,style:Optional[str]=None):
         self.console.print(f"[warning]⚠[/warning] [white] {message}[/white]",style = style)
-        logger.warning(message)
+        
+        if self.log:
+            logger.opt(depth=1).warning(message)
 
     def error(self, message: str,style:Optional[str]=None, show_execption:bool=False):
         self.console.print(f"[error]✖ {message}[/error] ",style = style)
-        logger.error(message)
+        
+        if self.log:
+            logger.opt(depth=1).error(message)
 
         if show_execption:
             self.console.print_exception(show_locals=self.verbose >= 3,max_frames=5)
-            logger.exception(message)
+            
+            if self.log:
+                logger.opt(depth=1).exception(message)
             
     # verbosity gated    
     def info(self, message:str,style:Optional[str]=None):
         if self.verbose >=1:
             self.console.print(f"[info]ℹ[/info] {message}",style = style)
-        logger.info(message)
+        if self.log:
+            logger.opt(depth=1).info(message)
 
     def debug(self, message:str,style:Optional[str]=None):
         if self.verbose >=2:
             self.console.print(f"[debug]•[/debug] {message}",style = style)
-            logger.debug(message)
+            
+            if self.log:
+                logger.opt(depth=1).debug(message)
 
     def trace(self, message:str,style:Optional[str]=None):
         if self.verbose >=3:
             self.console.print(f"[trace] {message}[/trace] ",style = style)
-            logger.trace(message)
+            
+            if self.log:
+                logger.opt(depth=1).trace(message)
 
 
     def summary(self, title: str, items: dict[str, str]):

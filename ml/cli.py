@@ -105,16 +105,21 @@ def status(ctx):
 @cli.group()
 @click.pass_context
 def log(ctx):
-    pass
+    """Log management commands"""
+    from src.utils.bootstrap import load_context
+    
+    ctx.obj = load_context(service="ml",std_out=False)  # Load ML context for pipeline commands
+    
 
 @log.command("show")
 @click.pass_context
-@click.option("--type",default="ml",type=click.Choice(["ml","app"]),required=True,)
-@click.option("--level",type=click.Choice(["DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]))
-@click.option("--lines",default=50 ,type=int)
-@click.option("--service",default=None,help="filter by service")
+@click.option("--type","-t", default="ml",type=click.Choice(["ml","app"]),required=False)
+@click.option("--level","-l", type=click.Choice(["DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]))
+@click.option("--lines","-n",default=50 ,type=int)
+@click.option("--service","-s",default=None,help="filter by service")
 
 def log_show(ctx,type,level,lines,service):
+    """Show logs for the project"""
 
     from loguru import logger
     from src.utils.yaml_utils import load_yaml
@@ -144,6 +149,37 @@ def log_show(ctx,type,level,lines,service):
         ui.trace("using ml mode")
         core_cfg = load_yaml(core_yaml_path)
         log_path =  ROOT / core_cfg["logging"]["ml"]["file"]
+
+        if not log_path.exists():
+            ui.warning(f"No log file found at {log_path}")
+            return
+
+        records = list(logger.parse(str(log_path), LOG_PATTERN))
+
+        if level:
+            records = [r for r in records if r["level"].upper() == level.upper()]
+        #filter services if needed
+        if service:
+            records = [r for r in records if r["service"].strip() == service]
+
+        for r in records[-lines:]:
+            lvl = r["level"].upper()
+            loc = f"{r['name']}:{r['function']}:{r['line']}"
+            text = f"{r['time']} [{lvl}] ({loc}) {r['message']}"
+
+            if lvl == "ERROR":
+                ui.console.print(f"[error]{text}[/error]")
+            elif lvl == "WARNING":
+                ui.console.print(f"[warning]{text}[/warning]")
+            elif lvl == "SUCCESS":
+                ui.console.print(f"[success]{text}[/success]")
+            else:
+                ui.console.print(f"[dim]{text}[/dim]")
+                
+    elif type=="app":
+        ui.trace("using app mode")
+        core_cfg = load_yaml(core_yaml_path)
+        log_path =  ROOT / core_cfg["logging"]["app"]["file"]
 
         if not log_path.exists():
             ui.warning(f"No log file found at {log_path}")

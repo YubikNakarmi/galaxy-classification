@@ -15,6 +15,12 @@ or
 ``` bash
 source(./setup.sh && bentoml_build)
 ```
+of 
+``` bash
+
+galax bentoml containerize -t=""
+```
+
 ## Response
 
 ``` json

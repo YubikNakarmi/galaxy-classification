@@ -23,16 +23,44 @@ You should see something like this:
 
 ## Basic Commands
 
-running a training script. 
+### Importing a model
 ```sh
+$ galax -vv cache import \
+--checkpoint_path="models\cached\9e2fb45714864e35bf92fc2223d7e7fe.pt" \
+--variant="Default" --num_classes=5 --model_name="default" \
+--local_cache_dir="tests" --metadata_save_file_path="models.json" \
+--metric_name="test" --metric=0.1
+```
 
-galax pipeline train --variant="default"
+![Import](../assets/cli/save_model.png)
 
+### running a training script. 
+
+Verifying the configs
+```sh
+galax pipeline train -c
+```
+![Status](../assets/cli/training_status.png)
+
+
+Running Training
+
+```sh
+galax pipeline train --variant "default"
 #with verbose
-
-galax -vv pipeline train --variant="default" # level 2
+galax -vv pipeline train --variant "default" 
+# level 2
 ```
+
+![Training](../assets/cli/training.png)
+
+### View logs
 
 ```sh
-$ galax -vv cache import --checkpoint_path="models\cached\9e2fb45714864e35bf92fc2223d7e7fe.pt" --variant="Default" --num_classes=5 --model_name="default" --local_cache_dir="tests" --metadata_save_file_path="models.json" --metric_name="test" --metric=0.1
+galax logs show -n 50 -s "ml"
 ```
+
+![result](../assets/cli/logs.png)
+
+
+
