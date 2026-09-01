@@ -123,7 +123,6 @@ def log_show(ctx,type,level,lines,service):
 
     from loguru import logger
     from src.utils.yaml_utils import load_yaml
-    from src.utils.logging_config import setup_ml_logging, setup_app_logging
     from pathlib import Path
 
     #log format in regex

@@ -1,0 +1,2 @@
+## Codebase architecture
+For this project structure I clearly seperated custom modules with top level wrappers. For example on training script on [train.py](/ml/pipeline/train.py), the source code logic is on `/src/training` dir. 

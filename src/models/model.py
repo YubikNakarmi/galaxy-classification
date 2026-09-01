@@ -4,7 +4,6 @@ class ResidualUnit(nn.Module):
 
     ''' Each residual unit for resent groups.'''
 
-
     def __init__(self, in_channels:int,
                  mid_channel:int ,
                  out_channels:int, 
@@ -59,7 +58,6 @@ class ResidualUnit(nn.Module):
     
 class ConvGroup(nn.Module):# Using N = 2
 
-
     ''' Convolution groups for resunits'''
     def __init__(self, in_channels, mid_channels, out_channels, N = 2,downsample=True):
         super(ConvGroup, self).__init__()
@@ -88,7 +86,6 @@ class GalaxyClassifier_ResNet(nn.Module):
     ''' ResNet architecture for galaxy classification. 
     with modifications to better suit the task and dataset size.'''
 
-
     def __init__(self,head:str = "default" ,N=2, k=2, num_classes=5):
 
         '''
@@ -105,7 +102,6 @@ class GalaxyClassifier_ResNet(nn.Module):
             ```
 
         '''
-
 
         super(GalaxyClassifier_ResNet, self).__init__()
         
@@ -133,6 +129,7 @@ class GalaxyClassifier_ResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
+        
         out = self.conv1(x)             # [3,128, 128] input 
         out = self.maxpool1(out) 
         out = self.group2(out)         

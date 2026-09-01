@@ -10,7 +10,7 @@
 | Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
 
 ## Architecture
-![training architecture diagram](../assets/training_process.drawio.png)
+![training architecture diagram](../assets/architecture/training_process.drawio.png)
 
 /// caption
 Figure 1: Training architecture diagram
