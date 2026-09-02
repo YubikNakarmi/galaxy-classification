@@ -330,7 +330,7 @@ def train_dirilchled():
 def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:str):
 
     from src.utils.bootstrap import load_context
-    from src.cli.utils import ConfigUI
+    from src.cli.status import ConfigUI
 
 
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one

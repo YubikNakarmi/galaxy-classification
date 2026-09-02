@@ -86,18 +86,14 @@ def status(ctx):
 
     ui = ctx.obj or ctx.meta.get("ui") or UI(verbose=0)
 
-    ui.rule("[bold green]Project Status[/bold green]", style="bold green",
-            align="center",characters="─",width=80)
+    from src.utils.bootstrap import load_context
+    from src.cli.status import ConfigUI
+    config_ui = ConfigUI(ui)
+    ctx = load_context(service="ml",std_out=False)
+    config_ui.show_global_config(ctx.cfg,mlflow_uri=ctx.mlflow_tracking_uri,
+                                 banner=BANNER)
 
-    from rich.table import Table
-    from rich import box
-
-    #mlflow status
-    #api status
-    #env status
-    #some cfg
-    #core cfgs
-    #dirs checks
+   
 
    
    

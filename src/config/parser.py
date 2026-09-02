@@ -169,18 +169,19 @@ def parse_config(raw: dict, root: Path) -> RootConfig:
         raw: validated dict from loader + validator
         root: project root Path (for resolving relative paths)
     """
-    variants = {
-        name: _parse_variant(name, v_raw, root)
-        for name, v_raw in raw.get("variants", {}).items()
+    payload = dict(raw)
+    payload["variants"] = {
+        name: {**variant, "name": name}
+        for name, variant in raw.get("variants", {}).items()
     }
- 
-    return RootConfig(
-        env=_parse_env(raw),
-        mode=raw.get("mode", "cloud"),
-        active_variant=raw["active_variant"],
-        variants=variants,
-        data=_parse_data(raw, root),
-        storage=_parse_storage(raw, root),
-        train=_parse_train(raw, root),
-        mlflow=_parse_mlflow(raw),
-    )
+
+    raw_paths = raw["data"]["raw_paths"]
+    payload["data"] = {
+        **raw["data"],
+        "raw_paths": {
+            "labels": raw_paths[0]["labels"],
+            "mappings": raw_paths[1]["mappings"],
+        },
+    }
+
+    return RootConfig.model_validate(payload).resolve_paths(root)

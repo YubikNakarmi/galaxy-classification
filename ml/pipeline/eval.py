@@ -107,7 +107,7 @@ def evaluate(ctx, run_id, variant, model_version,
     
     '''
     from src.utils.bootstrap import load_context
-    from src.cli.utils import ConfigUI
+    from src.cli.status import ConfigUI
     
     
     ui = ctx.find_object(UI) or UI(verbose=0)

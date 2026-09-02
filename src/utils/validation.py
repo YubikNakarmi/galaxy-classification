@@ -2,12 +2,25 @@ from __future__ import annotations
 
 from src.utils.bootstrap import Context
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
+from dataclasses import dataclass
+from dotenv import load_dotenv
+import os
 
-def validate_mlflow_connection(ctx: Context) -> bool:
+
+@dataclass
+class EnvVar:
+    name: str
+    priority: Literal["required","optional"]
+
+def validate_mlflow_connection(ctx: Optional[Context],uri: Optional[str]) -> bool:
     from urllib.request import Request, urlopen
+    
+    if ctx is None and uri is None:
+        raise ValueError("Either 'ctx' or 'uri' must be provided.")
 
-    mlflow_tracking_uri = ctx.mlflow_tracking_uri
+    ctx_uri = ctx.mlflow_tracking_uri if ctx is not None else None
+    mlflow_tracking_uri = ctx_uri or uri
     health_url = f"{mlflow_tracking_uri}/health" #mlflow_tracking_uri set by env var in container or out of.
     try:
         req = Request(health_url)
@@ -69,3 +82,32 @@ def validate_path_exists(root: str|Path,
         
     return ok
 
+
+
+def validate_env_vars(required_vars: list[EnvVar], env_path: str = ".env")-> list[str]:
+    """
+    Check if the required environment variables are set.
+    """
+    from loguru import logger
+    load_dotenv(dotenv_path=env_path)
+
+    validated = []
+
+    for c in required_vars:
+
+        var = os.getenv(c.name)
+        validated.append(var)
+
+        if var is None:
+            if c.priority == "required":
+                logger.error(f"Required environment variable '{c.name}' is not set. \
+                             Please set it in your environment or in the {env_path} file.")
+                raise EnvironmentError(f"Required environment variable '{c.name}' is not set.")
+            elif c.priority == "optional":
+                logger.warning(f"Optional environment variable '{c.name}' is not set\
+                               . Consider setting it in your environment or in the {env_path} file.")
+            else:
+                logger.info(f"Optional environment variable '{c.name}' is not set. \
+                            You may want to set it in your environment or in the {env_path} file.")
+
+    return validated

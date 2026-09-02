@@ -1,83 +1,87 @@
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+
 from pathlib import Path
-from typing import Optional
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
+class ConfigModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-@dataclass
-class EnvConfig:
+
+class EnvConfig(ConfigModel):
     name: str
     python_version: str
     seed: int
     device: str
     num_workers: int
- 
- 
-@dataclass
-class SplitConfig:
+
+
+class SplitConfig(ConfigModel):
     train_size: float
     val_size: float
     test_size: float
- 
- 
-@dataclass
-class VariantDataConfig:
+
+
+class VariantDataConfig(ConfigModel):
     split: SplitConfig
     stratify: bool
- 
- 
-@dataclass
-class ExperimentConfig:
+
+
+class ExperimentConfig(ConfigModel):
     root: str
     auto_timestamp: bool
     use_variant_name: bool
- 
- 
-@dataclass
-class ModelConfig:
+
+
+class ModelConfig(ConfigModel):
     architecture: str
     pretrained: bool
     K: int
     N: int
     conv1_stride: int
     input_size: int
- 
- 
-@dataclass
-class VariantMLflowConfig:
+
+
+class VariantMLflowConfig(ConfigModel):
     model_name: str
- 
- 
-@dataclass
-class VariantConfig:
-    name: str                          # Variant name
+
+
+class VariantConfig(ConfigModel):
+    name: str
     preprocessing: str
-    num_classes: Optional[int]         # None for Dirichlet
+    num_classes: int | None
     label_file: Path
     data: VariantDataConfig
     experiment: ExperimentConfig
     mlflow: VariantMLflowConfig
-    model: Optional[ModelConfig] = None
-    dirichlet_branches: Optional[int] = None
- 
- 
-''' Data and transforms'''
- 
-@dataclass
-class NormalizeConfig:
+    model: ModelConfig | None = None
+    dirichlet_branches: int | None = None
+
+
+class NormalizeConfig(ConfigModel):
     mean: list[float]
     std: list[float]
 
-@dataclass
-class RawDataConfig:
+
+class RawDataConfig(ConfigModel):
     labels: Path
     mappings: Path
- 
-@dataclass
-class DataConfig:
+
+
+class TransformConfig(ConfigModel):
+    raw_transforms: list[dict[str, dict[str, Any]]]
+
+
+class SamplerConfig(ConfigModel):
+    type: str
+
+
+class DataConfig(ConfigModel):
     img_dir: Path
+    raw_paths: RawDataConfig
     preprocessed_dir: Path
     split_dir: Path
     train_path: Path
@@ -85,95 +89,107 @@ class DataConfig:
     eval_path: Path
     input_size: int
     normalize: NormalizeConfig
-    raw_paths: RawDataConfig
- 
- 
-'''Storages''' 
-@dataclass
-class LocalLogsConfig:
+    transforms: TransformConfig
+    sampler: SamplerConfig
+
+
+class LocalLogsConfig(ConfigModel):
     dir: Path
     tensorboard_dir: Path
     system_dir: Path
     reports_dir: Path
- 
- 
-@dataclass
-class LocalCheckpointsConfig:
+
+
+class LocalCheckpointsConfig(ConfigModel):
     dir: Path
     model_cache_dir: Path
- 
- 
-@dataclass
-class LocalStorageConfig:
+
+
+class LocalPredictionsConfig(ConfigModel):
+    dir: Path
+
+
+class LocalStorageConfig(ConfigModel):
     logs: LocalLogsConfig
     checkpoints: LocalCheckpointsConfig
-    predictions: Path
- 
- 
-@dataclass
-class CloudContainerConfig:
+    predictions: LocalPredictionsConfig
+
+
+class CloudContainerConfig(ConfigModel):
     container: str
- 
- 
-@dataclass
-class CloudLogsConfig:
+
+
+class CloudLogsConfig(ConfigModel):
     container: str
     dir: str
 
 
-@dataclass
-class CloudTensorboardConfig:
+class CloudTensorboardConfig(ConfigModel):
     dir: str
 
 
-@dataclass
-class CloudCheckpointsConfig:
+class CloudCheckpointsConfig(ConfigModel):
     container: str
     dir: str
 
 
-@dataclass
-class CloudPredictionsConfig:
+class CloudPredictionsConfig(ConfigModel):
     container: str
     dir: str
 
 
-@dataclass
-class CloudStorageConfig:
+class CloudStorageConfig(ConfigModel):
     dvc: CloudContainerConfig
     experiments: CloudContainerConfig
     logs: CloudLogsConfig
     tensorboard: CloudTensorboardConfig
     checkpoints: CloudCheckpointsConfig
     predictions: CloudPredictionsConfig
- 
- 
-@dataclass
-class StorageConfig:
+
+
+class StorageConfig(ConfigModel):
     local: LocalStorageConfig
     cloud: CloudStorageConfig
- 
- 
-''' Training and checkpoints '''
- 
-@dataclass
-class CheckpointTrainConfig:
+
+
+class CheckpointTrainConfig(ConfigModel):
     resume_from_checkpoint: bool
-    local_checkpoint_path: Optional[Path]
-    checkpoint_restore_path: Optional[str]       # blob path, not a local Path
+    local_checkpoint_path: Path | None
+    checkpoint_restore_path: str | None
+    run_id: str | None
     checkpoint_resume_hard: bool
-    run_id: Optional[str] = None  # Optional run_id for checkpointing, can be None if not specified
- 
- 
-@dataclass
-class SchedulerConfig:
+
+
+class CriterionConfig(ConfigModel):
+    name: str
+    weight: bool
+
+
+class SchedulerConfig(ConfigModel):
     type: str
     warmup_epochs: int
     min_lr: float
- 
- 
-@dataclass
-class TrainConfig:
+
+
+class RegularizationConfig(ConfigModel):
+    dropout: float
+    gradient_clipping: bool
+
+
+class TrainMLflowConfig(ConfigModel):
+    log_data: bool
+    log_model: bool
+    log_metrics: bool
+    experiment_name: str
+
+
+class TrainCheckpointConfig(ConfigModel):
+    save_freq_epoch: int
+    save_best: bool
+    save_latest: bool
+
+
+class TrainConfig(ConfigModel):
     checkpoints: CheckpointTrainConfig
     batch_size: int
     num_epochs: int
@@ -182,31 +198,65 @@ class TrainConfig:
     optimizer: str
     grad_clip_max_norm: float
     label_smoothing: float
+    criterion: CriterionConfig
     scheduler: SchedulerConfig
- 
- 
-'''Mlflow'''
-@dataclass
-class MLflowConfig:
+    regularization: RegularizationConfig
+    mlflow: TrainMLflowConfig
+    checkpoint: TrainCheckpointConfig
+
+
+class EvalConfig(ConfigModel):
+    batch_size: int
+    metrics: list[str]
+    checkpoints: dict[str, Any] | None
+
+
+class MLflowConfig(ConfigModel):
+    tracking_uri: str
     backend: str
     artifact_store: str
     experiment_name: str
- 
- 
-''' root configs'''
-@dataclass
-class RootConfig:
+
+
+class RootConfig(ConfigModel):
+    active_variant: str
     env: EnvConfig
     mode: str
-    active_variant: str
     variants: dict[str, VariantConfig]
     data: DataConfig
     storage: StorageConfig
+    augmentation: dict[str, Any]
     train: TrainConfig
+    eval: EvalConfig
     mlflow: MLflowConfig
- 
-    # Shortcut: pre-resolved active variant
+
+    @model_validator(mode="after")
+    def validate_active_variant(self) -> "RootConfig":
+        for name, variant in self.variants.items():
+            variant.name = name
+        if self.active_variant not in self.variants:
+            raise ValueError(f"Unknown active_variant: {self.active_variant}")
+        return self
+
     @property
     def variant(self) -> VariantConfig:
         return self.variants[self.active_variant]
+
+    def resolve_paths(self, root: Path) -> "RootConfig":
+        path_fields = [
+            (self.data, ("img_dir", "preprocessed_dir", "split_dir", "train_path", "val_path", "eval_path")),
+            (self.data.raw_paths, ("labels", "mappings")),
+            (self.storage.local.logs, ("dir", "tensorboard_dir", "system_dir", "reports_dir")),
+            (self.storage.local.checkpoints, ("dir", "model_cache_dir")),
+            (self.storage.local.predictions, ("dir",)),
+            (self.train.checkpoints, ("local_checkpoint_path",)),
+        ]
+        path_fields.extend((variant, ("label_file",)) for variant in self.variants.values())
+
+        for model, fields in path_fields:
+            for field_name in fields:
+                value = getattr(model, field_name)
+                if value is not None and not value.is_absolute():
+                    setattr(model, field_name, root / value)
+        return self
  
