@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import platform
 import subprocess
 import ctypes
+from loguru import logger
 
 
 

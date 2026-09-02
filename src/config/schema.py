@@ -107,6 +107,7 @@ class LocalCheckpointsConfig:
 class LocalStorageConfig:
     logs: LocalLogsConfig
     checkpoints: LocalCheckpointsConfig
+    predictions: Path
  
  
 @dataclass
@@ -115,9 +116,36 @@ class CloudContainerConfig:
  
  
 @dataclass
+class CloudLogsConfig:
+    container: str
+    dir: str
+
+
+@dataclass
+class CloudTensorboardConfig:
+    dir: str
+
+
+@dataclass
+class CloudCheckpointsConfig:
+    container: str
+    dir: str
+
+
+@dataclass
+class CloudPredictionsConfig:
+    container: str
+    dir: str
+
+
+@dataclass
 class CloudStorageConfig:
     dvc: CloudContainerConfig
     experiments: CloudContainerConfig
+    logs: CloudLogsConfig
+    tensorboard: CloudTensorboardConfig
+    checkpoints: CloudCheckpointsConfig
+    predictions: CloudPredictionsConfig
  
  
 @dataclass

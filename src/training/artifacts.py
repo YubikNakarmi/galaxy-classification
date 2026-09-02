@@ -60,7 +60,7 @@ def register_model(model,val_loader:DataLoader):
     )
     logger.success("Model logged to MLflow registry as {}.", cfg.variant.mlflow.model_name)
  
-def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> None:
+def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str,cfg)-> None:
 
     
     log_path = root / core_cfg["logging"]["ml"]["file"]
@@ -69,7 +69,8 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
     url = blob.upload_blob(blob_name=f"{run_id}/logs/training.log", data=log_path)
     mlflow.set_tag("log_url", url)
     logger.success("Uploaded training log to {}", url)
- 
+    
+    #tensorboard
     try:
         report_path = cfg.storage.local.logs.reports_dir / f"{experiment_name}.md"
         logger.info("Uploading training report from {}", report_path)
@@ -79,7 +80,8 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str)-> 
 
     except Exception as e:
         logger.exception(f"Could not upload report for run {run_id}: {e}")
- 
+    
+    #logs
     try:
         tb_run_dir = cfg.storage.local.logs.tensorboard_dir / experiment_name
         logger.info("Uploading tensorboard artifacts from {}", tb_run_dir)

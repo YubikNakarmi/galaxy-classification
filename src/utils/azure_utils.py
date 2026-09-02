@@ -323,3 +323,46 @@ class AzureBlobStorage:
 
     
         
+class CheckStatus:
+    
+    def __init__(self,blob_instance:Optional[AzureBlobStorage],
+                 conn_string:Optional[str] = _AZURE_STORAGE_CONNECTION_STRING):
+        
+        if not blob_instance and not conn_string:
+            raise ValueError("Either a blob_instance or a connection string must be provided.")
+        
+        self._conn_string = conn_string
+        
+        self.blob_instance = blob_instance or AzureBlobStorage(storage_connection_string=conn_string)
+
+    
+    def check_connection(self)-> bool:
+        """Check if the Azure Blob Storage connection is valid.
+
+        Returns:
+            True if the connection is valid; otherwise False.
+        """
+        try:
+            # Attempt to list containers to verify the connection
+            _ = self.blob_instance.list_containers()
+            return True
+        except Exception as e:
+            logger.exception(f"Azure Blob Storage connection check failed: {e}")
+            return False
+    
+    def check_containers(self,containers:list[str])-> dict[str,bool]:
+        """Check if the specified containers exist.
+
+        Args:
+            containers: List of container names to check.
+        """
+        
+        try:
+            for cont in containers:
+                exists = self.blob_instance.check_container_exists(cont)
+                logger.info(f"Container '{cont}' existence: {exists}")
+        
+        except Exception as e:
+            logger.exception(f"Error checking containers: {e}")
+            return {cont: False for cont in containers}
+            

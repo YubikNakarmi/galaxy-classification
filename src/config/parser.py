@@ -100,10 +100,26 @@ def _parse_storage(raw: dict, root: Path) -> StorageConfig:
                 dir=root / loc["checkpoints"]["dir"],
                 model_cache_dir=root / loc["checkpoints"]["model_cache_dir"]
             ),
+            predictions=root / loc["predictions"]["dir"],
         ),
         cloud=CloudStorageConfig(
             dvc=CloudContainerConfig(container=cld["dvc"]["container"]),
             experiments=CloudContainerConfig(container=cld["experiments"]["container"]),
+            logs=CloudLogsConfig(
+                container=cld["logs"]["container"],
+                dir=cld["logs"]["dir"],
+            ),
+            tensorboard=CloudTensorboardConfig(
+                dir=cld["tensorboard"]["dir"],
+            ),
+            checkpoints=CloudCheckpointsConfig(
+                container=cld["checkpoints"]["container"],
+                dir=cld["checkpoints"]["dir"],
+            ),
+            predictions=CloudPredictionsConfig(
+                container=cld["predictions"]["container"],
+                dir=cld["predictions"]["dir"],
+            ),
         ),
     )
  
