@@ -12,10 +12,23 @@ from rich.text import Text
 from pathlib import Path
 from src.config import RootConfig
 from typing import Optional
+import os
 
+ROOT = Path(__file__).parent.parent.parent
 
 
 class ConfigUI:
+    
+    ENV_VARS = [# for now its hardcoded but can be parsed fron .env file in future
+                "AZURE_STORAGE_CONNECTION_STRING",
+                "DVC_AZURE_CONTAINER_NAME",
+                "ROOT_DIR",
+                "MYSQLURL_REMOTE",
+                "MLFLOW_ARTIFACT_ROOT",
+                "MLFLOW_TRACKING_URI",
+                "LOG_JSON",
+                ]
+    
     def __init__(self, ui:UI):
         self.ui = ui
         self.root = Path(__file__).parent.parent.parent
@@ -28,6 +41,18 @@ class ConfigUI:
         Show the global configuration.
         """
         from src.utils.validation import validate_mlflow_connection, validate_env_vars
+        from src.cli.utils import check_azure_storage
+        from dotenv import load_dotenv
+        
+        load_dotenv(ROOT / ".env")
+        
+        
+        
+        az_sts = check_azure_storage()
+      
+        
+        
+        
         self.ui.rule(
             "[bold green]Global Configuration[/bold green]",
             style="cyan",
