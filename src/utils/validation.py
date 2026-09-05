@@ -11,7 +11,13 @@ import os
 @dataclass
 class EnvVar:
     name: str
-    priority: Literal["required","optional"]
+    priority: Optional[Literal["required","optional"]]=None
+    
+@dataclass 
+class EnvVarSts:
+    name:str
+    status:bool
+    
 
 def validate_mlflow_connection(ctx: Optional[Context],uri: Optional[str]) -> bool:
     from urllib.request import Request, urlopen
@@ -84,30 +90,43 @@ def validate_path_exists(root: str|Path,
 
 
 
-def validate_env_vars(required_vars: list[EnvVar], env_path: str = ".env")-> list[str]:
+def validate_env_vars(required_vars: list[EnvVar], env_path: str = ".env")-> list[EnvVarSts]:
     """
     Check if the required environment variables are set.
     """
     from loguru import logger
     load_dotenv(dotenv_path=env_path)
-
+    
+   
     validated = []
 
     for c in required_vars:
-
+        if not isinstance(c, EnvVar):
+            logger.exception(f"Invalid type for required_vars: {type(c)}. Expected EnvVar instance.")
+            raise TypeError("required_vars must be a list of EnvVar instances.")
+    
         var = os.getenv(c.name)
-        validated.append(var)
-
+    
         if var is None:
+            v = EnvVarSts(name=c.name, status=False)
+
+            
             if c.priority == "required":
                 logger.error(f"Required environment variable '{c.name}' is not set. \
                              Please set it in your environment or in the {env_path} file.")
-                raise EnvironmentError(f"Required environment variable '{c.name}' is not set.")
             elif c.priority == "optional":
                 logger.warning(f"Optional environment variable '{c.name}' is not set\
                                . Consider setting it in your environment or in the {env_path} file.")
             else:
                 logger.info(f"Optional environment variable '{c.name}' is not set. \
                             You may want to set it in your environment or in the {env_path} file.")
+                
+        else:
+            v = EnvVarSts(name=c.name, status=True)
+                
+        validated.append(v)
+
+                
+        
 
     return validated

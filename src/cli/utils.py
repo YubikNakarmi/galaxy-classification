@@ -31,8 +31,8 @@ def check_azure_storage()-> dict[str,bool]:
     
     return {
         "azure": azure_status,
-        "dvc": containers_status[0],
-        "experiments": containers_status[1]
+        "dvc": containers_status[dvc_container],
+        "experiments": containers_status[experiments_container]
     }
     
     

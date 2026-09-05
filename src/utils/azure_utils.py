@@ -325,7 +325,7 @@ class AzureBlobStorage:
         
 class CheckStatus:
     
-    def __init__(self,blob_instance:Optional[AzureBlobStorage],
+    def __init__(self,blob_instance:Optional[AzureBlobStorage]=None,
                  conn_string:Optional[str] = _AZURE_STORAGE_CONNECTION_STRING):
         
         if not blob_instance and not conn_string:
@@ -355,12 +355,21 @@ class CheckStatus:
 
         Args:
             containers: List of container names to check.
+        Returns:
+        
+            A dictionary mapping container names to their existence status (True/False).
+            With same order and argument dictionary.
         """
         
         try:
+            
+            res = {}
             for cont in containers:
                 exists = self.blob_instance.check_container_exists(cont)
                 logger.info(f"Container '{cont}' existence: {exists}")
+                res[cont] = exists
+                
+            return res
         
         except Exception as e:
             logger.exception(f"Error checking containers: {e}")

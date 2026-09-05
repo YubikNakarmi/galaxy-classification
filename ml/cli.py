@@ -90,9 +90,12 @@ def status(ctx):
     from src.cli.status import ConfigUI
     config_ui = ConfigUI(ui)
     ctx = load_context(service="ml",std_out=False)
-    config_ui.show_global_config(ctx.cfg,mlflow_uri=ctx.mlflow_tracking_uri,
+    try:
+        config_ui.show_global_config(ctx.cfg,mlflow_uri=ctx.mlflow_tracking_uri,
                                  banner=BANNER)
-
+    except Exception as e:
+        ui.error(f"Error while showing global configuration: {e}",show_execption=True)
+        raise click.ClickException(f"Error while showing global configuration: {e}")
    
 
    

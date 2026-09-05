@@ -12,7 +12,6 @@ from rich.text import Text
 from pathlib import Path
 from src.config import RootConfig
 from typing import Optional
-import os
 
 ROOT = Path(__file__).parent.parent.parent
 
@@ -40,26 +39,26 @@ class ConfigUI:
         """
         Show the global configuration.
         """
-        from src.utils.validation import validate_mlflow_connection, validate_env_vars
+        from src.utils.validation import validate_mlflow_connection, validate_env_vars, EnvVar
         from src.cli.utils import check_azure_storage
         from dotenv import load_dotenv
         
         load_dotenv(ROOT / ".env")
-        
-        
+    
         
         az_sts = check_azure_storage()
       
+        env_sts = validate_env_vars([EnvVar(name=var) for var in self.ENV_VARS])
+        mlflow_sts = validate_mlflow_connection(ctx=None, uri=mlflow_uri)
         
-        
-        
-        self.ui.rule(
-            "[bold green]Global Configuration[/bold green]",
-            style="cyan",
-            align="center",width=80,characters="*"
-        )
         if banner:
             self.ui.print(f"[bold yellow]{banner}[/bold yellow]", style="yellow", justify="left")
+        
+        self.ui.rule(
+                "[bold green]Global Configuration[/bold green]",
+                style="cyan",
+                align="center",width=80,characters="*")
+    #summaryu    
         summary = Table.grid(padding=(0, 2))
         summary.add_column(style="bold cyan", justify="right")
         summary.add_column()
@@ -70,6 +69,39 @@ class ConfigUI:
         summary.add_row("Seed\n", str(cfg.env.seed))
 
         self.ui.print(Panel(summary, border_style="cyan", padding=(0, 1)),width=80)
+        
+        #Env vars and azure
+        self.ui.rule("[bold green]Environment & Services[/bold green]", 
+                     style="cyan", align="center", width=80, characters="*")
+        conn_table = Table.grid(padding=(0, 2))
+        conn_table.add_column(style="bold cyan", justify="left")
+        conn_table.add_column(justify="left")
+        
+        conn_table.add_row("[bold]MLflow[/bold]", "[green]✓ connected[/green]" 
+                           if mlflow_sts else "[red]✗ unreachable[/red]")
+        
+    
+        env_tree = Tree(f"[bold green]Environment Variables[/bold green]", guide_style="dim cyan")
+        
+        for val in env_sts:
+            env_tree.add(f"[bold]{val.name}[/bold]: [green]✓ set[/green]" 
+                         if val.status else f"[bold]{val.name}[/bold]: [red]✗ not set[/red]")
+        conn_table.add_row(env_tree)
+        
+
+        az_tree = Tree(f"[bold green]Azure Storage[/bold green]", guide_style="dim cyan")
+        
+        az_tree.add(f"[bold]Azure Connection[/bold]: [green]✓ Connected[/green]" 
+                    if az_sts["azure"] else "[red]✗ unreachable[/red]")
+        az_tree.add(f"[bold]DVC Container[/bold]: [green]✓ exists[/green]" 
+                    if az_sts["dvc"] else "[red]✗ does not exist[/red]")
+        az_tree.add(f"[bold]Experiments Container[/bold]: [green]✓ exists[/green]" 
+                    if az_sts["experiments"] else "[red]✗ does not exist[/red]")
+        conn_table.add_row(az_tree)
+        
+        
+        self.ui.print(Panel(conn_table, border_style="cyan", padding=(0, 1)), width=80)
+
 
     def show_train_config(self,cfg:RootConfig, variant, mlflow_uri):
         """ 
@@ -207,6 +239,7 @@ class ConfigUI:
         self.ui.print(Panel(content, border_style="cyan", padding=(0, 1)),width=80)
         self.ui.print(f"Full configuration at: {self.ui.link_path(self.root / 'configs' / 'ml.yaml')} ", 
                       style="cyan", justify="left")
+        
 
 
 
