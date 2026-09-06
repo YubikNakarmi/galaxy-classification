@@ -215,11 +215,11 @@ def evaluate(ctx, run_id, variant, model_version,
     
 
         mlflow.set_experiment(experiment_name)
-        logger.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
+        ui.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
 
         run_name = f"eval_{model_name}_v{model_version}_" + \
                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        logger.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
+        ui.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
 
         with mlflow.start_run(run_name=run_name) as run:
             logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")

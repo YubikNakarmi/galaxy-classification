@@ -37,13 +37,36 @@ class AzureBlobStorage:
     creating containers, uploading blobs, listing resources, and deleting blobs.
 
 
+    Attributes:
+        container_name (str | None): Name of the currently selected
+            container.
+        blob_service_client (BlobServiceClient): Azure Blob Storage
+            service client used to interact with the storage account.
+        container_client (ContainerClient | None): Client for the
+            currently selected container.
+        theme: ...
+    
+    Args:
+        container_name (str | None, optional):
+            Name of the container to use. If ``None``, a container can
+            be selected later when required.
+        storage_connection_string (str | None, optional):
+            Azure Storage connection string used to authenticate with
+            the storage account. Defaults to the
+            ``AZURE_STORAGE_CONNECTION_STRING`` environment variable.
+
+    Raises:
+        ValueError:
+            If no Azure Storage connection string is provided.
+
     Example:
-        ``` python
+        ```python
         with AzureBlobStorage("images") as storage:
-            storage.create_container("images") 
-            storage.upload_blob("image.jpg", b"image data")
-            storage.print_info()
+            storage.create_container()
+            storage.upload_blob("image.jpg", "local_image.jpg")
+            print(storage.list_blobs())
         ```
+            
     """
 
     def __init__(self , container_name:Optional[str] = None, 

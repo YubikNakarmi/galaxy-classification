@@ -39,6 +39,7 @@ class ConfigUI:
         """
         Show the global configuration.
         """
+        #in future should add section level division so it can be invoked from cli for section filtering
         from src.utils.validation import validate_mlflow_connection, validate_env_vars, EnvVar
         from src.cli.utils import check_azure_storage
         from dotenv import load_dotenv

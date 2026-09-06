@@ -10,7 +10,7 @@ from src.cli.style import UI
 
 
 
-def train_default(cfg,ui:UI):# no console type hint for fast CLI
+def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     import mlflow
     import pandas as pd
     import torch
@@ -42,9 +42,9 @@ def train_default(cfg,ui:UI):# no console type hint for fast CLI
 
     #trainin start
 
-    logger.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
-    ui.info(f"Starting training for variant: {cfg.variant.name} with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
-
+    ui.info(f"Starting training for variant: {cfg.variant.name} \
+            with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
+    ui.info(f"Set MLflow experiment to '{experiment_name}' for training run.")
     logger.info(
         "Training configuration | device={} | seed={} | batch_size={} | num_epochs={} | train_path={} | val_path={}",
         cfg.env.device,
@@ -314,11 +314,6 @@ def train_default(cfg,ui:UI):# no console type hint for fast CLI
     return run_id
 
 
-def train_hubble():
-    pass
-
-def train_dirilchled():
-    pass
 # CLI entry
 @pipeline.command()
 @click.option("--variant","-v", type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", help="Training variant to use")
@@ -335,54 +330,63 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
 
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
     
+    try:
+        app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
+        cfg = app_ctx.cfg
+        MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
-    app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
-    cfg = app_ctx.cfg
-    MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
+        if show_config:
+            with ui.status("Displaying current configuration...", spinner="dots") as status:
+                config_ui = ConfigUI(ui)
+                config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
+                return  # Exit after showing the configuration
 
-    if show_config:
-        with ui.status("Displaying current configuration...", spinner="dots") as status:
-            config_ui = ConfigUI(ui)
-            config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
-            return  # Exit after showing the configuration
+        #slower importing time so modules were put below    
+        with ui.status("Starting training process...", spinner="dots") as status:
 
-    #slower importing time so modules were put below    
-    with ui.status("Starting training process...", spinner="dots") as status:
+            status.update("Importing required modules...")
 
-        status.update("Importing required modules...")
+            import mlflow
+            from src.training import validate_setup
+            from ml.pipeline.eval import evaluate as eval
 
-        import mlflow
-        from loguru import logger
-        from src.training import validate_setup
-        from ml.pipeline.eval import evaluate as eval
+            status.update("Validating setup...")
+            if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
+                        mlflow_tracking_uri=MLFLOW_TRACKING_URI,
+                        
+                    create_dirs =   [cfg.storage.local.checkpoints.dir,
+                    cfg.storage.local.logs.reports_dir,
+                    cfg.storage.local.logs.tensorboard_dir]):
+                
+                ui.error("setup validation failed. Please check the logs for details.")
+                return
 
-        status.update("Validating setup...")
-        if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
-                    mlflow_tracking_uri=MLFLOW_TRACKING_URI,
-                    
-                create_dirs =   [cfg.storage.local.checkpoints.dir,
-                cfg.storage.local.logs.reports_dir,
-                cfg.storage.local.logs.tensorboard_dir]):
-            
-            logger.error("Setup validation failed. Exiting.")
-            ui.error("setup validation failed. Please check the logs for details.")
-            return
+            status.update("starting training for variant: {}".format(variant))
+    
+                
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        if variant == "Default":
+            mlflow.set_experiment(cfg.variant.experiment.root)
+            run_id = train_default(cfg,ui)
+            ui.success("Training complete." ,style = "bold spring_green2")
 
-        status.update("starting training for variant: {}".format(variant))
- 
-            
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    if variant == "Default":
-        mlflow.set_experiment(cfg.variant.experiment.root)
-        run_id = train_default(cfg,ui)
-        ui.success("Training complete." ,style = "bold spring_green2")
+            if evaluate:
+                ui.rule("Evaluating the trained model...", style="bold spring_green2")
+                ui.info("Starting evaluation of the trained model...")
+                eval(ctx, run_id=run_id, variant=variant, model_version=None,
+                    min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
+                    model_source="mlflow")
+    except Exception as e:
+        ui.error(f"An error occurred during training: {e}",show_execption=True)
+        raise  
 
-        if evaluate:
-            ui.rule("Evaluating the trained model...", style="bold spring_green2")
-            ui.info("Starting evaluation of the trained model...")
-            eval(ctx, run_id=run_id, variant=variant, model_version=None,
-                min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
-                model_source="mlflow")
+
+
+def train_hubble():
+    pass
+
+def train_dirilchled():
+    pass
 
 
 if __name__ == "__main__":

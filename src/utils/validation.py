@@ -11,7 +11,7 @@ import os
 @dataclass
 class EnvVar:
     name: str
-    priority: Optional[Literal["required","optional"]]=None
+    required:bool=True
     
 @dataclass 
 class EnvVarSts:
@@ -111,10 +111,10 @@ def validate_env_vars(required_vars: list[EnvVar], env_path: str = ".env")-> lis
             v = EnvVarSts(name=c.name, status=False)
 
             
-            if c.priority == "required":
+            if c.required:
                 logger.error(f"Required environment variable '{c.name}' is not set. \
                              Please set it in your environment or in the {env_path} file.")
-            elif c.priority == "optional":
+            elif c.required == False:
                 logger.warning(f"Optional environment variable '{c.name}' is not set\
                                . Consider setting it in your environment or in the {env_path} file.")
             else:

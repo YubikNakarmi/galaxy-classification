@@ -213,11 +213,9 @@ nav:
       - Contributing: development/contributing.md
       - Modules:
           - Overview: development/modules/index.md
+          - CLI style: development/modules/cli.md
           - Dataset: development/modules/dataset.md
           - Model: development/modules/model.md
           - Utils: development/modules/utils.md
-      
-
-
-  
+          
   - Changelog: changelog.md

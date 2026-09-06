@@ -81,6 +81,13 @@ def cli(ctx,verbose):
 
 @cli.command()
 @click.pass_context
+# @click.option("--section", "-s",
+#                 multiple = True,
+#                 type=click.Choice(["all","summary","env","azure"]), 
+#                 default="ml",
+#                 help="Section to show status for.",
+#                 default = ("all",))
+                
 def status(ctx):
     """Check the status for the project"""
 
@@ -90,6 +97,8 @@ def status(ctx):
     from src.cli.status import ConfigUI
     config_ui = ConfigUI(ui)
     ctx = load_context(service="ml",std_out=False)
+    
+    
     try:
         config_ui.show_global_config(ctx.cfg,mlflow_uri=ctx.mlflow_tracking_uri,
                                  banner=BANNER)
@@ -98,7 +107,6 @@ def status(ctx):
         raise click.ClickException(f"Error while showing global configuration: {e}")
    
 
-   
    
 
 @cli.group()

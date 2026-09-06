@@ -27,13 +27,63 @@ class UI:
     """
     A simple UI class for printing in consonle with rich formatting and verbosity control.
 
+    Args:
+        verbose (int, optional):
+            Verbosity level controlling which messages are displayed.
+
+            - ``0``: Only success and important messages.
+            - ``1``: Include informational messages.
+            - ``2``: Include debug messages.
+            - ``3``: Include trace messages.
+
+            Defaults to ``0``.
+
+        console (Console | None, optional):
+            A Rich ``Console`` instance to use for output. If ``None``,
+            a console is initialized automatically.
+
+        theme (dict[str, str] | None, optional):
+            Custom color/style mapping for different message types.
+            If ``None``, the default :attr:`THEME` is used.
+
+        log (bool, optional):
+            Whether logging is enabled for the UI. Defaults to ``True``.
+    Attributes:
+        THEME (dict[str, str]):
+            Default Rich style definitions for different message types.
+
+        verbose (int):
+            Current verbosity level.
+
+        theme (dict[str, str]):
+            Active color/style configuration.
+
+        table (TableUI):
+            Table rendering component.
+
+        progress (ProgressUI):
+            Progress bar component.
+
+        train (TrainDashboard):
+            Training dashboard component.
+
+        eval (EvalDashboard):
+            Evaluation dashboard component.
+
+        tree (TreeUI):
+            Tree rendering component.
+
+        log (bool):
+            Whether logging is enabled.
+        
+        
     Example:
     ```python
-        ui = UI(verbose=2)
-        ui.success("Model loaded")           # always shown
-        ui.info("Processing batch 3/10")     # shown at level 1 and above
-        ui.debug(f"Batch shape: {shape}")    # shown at level 2 and above
-        ui.trace(f"Raw tensor: {tensor}")    # only shown at level 3 
+    ui = UI(verbose=2)
+    ui.success("Model loaded")           # always shown
+    ui.info("Processing batch 3/10")     # shown at level 1 and above
+    ui.debug(f"Batch shape: {shape}")    # shown at level 2 and above
+    ui.trace(f"Raw tensor: {tensor}")    # only shown at level 3 
     ```
     """
 
@@ -72,6 +122,7 @@ class UI:
         self.table = TableUI(self)#composition
         self.progress = ProgressUI(self)
         self.train = TrainDashboard(self)   
+        self.eval = EvalDashboard(self)
         self.tree = TreeUI(self)
         self.log = log #if you want to disable logging for some reason, you can set this to False
 
@@ -224,6 +275,83 @@ class ProgressUI:
             TimeRemainingColumn(),
             console=self.ui.console,
         )
+        
+class EvalDashboard:
+    """
+    Composed onto UI as ui.eval.
+
+    Example:
+        with ui.eval.session(steps=50) as dash:
+            for step in range(50):
+                loss, acc = eval_step(...)
+                dash.update_batch(loss=loss, acc=acc)
+    """
+
+    def __init__(self, ui):
+        self._ui = ui
+        self.metrics_history: list[dict] = []
+
+    def session(self, steps: int) -> "_EvalSession":
+        return _EvalSession(self._ui.console, steps, self.metrics_history)
+
+
+class _EvalSession:
+    def __init__(self, console: Console, steps: int, history: list[dict]):
+        self.console = console
+        self.steps = steps
+        self.history = history
+        self.live: Live | None = None
+        self.batch_task = None
+
+        self.batch_progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[bright_blue]Batch"),
+            BarColumn(),
+            MofNCompleteColumn(),
+            TextColumn("[dim]{task.fields[stats]}"),
+            console=console,
+        )
+
+    def __enter__(self) -> "_EvalSession":
+        self.batch_task = self.batch_progress.add_task(
+            "[magenta]Val batch", total=self.steps, stats=""
+        )
+        self.live = Live(self._render(), console=self.console, refresh_per_second=8)
+        self.live.__enter__()
+        return self
+
+    def __exit__(self, *exc):
+        self.live.__exit__(*exc)
+
+    def _render(self) -> Group:
+        table = Table(title="Latest Metrics", expand=True)
+        table.add_column("Step", justify="right")
+        table.add_column("Loss", justify="right", style="bright_blue")
+        table.add_column("Acc", justify="right", style="bright_blue")
+
+        for row in self.history[-5:]:
+            table.add_row(
+                str(row["step"]),
+                f"{row.get('loss', 0):.4f}",
+                f"{row.get('acc', 0):.2%}",
+            )
+
+        return Group(
+            self.batch_progress,
+            Panel(table, title="Evaluation Metrics", border_style="cyan"),
+        )
+
+    def update_batch(self, **stats):
+        step = self.batch_progress.tasks[self.batch_task].completed + 1
+        self.history.append({"step": step, **stats})
+
+        stat_str = "  ".join(
+            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+            for k, v in stats.items()
+        )
+        self.batch_progress.update(self.batch_task, advance=1, stats=stat_str)
+        self.live.update(self._render())
+        
 class TrainDashboard:
     """
     Composed onto UI as ui.train.
