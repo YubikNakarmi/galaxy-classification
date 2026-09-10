@@ -4,28 +4,17 @@ import importlib
 
 
 from ml.cli import cli
+from src.cli.utils import LazyPipelineGroup
 
-class LazyPipelineGroup(click.Group):
-    """Load pipeline commands only when they are invoked."""
+class LazySetupGroup(LazyPipelineGroup):
 
     command_modules = {
         "setup": ("ml.setup.setup", "main"),
-        
-    }
+        }
 
-    def list_commands(self, ctx):
-        return sorted(self.command_modules)
+    
 
-    def get_command(self, ctx, name):
-        module_info = self.command_modules.get(name)
-        if module_info is None:
-            return None
-
-        module_name, command_name = module_info
-        module = importlib.import_module(module_name)
-        return getattr(module, command_name)
-
-@cli.group(cls=LazyPipelineGroup)
+@cli.group(cls=LazySetupGroup)
 @click.pass_context
 def setup(ctx):
     '''Setup commands for the Galaxy Classification project.'''

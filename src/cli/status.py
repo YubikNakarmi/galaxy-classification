@@ -92,7 +92,7 @@ class ConfigUI:
 
         az_tree = Tree(f"[bold green]Azure Storage[/bold green]", guide_style="dim cyan")
         
-        az_tree.add(f"[bold]Azure Connection[/bold]: [green]✓ Connected[/green]" 
+        az_tree.add(f"[bold]Azure Storage Connection[/bold]: [green]✓ Connected[/green]" 
                     if az_sts["azure"] else "[red]✗ unreachable[/red]")
         az_tree.add(f"[bold]DVC Container[/bold]: [green]✓ exists[/green]" 
                     if az_sts["dvc"] else "[red]✗ does not exist[/red]")

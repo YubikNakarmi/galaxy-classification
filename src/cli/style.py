@@ -150,7 +150,9 @@ class UI:
         if self.log:
             logger.opt(depth=1).warning(message)
 
-    def error(self, message: str,style:Optional[str]=None, show_execption:bool=False):
+    def error(self, message: str,style:Optional[str]= None, 
+              show_execption:bool=False):
+        
         self.console.print(f"[error]✖ {message}[/error] ",style = style)
         
         if self.log:

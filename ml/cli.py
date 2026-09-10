@@ -31,7 +31,8 @@ command_modules = {
     "cache": ("ml.cache", "cache"),
     "status": ("ml.cli", "status"),
     "log":("ml.cli","log"),
-    "bentoml":("ml.wrappers.bentoml","bentoml")
+    "bentoml":("ml.wrappers.bentoml","bentoml"),
+    "cloud":("ml.cloud.azure_storage","cloud"),
 }
 
 class LazyRootGroup(LazyPipelineGroup):
@@ -59,15 +60,21 @@ def cli(ctx,verbose):
     """Command line interface for the Galaxy Classification project."""
     
     ui = UI(verbose)
-
+    
+    
     ctx.obj = ui  # to avaoid conflict with app contexxt used downstream
-    ctx.meta["ui"] = ctx.obj #string typed extract with ui = cts["ui"]
-    if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
-        click.secho(BANNER, fg="cyan", bold=True)
-        click.echo(ctx.get_help())
+    ctx.meta["ui"] = ctx.obj  #string typed extract with ui = cts["ui"]
+    
+    try:
+        if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
+            click.secho(BANNER, fg="cyan", bold=True)
+            click.echo(ctx.get_help())
             
+    except Exception as e:
+        ui.log= False
+        ui.error(f"Error while executing command: {e}",show_execption=True)
+        raise click.ClickException(f"Error while executing command: {e}")
    
-
 
 @cli.command()
 @click.pass_context

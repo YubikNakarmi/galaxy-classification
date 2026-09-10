@@ -14,12 +14,16 @@ class LazyPipelineGroup(click.Group):
     
     Example:
     ```python
-        command_modules = {
-                "train": ("ml.pipeline.train", "train"),
-                "evaluate": ("ml.pipeline.eval", "evaluate"),
-                "preprocess": ("ml.pipeline.preprocess", "preprocess"),
-                
-            }
+        from src.cli.utils import LazyPipelineGroup
+        class LazyGroup(LazyPipelineGroup):
+
+            command_modules = {
+                "setup": ("ml.setup.setup", "main"),
+                }
+        
+        @click.group(cls=LazyGroup)
+        def setup(ctx):
+            pass
     ```
     """
 

@@ -297,24 +297,31 @@ class AzureBlobStorage:
         except Exception as e:
             logger.exception(f"Error deleting blob: {e}")
 
-    def print_info(self):
+    def print_info(self,blob=False)->dict[str, str | list[str] | bool]:
 
         """Log information about the current storage account.
 
         Logs the active container, storage account name, available blobs, and
         available containers.
         """
+        result = {}
 
-        logger.info(f"Container Name: {self.container_name}")
-        logger.info(f"storage_name: {self.blob_service_client.account_name}")
+        logger.info(f"storage_account_name: {self.blob_service_client.account_name}")
+        result["storage_account_name"] = self.blob_service_client.account_name
 
-        for blob in self.list_blobs():
-            logger.info(f"Blob Name: {blob}")
-        
+        if blob:
+            for blob in self.list_blobs():
+                logger.info(f"Blob Name: {blob}")
+                result[blob] = True
+
         container_names = self.list_containers()
         if container_names is not None:
+            result["Containers"]=container_names
+
+
             for container in container_names:
                 logger.info(f"Container Name: {container}")
+        return result
                 
     #helpers
     def _ensure_container_client(self) -> ContainerClient:

@@ -3,7 +3,8 @@ from ml.cli import cli
 from src.cli.utils import LazyPipelineGroup
 
 command_modules = {
-    "azure_storage": ("ml.cloud.azure_storage", "cloud"),
+    "status": ("ml.cloud.azure_storage", "check_storage_status"),
+    "upload-blob": ("ml.cloud.azure_storage", "upload_blob"),
 }
 
 class CloudGroup(LazyPipelineGroup):
