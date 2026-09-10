@@ -326,20 +326,22 @@ class _EvalSession:
     def _render(self) -> Group:
         table = Table(title="Latest Metrics", expand=True)
         table.add_column("Step", justify="right")
-        table.add_column("Loss", justify="right", style="bright_blue")
-        table.add_column("Acc", justify="right", style="bright_blue")
 
-        for row in self.history[-5:]:
-            table.add_row(
-                str(row["step"]),
-                f"{row.get('loss', 0):.4f}",
-                f"{row.get('acc', 0):.2%}",
-            )
+        if self.history:
+            for key in self.history[-1]:
+                if key != "step":
+                    table.add_column(key, justify="right", style="bright_blue")
+
+            for row in self.history[-5:]:
+                table.add_row(
+                    str(row["step"]),
+                    *[f"{row[k]:.4f}" if isinstance(row[k], float) else str(row[k])
+                    for k in row if k != "step"],
+                )
 
         return Group(
             self.batch_progress,
-            Panel(table, title="Evaluation Metrics", border_style="cyan"),
-        )
+            Panel(table, title="Evaluation Metrics", border_style="cyan"),)
 
     def update_batch(self, **stats):
         step = self.batch_progress.tasks[self.batch_task].completed + 1

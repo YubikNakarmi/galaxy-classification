@@ -15,6 +15,12 @@ cli:
       debug: "grey50"
       trace: "dim grey37"
       banner: "bold magenta"
+
+cloud:
+  azure:
+    storage:
+      connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
+      default_container: galaxy-experiments
         
 ml:
   config_file: configs/ml.yaml

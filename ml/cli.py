@@ -5,8 +5,7 @@ import importlib
 import click
 
 from src.cli.style import UI
-from typing import Literal
-
+from src.cli.utils import LazyPipelineGroup
 
 
 BANNER =r"""
@@ -26,31 +25,19 @@ BANNER =r"""
 ✦   .        *       .    ✦        .
 """
 
-class LazyRootGroup(click.Group):# duplocated on sublevels instead of single import from /src to avaoid deps chaining
-    """Load the top-level pipeline command only when it is requested."""
+command_modules = {
+    "pipeline": ("ml.pipeline", "pipeline"),
+    "setup": ("ml.setup", "setup"),
+    "cache": ("ml.cache", "cache"),
+    "status": ("ml.cli", "status"),
+    "log":("ml.cli","log"),
+    "bentoml":("ml.wrappers.bentoml","bentoml")
+}
 
-    command_modules = {
-        "pipeline": ("ml.pipeline", "pipeline"),
-        "setup": ("ml.setup", "setup"),
-        "cache": ("ml.cache", "cache"),
-        "status": ("ml.cli", "status"),
-        "log":("ml.cli","log"),
-        "bentoml":("ml.wrappers.bentoml","bentoml")
-    }
-
-    def list_commands(self, ctx):
-        return sorted(self.command_modules)
-
-    def get_command(self, ctx, name):
-        module_info = self.command_modules.get(name)
-
-        if module_info is None:
-            return None
-
-        module_name, command_name = module_info
-        module = importlib.import_module(module_name)
-        return getattr(module, command_name)
-
+class LazyRootGroup(LazyPipelineGroup):
+    """Load root commands only when they are invoked."""
+    command_modules = command_modules
+  
 def get_version() -> str:
     from importlib.metadata import PackageNotFoundError,version
     try:
@@ -70,13 +57,16 @@ def get_version() -> str:
 @click.pass_context
 def cli(ctx,verbose):
     """Command line interface for the Galaxy Classification project."""
-    ctx.obj = UI(verbose)  # to avaoid conflict with app contexxt used downstream
+    
+    ui = UI(verbose)
+
+    ctx.obj = ui  # to avaoid conflict with app contexxt used downstream
     ctx.meta["ui"] = ctx.obj #string typed extract with ui = cts["ui"]
     if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
         click.secho(BANNER, fg="cyan", bold=True)
         click.echo(ctx.get_help())
-
-
+            
+   
 
 
 @cli.command()
