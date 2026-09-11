@@ -233,4 +233,5 @@ blob.print_info()
 
 ## Sources / References
 - [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
+- [Galaxy Zoo dataset](https://data.galaxyzoo.org)
 - [Galaxy Morphology Classification with Deep Convolutional Neural Networks](https://arxiv.org/abs/1807.10406)
