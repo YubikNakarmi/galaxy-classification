@@ -57,6 +57,9 @@ and more
 | Infrastructure     | Terraform, Azure, Docker / Docker Compose |
 | Docs               | MkDocs |
 | cli                 | Click, Rich |
+
+## Architecture
+![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
 ## Running
 
 The project itself is build using microservice architecture. The project is divided into 3 main services:
