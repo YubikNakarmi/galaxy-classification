@@ -45,3 +45,4 @@ adapted for 128×128 galaxy images.
 Just training the head of the default model on Hubble images (with the same 5 classes) yields a model that performs poorly on Galaxy Zoo images. The `hubble` variant is a modified architecture that is more suitable for Hubble images, with a smaller width multiplier and fewer units per group.
 
 # Dirlichlet variant
+The dirichlet variant uses multi head output that ouputs a vector with dirichlet alphas. For training this model we have to use a dirichlet multinominal negative log likelyhood loss function. Since pythorch doesn't have this I had to customly code this function. 
