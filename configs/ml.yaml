@@ -163,7 +163,7 @@ storage:
 
     checkpoints:
       container: galaxy-experiments
-      dir: models/ #{run_id}/models/best.pt
+      dir: models/ #{run_id}/models/best.pt in cloud continer
 
     predictions:
       container: galaxy-experiments

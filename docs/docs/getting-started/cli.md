@@ -22,6 +22,12 @@ You should see something like this:
 > More detailed architecute of cli on [CLI](/docs/docs/development/cli.md#overview) documentation.
 
 ## Basic Commands
+### Status
+```sh
+galax status
+```
+
+![Status](../assets/cli/status.png)
 
 ### Importing a model
 ```sh

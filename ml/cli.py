@@ -5,8 +5,7 @@ import importlib
 import click
 
 from src.cli.style import UI
-from typing import Literal
-
+from src.cli.utils import LazyPipelineGroup
 
 
 BANNER =r"""
@@ -26,31 +25,20 @@ BANNER =r"""
 ✦   .        *       .    ✦        .
 """
 
-class LazyRootGroup(click.Group):# duplocated on sublevels instead of single import from /src to avaoid deps chaining
-    """Load the top-level pipeline command only when it is requested."""
+command_modules = {
+    "pipeline": ("ml.pipeline", "pipeline"),
+    "setup": ("ml.setup", "setup"),
+    "cache": ("ml.cache", "cache"),
+    "status": ("ml.cli", "status"),
+    "log":("ml.cli","log"),
+    "bentoml":("ml.wrappers.bentoml","bentoml"),
+    "cloud":("ml.cloud.azure_storage","cloud"),
+}
 
-    command_modules = {
-        "pipeline": ("ml.pipeline", "pipeline"),
-        "setup": ("ml.setup", "setup"),
-        "cache": ("ml.cache", "cache"),
-        "status": ("ml.cli", "status"),
-        "log":("ml.cli","log"),
-        "bentoml":("ml.wrappers.bentoml","bentoml")
-    }
-
-    def list_commands(self, ctx):
-        return sorted(self.command_modules)
-
-    def get_command(self, ctx, name):
-        module_info = self.command_modules.get(name)
-
-        if module_info is None:
-            return None
-
-        module_name, command_name = module_info
-        module = importlib.import_module(module_name)
-        return getattr(module, command_name)
-
+class LazyRootGroup(LazyPipelineGroup):
+    """Load root commands only when they are invoked."""
+    command_modules = command_modules
+  
 def get_version() -> str:
     from importlib.metadata import PackageNotFoundError,version
     try:
@@ -70,36 +58,52 @@ def get_version() -> str:
 @click.pass_context
 def cli(ctx,verbose):
     """Command line interface for the Galaxy Classification project."""
-    ctx.obj = UI(verbose)  # to avaoid conflict with app contexxt used downstream
-    ctx.meta["ui"] = ctx.obj #string typed extract with ui = cts["ui"]
-    if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
-        click.secho(BANNER, fg="cyan", bold=True)
-        click.echo(ctx.get_help())
-
-
-
+    
+    ui = UI(verbose)
+    
+    
+    ctx.obj = ui  # to avaoid conflict with app contexxt used downstream
+    ctx.meta["ui"] = ctx.obj  #string typed extract with ui = cts["ui"]
+    
+    try:
+        if ctx.invoked_subcommand is None:#for top-level command, show help if no subcommand is provided
+            click.secho(BANNER, fg="cyan", bold=True)
+            click.echo(ctx.get_help())
+            
+    except Exception as e:
+        ui.log= False
+        ui.error(f"Error while executing command: {e}",show_execption=True)
+        raise click.ClickException(f"Error while executing command: {e}")
+   
 
 @cli.command()
 @click.pass_context
+# @click.option("--section", "-s",
+#                 multiple = True,
+#                 type=click.Choice(["all","summary","env","azure"]), 
+#                 default="ml",
+#                 help="Section to show status for.",
+#                 default = ("all",))
+                
 def status(ctx):
     """Check the status for the project"""
 
     ui = ctx.obj or ctx.meta.get("ui") or UI(verbose=0)
 
-    ui.rule("[bold green]Project Status[/bold green]", style="bold green",
-            align="center",characters="─",width=80)
-
-    from rich.table import Table
-    from rich import box
-
-    #mlflow status
-    #api status
-    #env status
-    #some cfg
-    #core cfgs
-    #dirs checks
-
+    from src.utils.bootstrap import load_context
+    from src.cli.status import ConfigUI
+    config_ui = ConfigUI(ui)
+    ctx = load_context(service="ml",std_out=False)
+    
+    
+    try:
+        config_ui.show_global_config(ctx.cfg,mlflow_uri=ctx.mlflow_tracking_uri,
+                                 banner=BANNER)
+    except Exception as e:
+        ui.error(f"Error while showing global configuration: {e}",show_execption=True)
+        raise click.ClickException(f"Error while showing global configuration: {e}")
    
+
    
 
 @cli.group()
@@ -123,7 +127,6 @@ def log_show(ctx,type,level,lines,service):
 
     from loguru import logger
     from src.utils.yaml_utils import load_yaml
-    from src.utils.logging_config import setup_ml_logging, setup_app_logging
     from pathlib import Path
 
     #log format in regex

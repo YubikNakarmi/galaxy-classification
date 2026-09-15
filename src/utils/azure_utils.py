@@ -37,13 +37,36 @@ class AzureBlobStorage:
     creating containers, uploading blobs, listing resources, and deleting blobs.
 
 
+    Attributes:
+        container_name (str | None): Name of the currently selected
+            container.
+        blob_service_client (BlobServiceClient): Azure Blob Storage
+            service client used to interact with the storage account.
+        container_client (ContainerClient | None): Client for the
+            currently selected container.
+        theme: ...
+    
+    Args:
+        container_name (str | None, optional):
+            Name of the container to use. If ``None``, a container can
+            be selected later when required.
+        storage_connection_string (str | None, optional):
+            Azure Storage connection string used to authenticate with
+            the storage account. Defaults to the
+            ``AZURE_STORAGE_CONNECTION_STRING`` environment variable.
+
+    Raises:
+        ValueError:
+            If no Azure Storage connection string is provided.
+
     Example:
-        ``` python
+        ```python
         with AzureBlobStorage("images") as storage:
-            storage.create_container("images") 
-            storage.upload_blob("image.jpg", b"image data")
-            storage.print_info()
+            storage.create_container()
+            storage.upload_blob("image.jpg", "local_image.jpg")
+            print(storage.list_blobs())
         ```
+            
     """
 
     def __init__(self , container_name:Optional[str] = None, 
@@ -274,24 +297,31 @@ class AzureBlobStorage:
         except Exception as e:
             logger.exception(f"Error deleting blob: {e}")
 
-    def print_info(self):
+    def print_info(self,blob=False)->dict[str, str | list[str] | bool]:
 
         """Log information about the current storage account.
 
         Logs the active container, storage account name, available blobs, and
         available containers.
         """
+        result = {}
 
-        logger.info(f"Container Name: {self.container_name}")
-        logger.info(f"storage_name: {self.blob_service_client.account_name}")
+        logger.info(f"storage_account_name: {self.blob_service_client.account_name}")
+        result["storage_account_name"] = self.blob_service_client.account_name
 
-        for blob in self.list_blobs():
-            logger.info(f"Blob Name: {blob}")
-        
+        if blob:
+            for blob in self.list_blobs():
+                logger.info(f"Blob Name: {blob}")
+                result[blob] = True
+
         container_names = self.list_containers()
         if container_names is not None:
+            result["Containers"]=container_names
+
+
             for container in container_names:
                 logger.info(f"Container Name: {container}")
+        return result
                 
     #helpers
     def _ensure_container_client(self) -> ContainerClient:
@@ -323,3 +353,55 @@ class AzureBlobStorage:
 
     
         
+class CheckStatus:
+    
+    def __init__(self,blob_instance:Optional[AzureBlobStorage]=None,
+                 conn_string:Optional[str] = _AZURE_STORAGE_CONNECTION_STRING):
+        
+        if not blob_instance and not conn_string:
+            raise ValueError("Either a blob_instance or a connection string must be provided.")
+        
+        self._conn_string = conn_string
+        
+        self.blob_instance = blob_instance or AzureBlobStorage(storage_connection_string=conn_string)
+
+    
+    def check_connection(self)-> bool:
+        """Check if the Azure Blob Storage connection is valid.
+
+        Returns:
+            True if the connection is valid; otherwise False.
+        """
+        try:
+            # Attempt to list containers to verify the connection
+            _ = self.blob_instance.list_containers()
+            return True
+        except Exception as e:
+            logger.exception(f"Azure Blob Storage connection check failed: {e}")
+            return False
+    
+    def check_containers(self,containers:list[str])-> dict[str,bool]:
+        """Check if the specified containers exist.
+
+        Args:
+            containers: List of container names to check.
+        Returns:
+        
+            A dictionary mapping container names to their existence status (True/False).
+            With same order and argument dictionary.
+        """
+        
+        try:
+            
+            res = {}
+            for cont in containers:
+                exists = self.blob_instance.check_container_exists(cont)
+                logger.info(f"Container '{cont}' existence: {exists}")
+                res[cont] = exists
+                
+            return res
+        
+        except Exception as e:
+            logger.exception(f"Error checking containers: {e}")
+            return {cont: False for cont in containers}
+            

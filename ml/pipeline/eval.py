@@ -16,7 +16,7 @@ from ml.pipeline import pipeline
 root = Path(__file__).resolve().parent.parent
 
 #no typing to lower the latnency of click cli command and avoid loading config multiple times in each command
-def eval(metrics:dict,model,cfg)-> dict:
+def eval(metrics:dict,model,cfg,ui:UI)-> dict:
 
     from torch.utils.data import DataLoader
     from tqdm import tqdm
@@ -63,22 +63,29 @@ def eval(metrics:dict,model,cfg)-> dict:
         else:
             logger.info("Model state dict loaded successfully into skeleton model.")
             logger.info("No missing or unexpected keys found. Proceeding with evaluation.")
-        
-    for img,labels in tqdm(data_loader, desc="Evaluating", unit="batch"):
-        with torch.no_grad():
-            outputs = model(img)
-            preds = torch.softmax(outputs, dim=1)
+    
+    with ui.eval.session(len(data_loader)) as session:
+        for img,labels in data_loader:
+            
+            with torch.no_grad():
+                outputs = model(img)
+                preds = torch.softmax(outputs, dim=1)
 
-            for m in metrics.values():#update at each batch
-                m.update(preds, labels)
+                for m in metrics.values():#update at each batch
+                    m.update(preds, labels)
+                    
+                session.update_batch(
+                    acc=metrics["accuracy"].compute().item(),
+                    f1_macro=metrics["f1_macro"].compute().item(),)
+                
     results = {
-                "acc":               metrics["accuracy"].compute().item(),
-                "f1_micro":          metrics["f1_micro"].compute().item(),
-                "f1_macro":          metrics["f1_macro"].compute().item(),
-                "precision_macro":   metrics["precision_macro"].compute().item(),
-                "recall_macro":      metrics["recall_macro"].compute().item(),
-                "roc_auc":           metrics["roc_auc"].compute().item(),
-                        }
+            "acc":               metrics["accuracy"].compute().item(),
+            "f1_micro":          metrics["f1_micro"].compute().item(),
+            "f1_macro":          metrics["f1_macro"].compute().item(),
+            "precision_macro":   metrics["precision_macro"].compute().item(),
+            "recall_macro":      metrics["recall_macro"].compute().item(),
+            "roc_auc":           metrics["roc_auc"].compute().item(),
+            }
 
     for m in metrics.values():
         m.reset()
@@ -107,7 +114,7 @@ def evaluate(ctx, run_id, variant, model_version,
     
     '''
     from src.utils.bootstrap import load_context
-    from src.cli.utils import ConfigUI
+    from src.cli.status import ConfigUI
     
     
     ui = ctx.find_object(UI) or UI(verbose=0)
@@ -215,11 +222,11 @@ def evaluate(ctx, run_id, variant, model_version,
     
 
         mlflow.set_experiment(experiment_name)
-        logger.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
+        ui.info(f"Set MLflow experiment to '{experiment_name}' for evaluation run.")
 
         run_name = f"eval_{model_name}_v{model_version}_" + \
                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        logger.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
+        ui.info(f"Starting MLflow run '{run_name}' for evaluation of model '{model_name}' version '{model_version}'")
 
         with mlflow.start_run(run_name=run_name) as run:
             logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")

@@ -57,6 +57,9 @@ and more
 | Infrastructure     | Terraform, Azure, Docker / Docker Compose |
 | Docs               | MkDocs |
 | cli                 | Click, Rich |
+
+## Architecture
+![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
 ## Running
 
 The project itself is build using microservice architecture. The project is divided into 3 main services:
@@ -233,4 +236,5 @@ blob.print_info()
 
 ## Sources / References
 - [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
+- [Galaxy Zoo dataset](https://data.galaxyzoo.org)
 - [Galaxy Morphology Classification with Deep Convolutional Neural Networks](https://arxiv.org/abs/1807.10406)

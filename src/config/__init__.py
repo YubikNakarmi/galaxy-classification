@@ -4,7 +4,7 @@ from pathlib import Path
  
 from src.utils.yaml_utils import load_yaml
 from src.config.schema import RootConfig
-from .parser import parse_config, RootConfig
+from .parser import parse_config
  
 
 __all__ = ["load_and_validate_config", "RootConfig"]

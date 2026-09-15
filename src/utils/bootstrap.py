@@ -26,6 +26,7 @@ class Context:
     mlflow_tracking_uri: str
     image_dir: Path
     model_metadata_path:Path
+    core_cfg: dict | None = None  # Optional core configuration dictionary
 
 def load_context( *,
     service: str = "ml",
@@ -68,4 +69,4 @@ def load_context( *,
     return Context(root=ROOT, cfg=cfg, 
                    mlflow_tracking_uri=mlflow_uri, 
                    image_dir=image_dir,
-                   model_metadata_path=metadata)
+                   model_metadata_path=metadata,core_cfg=core_cfg)
