@@ -232,7 +232,7 @@ blob.print_info()
 - **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
 - **Config management** — evaluate adopting Hydra or OmegaConf instead of the current custom-built parser, which was written under time pressure while focused on the rest of the project.
 - **more variants** — add more model variants to experiment with, including larger models and different architectures.
- 
+- **multi format loading from cache**- currently cache only handles the .pt format doesnt support other forats like .onnx, .tflite, .torchscript. But you can export the with cli. 
 
 ## Sources / References
 - [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
