@@ -1,4 +1,4 @@
-## CLI styleing
+## CLI styling
 
 Main class for cli styles
-::: src.utils.cli.style.UI
+::: src.cli.style.UI
