@@ -81,6 +81,7 @@ docs = [
     "mkdocs-awesome-pages-plugin==2.10.1",
     "pymdown-extensions==10.21.3",
     "mkdocstrings[python]>=0.18",
+    "mkdocs-bibtex==4.4.0"
 ]
 
 extra_cli=[
