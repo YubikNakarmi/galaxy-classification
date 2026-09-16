@@ -32,16 +32,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 #fetch all commit history
-
+      
+      - name: Install UV
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
-        run: |
-          pip install mkdocs mkdocs-git-revision-date-localized-plugin mkdocs-material mkdocs-minify-plugin mkdocs-awesome-pages-plugin pymdown-extensions mkdocstrings[python]>=0.18
-
+        run: uv sync --forzen --extra docs
       - name: Build documentation
         run: |
           mkdocs build -f docs/mkdocs.yml 
