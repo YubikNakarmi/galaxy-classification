@@ -563,12 +563,12 @@ class ModelLoader:
         try:
 
             #gaurd, try with mlflow fallabck to local metadata
-            try:
+            if validate_mlflow_connection(self.ctx):
                 logger.info(f"Attempting to load champion model for '{self.registered_model_name}' from MLflow alias 'champion'")
                 champion_version = self.client.get_model_version_by_alias(self.registered_model_name, "champion")
                 champion_run_id = champion_version.run_id
 
-            except Exception:
+            else:
                 logger.warning("Failed to load from MLflow alias; using local metadata to get run_id")
                 met = self.metadata
                 file = met._load()

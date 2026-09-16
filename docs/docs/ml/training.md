@@ -78,11 +78,12 @@ These variables control training behaviour. Set them in your `.env` file or inje
 ## Training Flow
 
 ### Modular Approach
-`train.py ` is a wrapper that wraps main training files in `src/training/`
+`train.py ` is a wrapper that wraps main training files in `src.training`
 
 
 
 ### checkpoints
+By default Checkpoints are updated using [src.training.checkpoints](https://github.com/YubikNakarmi/galaxy-classification/blob/dev/src/training/checkpoint.py). As the architecutral diagrams shws the checkpoints are updated both locally in and Azure storage blob. 
 - eval checkpoints
 - training epoch based checkpoints
 
