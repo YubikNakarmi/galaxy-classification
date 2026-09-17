@@ -41,7 +41,8 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     raw = load_yaml(root / "configs" / "backend.yaml") #map yaml configs to Settings classes ( has to have same format)
 
-    raw["database"]["url"] = os.environ["DATABASE_URL"]
+    
+    raw["database"]["url"] = os.getenv("DATABASE_URL","sqlite:///app.db") 
     raw["azure_storage"]["connection_string"] = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
 
     try:

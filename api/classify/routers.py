@@ -7,9 +7,9 @@ from celery.result import AsyncResult
 
 from api.classify.models import ClassificationResponseRecord, ImageUpload
 from api.tasks import celery_app, classify_image
-from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
+from .schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 
-from exceptions import *
+from api.exceptions import *
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.storage import get_storage
@@ -20,7 +20,7 @@ from src.utils.yaml_utils import load_yaml
 from pathlib import Path
 from prometheus_client import Counter, Histogram
 
-root = Path(__file__).parent.parent
+root = Path(__file__).parent.parent.parent
 cfg = load_yaml(root / 'configs' / 'core.yaml')
 setup_app_logging(config = cfg,service = "API",json_logs = True)
 intercept_stdlib_logging() #stdlib logging for container

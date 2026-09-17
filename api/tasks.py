@@ -7,8 +7,8 @@ from core.storage import get_storage
 import uuid
 import datetime as dt
 import httpx
-from classify.models import ClassificationResponseRecord, ImageUpload, Prediction
-from exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
+from .classify.models import ClassificationResponseRecord, ImageUpload, Prediction
+from .exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
 from prometheus_client import Counter
 
 PIPELINE_EXCEPTIONS = Counter(

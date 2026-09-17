@@ -183,5 +183,5 @@ def parse_config(raw: dict, root: Path) -> RootConfig:
             "mappings": raw_paths[1]["mappings"],
         },
     }
-
+    
     return RootConfig.model_validate(payload).resolve_paths(root)

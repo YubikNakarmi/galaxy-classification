@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 from typing import Optional, Sequence
 
 from typing import TYPE_CHECKING
@@ -158,7 +159,7 @@ class UI:
         if self.log:
             logger.opt(depth=1).error(message)
 
-        if show_execption:
+        if show_execption and sys.exc_info()[0] is not None:
             self.console.print_exception(show_locals=self.verbose >= 3,max_frames=5)
             
             if self.log:
