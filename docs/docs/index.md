@@ -12,7 +12,9 @@ The reason for me working of project is due to multitude of factors. Firstly, I 
 
 
 ## Introduction
-This project was focused on building a custom ResNet model for classifying galaxy images using Galaxy Zoo 2 dataset. This projct not only focus on buidling and training the model, but also on the entire pipeline, including data preprocessing, model architecture design, training strategies, and evaluation metrics. Furthermore those processes are done with MLOps practices in mind, ensuring reproducibility and scalability. Lastly it is served using an API built with FastAPI, allowing for easy integration and deployment.
+This project was focused on building a custom ResNet model for classifying galaxy images using Galaxy Zoo 2 dataset[@Willett_2013]. This projct not only focus on buidling and training the model, but also on the entire pipeline, including data preprocessing, model architecture design, training strategies, and evaluation metrics. Furthermore those processes are done with MLOps practices in mind, ensuring reproducibility and scalability. 
+
+Lastly it is served using an API built with FastAPI, allowing for easy integration and deployment. This projects expands on [@Zhu_2019] general architecture of ResNet and implements a whole end to end pipeline for galaxy classification. The project is structured as a microservices architecture, with each service responsible for a specific aspect of the project. Each service is deployed through **containers** which can be scaled independently using tools like Docker Swarm or Kubernetes.
 
 ## Objectives
 The main objective of this project was to have a full indepth learning experice of a machine/deep learning architecture, from data preprocessing to model deployment. The project aimed to provide a comprehensive understanding of the entire machine learning pipeline, including data preprocessing, model architecture design, training strategies, and evaluation metrics. Additionally, the project aimed to implement MLOps practices to ensure reproducibility and scalability of the model.
@@ -62,3 +64,4 @@ The project is structured as a microservices architecture, with each service res
 - [Docker Compose](../docs/infra/docker-compose.md) — service breakdown, ports, volumes, and healthchecks for the full stack.
 
 
+/references

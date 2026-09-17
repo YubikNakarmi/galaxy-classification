@@ -23,7 +23,6 @@ from pydantic import BaseModel
 from pathlib import Path
 
 
-
 class UI:
     """
     A simple UI class for printing in consonle with rich formatting and verbosity control.
