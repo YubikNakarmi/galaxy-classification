@@ -13,8 +13,8 @@ git clone https://github.com/galaxy-classification/galaxy-classification.git
 
 ### Install dependencies
 
-``` bash
-pip install -r requirements.txt
+
+uv sync --frozen
 ```
 
 ### Setup file structure
