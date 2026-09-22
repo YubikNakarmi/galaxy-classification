@@ -51,7 +51,6 @@ theme:
     - navigation.footer
     - navigation.hide 
     - content.code.copy
-    - content.code.annotate
 
 
 plugins:

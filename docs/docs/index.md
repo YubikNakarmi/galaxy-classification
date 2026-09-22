@@ -26,4 +26,3 @@ The project is structured as a microservices architecture, with each service res
 - `bentoml` — BentoML service that handles model serving and deployment.
 - `mlflow` — MLflow service that tracks experiments, logs metrics, and manages model versions.
 
-/references

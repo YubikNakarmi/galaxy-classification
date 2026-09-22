@@ -1,5 +1,5 @@
 ## Galaxy Zoo 2 Dataset
-The Galaxy Zoo 2[@Willet_2013] project by (Willett et al., 2013), which contains morphological classifications of galaxies based on volunteer votes. The votes are decided using tree based questiosn, where each question has morphogological features as answers.
+The Galaxy Zoo 2 [@Willett_2013] project by (Willett et al., 2013), which contains morphological classifications of galaxies based on volunteer votes. The votes are decided using tree based questiosn, where each question has morphogological features as answers.
 
  The desiciion tree has 11 main questions with 37 possible answers. Each answer is represented as a column in the dataset, and the value in each column represents the fraction of volunteers who voted for that answer for a given galaxy. The desicion tree is shown below:
 
@@ -15,3 +15,4 @@ The dataset contains a total of 304,122 samples, each corresponding to a unique 
 
 ## Data Splits
 Data is split into training, validation, and test sets using an 80-10-10 split. The training set is used to train the model, the validation set is used for hyperparameter tuning and model selection, and the test set is used for final evaluation of the model's performance.
+

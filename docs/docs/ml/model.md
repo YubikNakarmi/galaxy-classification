@@ -269,5 +269,3 @@ A larger \(S\) corresponds to a more concentrated Dirichlet distribution, while 
 
 
 
-## References
-\bibliography

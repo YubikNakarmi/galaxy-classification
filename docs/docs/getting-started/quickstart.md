@@ -9,13 +9,19 @@ git clone https://github.com/galaxy-classification/galaxy-classification.git
 
 `.env` contains all the environment varibles the format can be found in `.env.example`. You can create your own `.env` file or copy the example file.
 
-``` bash
+=== "uv"
 
-### Install dependencies
+    ```bash title="Install dependencies"
+    uv sync --frozen
+    ```
 
+=== "pip"
 
-uv sync --frozen
-```
+    ```bash title="Install dependencies"
+    python3 -m venv .venv
+    pip install -r requirements.txt
+    ```
+
 
 ### Setup file structure
 
@@ -27,6 +33,8 @@ bash -c ". ./setup.sh; dir_setup"
 chmod +x ./setup.sh
 (source ./setup.sh && dir_setup)
 ```
+
+##
 
 ### Setup DVC remote storage
 

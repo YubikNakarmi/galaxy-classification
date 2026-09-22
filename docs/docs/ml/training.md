@@ -1,3 +1,12 @@
+##  Running Training
+
+```sh
+galax pipeline train -s #shows status
+galax pipeline -h #help
+
+galax pipeline train
+```
+
 ## Training Factors
 | Component | Value | Notes |
 |---|---|---|
