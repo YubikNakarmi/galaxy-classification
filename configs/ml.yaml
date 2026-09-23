@@ -129,7 +129,7 @@ storage:
 
   #in azure blob container, config for local (will add in future auto local config)
 
-  local: #locals dires
+  local: #locals dirs
 
     logs:
       dir: logs/

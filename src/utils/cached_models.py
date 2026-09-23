@@ -240,7 +240,60 @@ class Metadata:
         except Exception as e:
             logger.error(f"Error updating metadata: {e}")
             raise
+    
+    def delete_metadata(self,run_id: Optional[str]=None
+                        ,rank:Optional[int]=None,
+                        variant: Literal["Default", "Hubble", "Dirichlet"] = "Default") -> None:
+        """
+        Delete the metadata for a specific variant with run_id or rank.
 
+        Args:
+            run_id: The ID of the run to delete.
+            rank: The rank of the metadata entry to delete.
+
+        Example:
+            ```python
+            md = Metadata(save_path="./cache/model_metadata.json")
+            md.delete_metadata(run_id="run_123", rank=1)
+            ```
+        """
+        try:
+            if not run_id and not rank:
+                logger.error("Either run_id or rank must be provided to delete metadata.")
+                raise ValueError("Either run_id or rank must be provided to delete metadata.")
+            
+            metadata = (self._load())[variant]
+
+            if run_id:             
+                deleted = [c for c in metadata.candidates if c.run_id != run_id]
+                metadata.candidates = deleted
+            elif rank:
+                deleted = [c for c in metadata.candidates if c.rank != rank]
+                metadata.candidates = deleted
+
+            self.update_metadata(metadata, variant=variant)
+
+        except Exception as e:
+            logger.error(f"Error deleting metadata: {e}")
+            raise
+            
+    def all_run_id(self)-> list[str]:
+        """
+        Return a list of all run IDs across all variants in the metadata.
+
+        Returns:
+            A list of all run IDs across all variants.
+        
+        Example:
+            ```python
+            metadata = Metadata(save_path="./cache/model_metadata.json")
+            run_ids = metadata.all_run_id()
+            print(f"All run IDs: {run_ids}")
+            ```
+        """
+        file = self._load()
+        return [c.run_id for variant in ["Default", "Hubble", "Dirichlet"]
+                for c in getattr(file, variant).candidates]
     
     def __repr__(self):
         return f"Metadata(save_path={self.save_path!r})"
@@ -248,7 +301,7 @@ class Metadata:
 
 class ModelLoader:
 
-    """A class to load the best model from MLflow, with optional local caching.
+    """A class to load the best model from MLflow, with optional local caching. Only supports `.pt` format for now.
 
     Examples:
         Minimal usage (no caching, no metadata):
@@ -383,18 +436,22 @@ class ModelLoader:
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
         self.cache_metadata = cache_metadata
+        
         # Default metadata path is under the repository root: /models/cached/metadata.json
         default_metadata_path = root / "models" / "cached" / "metadata.json"
         self.metadata_save_path = Path(metadata_save_file_path) if metadata_save_file_path else default_metadata_path
+        
         self.best_run_id = None  # Store the best run ID for later use
         self.variant = variant  # Store the variant for metadata
         self.metric = metric  # Store the metric for sorting runs
         self.other_metrics = other_metrics if other_metrics else []  # Store any additional metrics for metadata
+        
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
         self.top_n = model_top_n  # Store the top_n for metadata
         self.device = ctx.cfg.env.device  # Store the device for model loading
         self.ctx = ctx  # Store the context for cfg, mlflow_tracking,etc
+        
 
 
         if self.cache_metadata:

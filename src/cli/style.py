@@ -16,6 +16,7 @@ from rich.progress import (
 from rich.tree import Tree
 from rich.table import Table
 from rich.panel import Panel
+from rich.prompt import Confirm
 from loguru import logger
 from contextlib import contextmanager
 from src.config import RootConfig
@@ -125,7 +126,7 @@ class UI:
         self.eval = EvalDashboard(self)
         self.tree = TreeUI(self)
         self.log = log #if you want to disable logging for some reason, you can set this to False
-
+        
        
     @property
     def console(self): #lazy import with property decorator to avoid circular imports
