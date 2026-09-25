@@ -17,8 +17,8 @@ logs/tensorboard/*
 
 
 
-models/cached/*
-!models/cached/.gitkeep
+models/cache/*
+!models/cache/.gitkeep
 models/checkpoints/*
 !models/checkpoints/.gitkeep
 

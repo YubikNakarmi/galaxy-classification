@@ -13,8 +13,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import os
-import mlflow
-from mlflow.tracking import MlflowClient 
 import torch
 from typing import Optional,Any,Literal
 from datetime import datetime, timezone
@@ -82,6 +80,9 @@ class Metadata:
         """
         if not os.path.exists(self.save_path):
             raise FileNotFoundError(f"File {self.save_path} does not exist.")
+        if self.save_path.stat().st_size == 0:
+            return MetadataFile()
+
         with open(self.save_path, "r", encoding="utf-8") as file:
             try:
                 data =  json.load(file)
@@ -429,7 +430,7 @@ class ModelLoader:
             checksum: Whether to generate and store checksums for the model, also perform verification. Recommended to be True for data integrity verification.
         """
 
-        self.client = MlflowClient()
+        self._client = None
 
         self.registered_model_name = registered_model_name  # Store the registered model name for later use
         self.local_cache = local_cache
@@ -438,7 +439,7 @@ class ModelLoader:
         self.cache_metadata = cache_metadata
         
         # Default metadata path is under the repository root: /models/cached/metadata.json
-        default_metadata_path = root / "models" / "cached" / "metadata.json"
+        default_metadata_path = local_cache_dir / "metadata.json" 
         self.metadata_save_path = Path(metadata_save_file_path) if metadata_save_file_path else default_metadata_path
         
         self.best_run_id = None  # Store the best run ID for later use
@@ -466,11 +467,8 @@ class ModelLoader:
                 logger.exception(f"Failed to validate or create metadata save path: {path}")
                 raise ValueError(f"Failed to validate or create metadata save path: {path}")
         
-            logger.info(f"Resolved metadata save path: {path}")
-           
-
             if metadata is not None:
-                self.metadata = metadata   
+                self.metadata = metadata
 
             elif self.metadata_save_path is not None:
                 self.metadata = Metadata(save_file_path=self.metadata_save_path)
@@ -528,11 +526,26 @@ class ModelLoader:
         with open(self.local_cache_dir / f"{run_id}.pt", "rb") as f:
 
             logger.info(f"Computing checksum for run '{run_id}'")
+
             for chunk in iter(lambda: f.read(81926), b""):#read in chunks to avoid memory issues with large model
                 hash_func.update(chunk)
 
         return hash_func.hexdigest()
-            
+                
+    @property
+    def client(self):
+        """Create the MLflow client only when an MLflow operation is requested."""
+        if self._client is None:
+            from mlflow.tracking import MlflowClient
+
+            self._client = MlflowClient()
+        return self._client
+
+    @client.setter
+    def client(self, value) -> None:
+        self._client = value
+
+       
   
     
     def load_with_fallback(self) -> torch.nn.Module:
@@ -708,6 +721,8 @@ class ModelLoader:
             logger.error(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
             raise RuntimeError(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
         try:
+            import mlflow
+
             mlflow_model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 
             

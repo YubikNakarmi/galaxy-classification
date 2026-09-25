@@ -59,7 +59,7 @@ def export_model(ctx, model_path:str, export_path:str, format:str,i:tuple):
 @click.option("--metric", default = None,type=float, required=False, help="Metric value to use if not present in checkpoint")
 @click.option("--local_cache_dir", default = None,type=str, required=False, 
               help="Directory to store cached models")
-@click.option("--metadata_save_file_path", default = root / "models" / "cached" / "model.json",type=str, 
+@click.option("--metadata_save_file_path", default = None,type=str, 
               required=False, help="Path to save the metadata JSON file")
 
 def import_model(ctx,variant:str, 
@@ -77,9 +77,11 @@ def import_model(ctx,variant:str,
     from src.utils.schemas import CandidateMetadata
     from loguru import logger
     from src.utils.bootstrap import load_context
+    from src.utils.validation import validate_path_exists
     import datetime
     import torch
 
+    # Validate that the checkpoint path exists
 
     contxt= ctx.obj or load_context(service="ml",std_out=False)  # Load ML context for pipeline commands and type hint
     run_id = run_id 
@@ -100,6 +102,12 @@ def import_model(ctx,variant:str,
         if not local_cache_dir: 
             local_cache_dir = Path(cfg.storage.local.checkpoints.model_cache_dir)
             ui.warning("Local cache dir is empty")
+        
+        if not metadata_save_file_path:
+            metadata_save_file_path = Path(cfg.storage.local.checkpoints.model_cache_dir) / "model.json"
+            ui.warning("Metadata save file path is empty")
+        if not validate_path_exists(root = root, path = [local_cache_dir], create=True, kind="path"):
+            ui.warning(f"Local cache dir '{local_cache_dir}' does not exist. Creating it.")
 
         ui.info(f"cache dir set to {local_cache_dir}")
 
@@ -116,7 +124,7 @@ def import_model(ctx,variant:str,
             checksum=True,
         )
         
-        if run_id in loader.metadata._load_metadata().keys():
+        if run_id in loader.metadata.all_run_id():
             ui.warning(f"Run ID '{run_id}' already exists in metadata. Overwriting existing entry.")
         
         #checkpoint format and extract state_dict and metric if present
@@ -167,6 +175,7 @@ def import_model(ctx,variant:str,
                 "run_id": run_id, 
                 "metric":f"{metric_name}={metric}",
                 "cache_path":str(cache_path),
+                "metadata_path":str(loader.metadata_save_path)
             })
 
             ui.success(f"Imported checkpoint as run_id={run_id}, {metric_name}={metric}")
