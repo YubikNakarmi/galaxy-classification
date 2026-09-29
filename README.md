@@ -62,6 +62,10 @@ and more
 
 ## Architecture
 ![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
+
+## models
+- Default: default 5 class residual CNN. 
+- Dirichlet: voting ratio based model with dirilichlet nll loss and multi head output with same backbone as default. 
 ## Running
 
 The project itself is build using microservice architecture. The project is divided into 3 main services:
