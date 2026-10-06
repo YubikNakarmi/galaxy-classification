@@ -25,11 +25,6 @@ cloud:
 ml:
   config_file: configs/ml.yaml
   
-  metadata:
-    save: True
-    path: models/cached/metadata.json
-
-
 
 
 dirs:
