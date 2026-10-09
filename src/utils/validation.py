@@ -19,7 +19,7 @@ class EnvVarSts:
     status:bool
     
 
-def validate_mlflow_connection(ctx: Optional[Context],uri: Optional[str]) -> bool:
+def validate_mlflow_connection(ctx: Optional[Context]=None,uri: Optional[str]=None) -> bool:
     from urllib.request import Request, urlopen
     
     if ctx is None and uri is None:

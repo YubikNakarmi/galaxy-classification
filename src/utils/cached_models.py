@@ -561,24 +561,28 @@ class ModelLoader:
         '''
 
         try:
+            mlflow_available = validate_mlflow_connection(self.ctx)
 
-            #gaurd, try with mlflow fallabck to local metadata
-            if validate_mlflow_connection(self.ctx):
+            # Use MLflow only when its health endpoint is available. The local
+            # fallback must not call get_run(), since that also contacts MLflow.
+            if mlflow_available:
                 logger.info(f"Attempting to load champion model for '{self.registered_model_name}' from MLflow alias 'champion'")
                 champion_version = self.client.get_model_version_by_alias(self.registered_model_name, "champion")
                 champion_run_id = champion_version.run_id
-
+                run = self.client.get_run(champion_run_id)
+                other_metrics = {metric: run.data.metrics.get(metric, None) for metric in self.other_metrics}
+                metric = {self.metric: run.data.metrics.get(self.metric, None)}
             else:
-                logger.warning("Failed to load from MLflow alias; using local metadata to get run_id")
+                logger.warning("MLflow is unreachable; using local metadata to get the champion run")
                 met = self.metadata
                 file = met._load()
-                champion_run_id = file[self.variant].candidates[0].run_id #first run id from the variant metadata
-
-            run = self.client.get_run(champion_run_id)
-            
-
-            other_metrics = {metric: run.data.metrics.get(metric, None) for metric in self.other_metrics}
-            metric = {self.metric: run.data.metrics.get(self.metric, None)}
+                candidates = file[self.variant].candidates
+                if not candidates:
+                    raise RuntimeError(f"No local candidates available for variant '{self.variant}'.")
+                champion = candidates[0]
+                champion_run_id = champion.run_id
+                metric = dict(champion.metric or {})
+                other_metrics = dict(champion.other_metrics or {})
 
             logger.success(f"Champion run ID: {champion_run_id}")
 
@@ -679,7 +683,6 @@ class ModelLoader:
 
     
     
-      
     def compare_checksum(self,run_id:str,checksum:Optional[str]=None)->bool:
 
         '''
@@ -981,5 +984,4 @@ class ModelLoader:
 
 class ModelEvictor(Metadata):
     pass
-
 

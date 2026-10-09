@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi import APIRouter, Depends
 from celery.result import AsyncResult
 
-from api.classify.models import ClassificationResponseRecord, ImageUpload
+from .models import ClassificationResponseRecord, ImageUpload
 from api.tasks import celery_app, classify_image
 from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 
@@ -14,7 +14,6 @@ from core.database import get_db
 from sqlalchemy.orm import Session
 from core.storage import get_storage
 from celery.result import AsyncResult
-from loguru import logger
 from src.utils.logging_config import setup_app_logging,intercept_stdlib_logging
 from src.utils.yaml_utils import load_yaml
 from pathlib import Path
