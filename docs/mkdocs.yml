@@ -10,33 +10,32 @@ theme:
   name: material
   language: en
   palette:
-    - scheme: slate
-      primary: deep purple
-      accent: indigo
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
     - scheme: default
-      primary: deep purple
-      accent: indigo
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
- 
-   
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  logo: assets/favicon.png
+  favicon: assets/favicon.png
+
   font:
     text: Inter
     code: JetBrains Mono
-
-  logo: assets/logo.svg
-  favicon: assets/favicon.png
+  
   features:
     - navigation.instant
     - navigation.instant.progress
     - navigation.tracking
+    - navigation.sections
     - navigation.tabs
     - navigation.tabs.sticky
-    - navigation.expand
     - navigation.indexes
     - navigation.top
     - toc.follow
@@ -52,7 +51,6 @@ theme:
     - navigation.footer
     - navigation.hide 
     - content.code.copy
-    - content.code.annotate
 
 
 plugins:
@@ -64,6 +62,9 @@ plugins:
       enable_creation_date: true
       type: timeago
       enable_git_follow: false
+  - bibtex: 
+      bib_file: docs/references.bib
+      
 
   - mkdocstrings:
       handlers:
@@ -78,14 +79,15 @@ plugins:
 
   - awesome-pages
 
+
 markdown_extensions:
   - abbr
   - admonition
   - attr_list
   - def_list
-  - footnotes
   - md_in_html
   - tables
+  - footnotes
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.betterem
@@ -146,7 +148,6 @@ extra_javascript:
 
 nav:
   - Home: index.md
-
   - Getting started:
       - Overview: getting-started/index.md
       - Prerequisites: getting-started/prerequisites.md
@@ -216,6 +217,5 @@ nav:
           - CLI style: development/modules/cli.md
           - Dataset: development/modules/dataset.md
           - Model: development/modules/model.md
-          - Utils: development/modules/utils.md
-          
+          - Utils: development/modules/utils.md        
   - Changelog: changelog.md

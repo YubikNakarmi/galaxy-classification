@@ -13,8 +13,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 import os
-import mlflow
-from mlflow.tracking import MlflowClient 
 import torch
 from typing import Optional,Any,Literal
 from datetime import datetime, timezone
@@ -82,6 +80,9 @@ class Metadata:
         """
         if not os.path.exists(self.save_path):
             raise FileNotFoundError(f"File {self.save_path} does not exist.")
+        if self.save_path.stat().st_size == 0:
+            return MetadataFile()
+
         with open(self.save_path, "r", encoding="utf-8") as file:
             try:
                 data =  json.load(file)
@@ -240,7 +241,60 @@ class Metadata:
         except Exception as e:
             logger.error(f"Error updating metadata: {e}")
             raise
+    
+    def delete_metadata(self,run_id: Optional[str]=None
+                        ,rank:Optional[int]=None,
+                        variant: Literal["Default", "Hubble", "Dirichlet"] = "Default") -> None:
+        """
+        Delete the metadata for a specific variant with run_id or rank.
 
+        Args:
+            run_id: The ID of the run to delete.
+            rank: The rank of the metadata entry to delete.
+
+        Example:
+            ```python
+            md = Metadata(save_path="./cache/model_metadata.json")
+            md.delete_metadata(run_id="run_123", rank=1)
+            ```
+        """
+        try:
+            if not run_id and not rank:
+                logger.error("Either run_id or rank must be provided to delete metadata.")
+                raise ValueError("Either run_id or rank must be provided to delete metadata.")
+            
+            metadata = (self._load())[variant]
+
+            if run_id:             
+                deleted = [c for c in metadata.candidates if c.run_id != run_id]
+                metadata.candidates = deleted
+            elif rank:
+                deleted = [c for c in metadata.candidates if c.rank != rank]
+                metadata.candidates = deleted
+
+            self.update_metadata(metadata, variant=variant)
+
+        except Exception as e:
+            logger.error(f"Error deleting metadata: {e}")
+            raise
+            
+    def all_run_id(self)-> list[str]:
+        """
+        Return a list of all run IDs across all variants in the metadata.
+
+        Returns:
+            A list of all run IDs across all variants.
+        
+        Example:
+            ```python
+            metadata = Metadata(save_path="./cache/model_metadata.json")
+            run_ids = metadata.all_run_id()
+            print(f"All run IDs: {run_ids}")
+            ```
+        """
+        file = self._load()
+        return [c.run_id for variant in ["Default", "Hubble", "Dirichlet"]
+                for c in getattr(file, variant).candidates]
     
     def __repr__(self):
         return f"Metadata(save_path={self.save_path!r})"
@@ -248,7 +302,7 @@ class Metadata:
 
 class ModelLoader:
 
-    """A class to load the best model from MLflow, with optional local caching.
+    """A class to load the best model from MLflow, with optional local caching. Only supports `.pt` format for now.
 
     Examples:
         Minimal usage (no caching, no metadata):
@@ -376,25 +430,29 @@ class ModelLoader:
             checksum: Whether to generate and store checksums for the model, also perform verification. Recommended to be True for data integrity verification.
         """
 
-        self.client = MlflowClient()
+        self._client = None
 
         self.registered_model_name = registered_model_name  # Store the registered model name for later use
         self.local_cache = local_cache
         self.local_cache_dir = Path(local_cache_dir) if local_cache_dir else None
         self.num_classes = num_classes
         self.cache_metadata = cache_metadata
+        
         # Default metadata path is under the repository root: /models/cached/metadata.json
-        default_metadata_path = root / "models" / "cached" / "metadata.json"
+        default_metadata_path = local_cache_dir / "metadata.json" 
         self.metadata_save_path = Path(metadata_save_file_path) if metadata_save_file_path else default_metadata_path
+        
         self.best_run_id = None  # Store the best run ID for later use
         self.variant = variant  # Store the variant for metadata
         self.metric = metric  # Store the metric for sorting runs
         self.other_metrics = other_metrics if other_metrics else []  # Store any additional metrics for metadata
+        
         self.checksum_method = checksum_method  # Store the checksum method for metadata
         self.checksum = checksum
         self.top_n = model_top_n  # Store the top_n for metadata
         self.device = ctx.cfg.env.device  # Store the device for model loading
         self.ctx = ctx  # Store the context for cfg, mlflow_tracking,etc
+        
 
 
         if self.cache_metadata:
@@ -409,11 +467,8 @@ class ModelLoader:
                 logger.exception(f"Failed to validate or create metadata save path: {path}")
                 raise ValueError(f"Failed to validate or create metadata save path: {path}")
         
-            logger.info(f"Resolved metadata save path: {path}")
-           
-
             if metadata is not None:
-                self.metadata = metadata   
+                self.metadata = metadata
 
             elif self.metadata_save_path is not None:
                 self.metadata = Metadata(save_file_path=self.metadata_save_path)
@@ -471,11 +526,26 @@ class ModelLoader:
         with open(self.local_cache_dir / f"{run_id}.pt", "rb") as f:
 
             logger.info(f"Computing checksum for run '{run_id}'")
+
             for chunk in iter(lambda: f.read(81926), b""):#read in chunks to avoid memory issues with large model
                 hash_func.update(chunk)
 
         return hash_func.hexdigest()
-            
+                
+    @property
+    def client(self):
+        """Create the MLflow client only when an MLflow operation is requested."""
+        if self._client is None:
+            from mlflow.tracking import MlflowClient
+
+            self._client = MlflowClient()
+        return self._client
+
+    @client.setter
+    def client(self, value) -> None:
+        self._client = value
+
+       
   
     
     def load_with_fallback(self) -> torch.nn.Module:
@@ -655,6 +725,8 @@ class ModelLoader:
             logger.error(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
             raise RuntimeError(f"MLflow is unreachable; cannot pull model for run '{run_id}'")
         try:
+            import mlflow
+
             mlflow_model = mlflow.pytorch.load_model(f"runs:/{run_id}/model")
 
             

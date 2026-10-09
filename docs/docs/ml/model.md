@@ -1,7 +1,6 @@
-# Default model architecture
+## Default model architecture
 
-`GalaxyClassifier_ResNet` is a wide pre-activation ResNet with bottleneck residual units,
-adapted for 128×128 galaxy images.
+`GalaxyClassifier_ResNet` is a wide pre-activation ResNet with bottleneck residual units, adapted for 128×128 galaxy images. This model is largly based off the ResNet architecture[@Zhu_2019,], with the following modifications:
 
 ### Image
 
@@ -41,8 +40,232 @@ adapted for 128×128 galaxy images.
 | Domain augmentation | `RandomRotation(180)` — galaxies have no canonical orientation |
 | Normalisation stats | GZ2-specific mean/std, not ImageNet |
 
-# Hubble variant
+## Hubble variant
 Just training the head of the default model on Hubble images (with the same 5 classes) yields a model that performs poorly on Galaxy Zoo images. The `hubble` variant is a modified architecture that is more suitable for Hubble images, with a smaller width multiplier and fewer units per group.
 
-# Dirlichlet variant
-The dirichlet variant uses multi head output that ouputs a vector with dirichlet alphas. For training this model we have to use a dirichlet multinominal negative log likelyhood loss function. Since pythorch doesn't have this I had to customly code this function. 
+## Dirlichlet variant
+
+### Dirichlet Loss
+
+The **Dirichlet loss** can be derived from the **Dirichlet-multinomial distribution**, which arises by integrating a multinomial likelihood over a Dirichlet prior. See the Dirichlet-multinomial likelihood formulation[@yu2014efficient] for further background.
+
+#### 1. Observed Vote Counts
+
+For an input sample, let the observed vote counts across \(K\) classes be
+
+$$
+\mathbf{k} = (k_1, k_2, \ldots, k_K),
+\qquad
+n = \sum_{i=1}^{K} k_i,
+$$
+
+where \(k_i\) is the number of votes assigned to class \(i\), and \(n\) is the total number of votes.
+
+We model the underlying class probabilities using a Dirichlet distribution with parameters
+
+$$
+\mathbf{\alpha}
+=
+(\alpha_1, \alpha_2, \ldots, \alpha_K),
+\qquad
+S = \sum_{i=1}^{K} \alpha_i.
+$$
+
+Here, \(\alpha_i > 0\) are the concentration parameters of the Dirichlet distribution.
+
+---
+
+#### 2. Multinomial Likelihood
+
+Given a vector of class probabilities
+
+$$
+\mathbf{p} = (p_1, p_2, \ldots, p_K),
+\qquad
+\sum_{i=1}^{K}p_i = 1,
+$$
+
+the probability of observing the vote counts \(\mathbf{k}\) is given by the multinomial distribution:
+
+$$
+P(\mathbf{k}\mid\mathbf{p})
+=
+\frac{\Gamma(n+1)}
+{\prod_{i=1}^{K}\Gamma(k_i+1)}
+\prod_{i=1}^{K}p_i^{k_i}.
+$$
+
+For integer-valued counts, this is equivalent to the familiar form
+
+$$
+P(\mathbf{k}\mid\mathbf{p})
+=
+\frac{n!}{\prod_{i=1}^{K}k_i!}
+\prod_{i=1}^{K}p_i^{k_i}.
+$$
+
+---
+
+#### 3. Dirichlet Distribution
+
+Instead of treating \(\mathbf{p}\) as fixed, we place a Dirichlet prior over the class probabilities:
+
+$$
+P(\mathbf{p}\mid\mathbf{\alpha})
+=
+\frac{\Gamma(S)}
+{\prod_{i=1}^{K}\Gamma(\alpha_i)}
+\prod_{i=1}^{K}p_i^{\alpha_i-1}.
+$$
+
+The Dirichlet distribution is defined over the probability simplex, where
+
+$$
+p_i \geq 0,
+\qquad
+\sum_{i=1}^{K}p_i = 1.
+$$
+
+---
+
+#### 4. Dirichlet-Multinomial Distribution
+
+The Dirichlet-multinomial distribution is obtained by marginalizing the class probabilities \(\mathbf{p}\):
+
+$$
+P(\mathbf{k}\mid\mathbf{\alpha})
+=
+\int
+P(\mathbf{k}\mid\mathbf{p})
+P(\mathbf{p}\mid\mathbf{\alpha})
+\,d\mathbf{p}.
+$$
+
+Substituting the multinomial likelihood and Dirichlet distribution gives
+
+$$
+P(\mathbf{k}\mid\mathbf{\alpha})
+=
+\frac{\Gamma(n+1)}
+{\prod_i\Gamma(k_i+1)}
+\frac{\Gamma(S)}
+{\Gamma(n+S)}
+\prod_i
+\frac{\Gamma(k_i+\alpha_i)}
+{\Gamma(\alpha_i)}.
+$$
+
+For integer vote counts, this can also be written as
+
+$$
+P(\mathbf{k}\mid\mathbf{\alpha})
+=
+\frac{n!}{\prod_i k_i!}
+\frac{\Gamma(S)}
+{\Gamma(n+S)}
+\prod_i
+\frac{\Gamma(k_i+\alpha_i)}
+{\Gamma(\alpha_i)}.
+$$
+
+This distribution gives the probability of observing the complete vote-count vector \(\mathbf{k}\) given the Dirichlet parameters \(\mathbf{\alpha}\).
+
+---
+
+#### 5. Negative Log-Likelihood
+
+During training, we minimize the negative log-likelihood:
+
+$$
+\mathcal{L}(\mathbf{\alpha})
+=
+-\log P(\mathbf{k}\mid\mathbf{\alpha}).
+$$
+
+Taking the logarithm of the Dirichlet-multinomial likelihood gives
+
+$$
+\begin{aligned}
+\mathcal{L}(\mathbf{\alpha})
+={}&
+-\log\Gamma(n+1)
++
+\sum_i\log\Gamma(k_i+1)
+\\
+&-\log\Gamma(S)
++
+\log\Gamma(n+S)
+\\
+&-
+\sum_i
+\left[
+\log\Gamma(k_i+\alpha_i)
+-
+\log\Gamma(\alpha_i)
+\right].
+\end{aligned}
+$$
+
+The first two terms,
+
+$$
+-\log\Gamma(n+1)
++
+\sum_i\log\Gamma(k_i+1),
+$$
+
+depend only on the observed vote counts \(\mathbf{k}\) and not on the model parameters \(\mathbf{\alpha}\). Therefore, they are constant with respect to the model and can be omitted during optimization.
+
+The resulting loss is
+
+$$
+\boxed{
+\mathcal{L}(\mathbf{\alpha})
+=
+\log\Gamma(n+S)
+-
+\log\Gamma(S)
+-
+\sum_{i=1}^{K}
+\left[
+\log\Gamma(k_i+\alpha_i)
+-
+\log\Gamma(\alpha_i)
+\right]
+}
+$$
+
+up to an additive constant independent of \(\mathbf{\alpha}\).
+
+#### 6. Why This Works for Vote-Based Labels
+
+Unlike standard classification, where the target is typically represented as a single class label, vote-based datasets provide a **distribution of votes** across classes.
+
+For example, with five classes, an observation might have
+
+$$
+\mathbf{k} = (2, 5, 1, 0, 2),
+\qquad n=10.
+$$
+
+The Dirichlet-multinomial likelihood models these counts directly. The neural network therefore learns Dirichlet parameters \(\mathbf{\alpha}\) that describe the underlying uncertainty over the class probabilities.
+
+The corresponding expected class probabilities are
+
+$$
+\mathbb{E}[p_i]
+=
+\frac{\alpha_i}{S}.
+$$
+
+Thus, the model provides both:
+
+* **Class probabilities:** determined by the normalized parameters
+  \(\alpha_i/S\).
+* **Uncertainty:** influenced by the total concentration
+  \(S=\sum_i\alpha_i\).
+
+A larger \(S\) corresponds to a more concentrated Dirichlet distribution, while a smaller \(S\) corresponds to a more diffuse distribution.
+
+
+

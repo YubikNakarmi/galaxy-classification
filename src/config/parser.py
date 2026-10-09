@@ -183,5 +183,10 @@ def parse_config(raw: dict, root: Path) -> RootConfig:
             "mappings": raw_paths[1]["mappings"],
         },
     }
-
-    return RootConfig.model_validate(payload).resolve_paths(root)
+    
+    try:
+        cfg = RootConfig.model_validate(payload).resolve_paths(root)
+        return cfg
+    except Exception as e:
+        print(f"Error parsing config: {e}")
+        raise

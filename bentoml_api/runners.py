@@ -1,5 +1,7 @@
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.image import show_cam_on_image
+from __future__ import annotations
+
+from typing import Optional
+
 from loguru import logger
 from pathlib import Path
 import torch
@@ -8,7 +10,6 @@ from PIL import Image
 import io
 import base64
 import time
-from typing import Optional
 from bentoml_api.schemas import ClassificationResult
 
 from bentoml_api.consts import (TRANSFORM, DEVICE, 
@@ -20,6 +21,7 @@ from bentoml_api.consts import (TRANSFORM, DEVICE,
 root = Path(__file__).parent.parent
 
 def build_gradcam(model: torch.nn.Module) -> Optional[GradCAM]:
+    from pytorch_grad_cam import GradCAM
     
     try:
         target_layer = [model.group5.units[-1].conv2]#second last layer or last group to capture high feature maps
@@ -32,6 +34,7 @@ def build_gradcam(model: torch.nn.Module) -> Optional[GradCAM]:
 def run_gradcam(
     cam: GradCAM,tensor: torch.Tensor,
     orig_img: Image.Image) -> Optional[str]:
+    from pytorch_grad_cam.utils.image import show_cam_on_image
     
     """Return base64-encoded PNG heatmap overlay for a single image tensor.
     

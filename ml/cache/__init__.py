@@ -12,7 +12,8 @@ class LazyPipelineGroup(click.Group):
         "modify": ("ml.cache.modify", "modify"),
         "import": ("ml.cache.modify", "import_model"),
         "show-local-cache":("ml.cache.summary","show_all"),
-        "export": ("ml.cache.modify", "export_model")
+        "export": ("ml.cache.modify", "export_model"),
+        "delete": ("ml.cache.modify", "delete")
         
     }
 

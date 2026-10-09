@@ -7,9 +7,9 @@ from celery.result import AsyncResult
 
 from .models import ClassificationResponseRecord, ImageUpload
 from api.tasks import celery_app, classify_image
-from schemas import ClassifyRequest,ClassificationResponse,VARIANTS
+from .schemas import ClassifyRequest,ClassificationResponse,VARIANTS
 
-from exceptions import *
+from api.exceptions import *
 from core.database import get_db
 from sqlalchemy.orm import Session
 from core.storage import get_storage
@@ -19,7 +19,7 @@ from src.utils.yaml_utils import load_yaml
 from pathlib import Path
 from prometheus_client import Counter, Histogram
 
-root = Path(__file__).parent.parent
+root = Path(__file__).parent.parent.parent
 cfg = load_yaml(root / 'configs' / 'core.yaml')
 setup_app_logging(config = cfg,service = "API",json_logs = True)
 intercept_stdlib_logging() #stdlib logging for container
@@ -49,20 +49,24 @@ async def classify_image_endpoint(
 
     if request.variant not in VARIANTS:
         API_EXCEPTIONS.labels(error_code="invalid_variant", endpoint="/classify").inc()
+        logger.exception("Invalid variant specified: {}", request.variant)
         raise UnknownVariantError(message="Invalid variant specified.")
 
     if request.image_b64 is None or len(request.image_b64) == 0:
         API_EXCEPTIONS.labels(error_code="empty_image_list", endpoint="/classify").inc()
+        logger.exception("No images were provided in the request.")
         raise EmptyImageListError(message="No images were provided in the request.")
     
     try:
         image_bytes = [base64.b64decode(img, validate=True) for img in request.image_b64] # for blob
     except binascii.Error:
         API_EXCEPTIONS.labels(error_code="invalid_base64", endpoint="/classify").inc()
+        logger.exception("One or more images failed to decode from base64.")
         raise InvalidBase64ImageError(message = "One or more images failed to decode from base64.")
 
     except Exception as e:
         API_EXCEPTIONS.labels(error_code="unknown_error", endpoint="/classify").inc()
+        logger.exception("An unexpected error occurred during image processing: {}", str(e))
         raise PipelineError(message=f"An unexpected error occurred: {str(e)}")
 
 
@@ -76,12 +80,15 @@ async def classify_image_endpoint(
     for i, request_image in enumerate(image_bytes):
         blob_key = f"{batch_id}-{i}.jpg"  # Generate a unique key for the blob, with multi images
         blob_keys.append(blob_key)
-
+        logger.info("Generating blob key: {}", blob_key)
         blob_url = await run_in_threadpool(storage.upload_blob, blob_key, request_image)  # Upload image to Azure Blob Storage in async
+        
+        logger.info("Uploaded image to blob: {}", blob_url)
         urls.append(blob_url)
 
     if None in urls:
         API_EXCEPTIONS.labels(error_code="blob_upload_failed", endpoint="/classify").inc()
+        logger.exception("Failed to upload one or more images to storage for batch_id: {}", batch_id)
         raise BlobUploadError(message="Failed to upload one or more images to storage.", batch_id=batch_id)
 
     uploads: list[ImageUpload] = []
@@ -94,6 +101,10 @@ async def classify_image_endpoint(
             file_size=len(img_bytes),
             status="uploaded",
         )
+        
+        logger.info("Adding ImageUpload record to database: {}", upload)
+        logger.debug("ImageUpload details - batch_id: {}, blob_key: {}, file_size: {}", 
+                     upload.batch_id, upload.blob_key, upload.file_size)
         db.add(upload)
         uploads.append(upload)
   

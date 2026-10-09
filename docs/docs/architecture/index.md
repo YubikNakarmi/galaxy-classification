@@ -1,4 +1,4 @@
-j## Codebase architecture
+## Codebase architecture
 For this project structure I clearly seperated custom modules with top level wrappers. For example on training script on [train.py](/ml/pipeline/train.py), the source code logic is on `/src/training/` dir The diagram belows shows a tree view for this.
 
 ![exampler](../assets/architecture/training_example_codebase.png)

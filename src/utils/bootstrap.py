@@ -25,7 +25,6 @@ class Context:
     cfg: RootConfig
     mlflow_tracking_uri: str
     image_dir: Path
-    model_metadata_path:Path
     core_cfg: dict | None = None  # Optional core configuration dictionary
 
 def load_context( *,
@@ -63,10 +62,9 @@ def load_context( *,
 
     logger.bind(component="bootstrap")
 
-    metadata = core_cfg["ml"]["metadata"]["path"]
     
 
     return Context(root=ROOT, cfg=cfg, 
                    mlflow_tracking_uri=mlflow_uri, 
                    image_dir=image_dir,
-                   model_metadata_path=metadata,core_cfg=core_cfg)
+                   core_cfg=core_cfg)

@@ -7,9 +7,10 @@ from core.storage import get_storage
 import uuid
 import datetime as dt
 import httpx
-from classify.models import ClassificationResponseRecord, ImageUpload, Prediction
-from exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
+from .classify.models import ClassificationResponseRecord, ImageUpload, Prediction
+from .exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
 from prometheus_client import Counter
+from loguru import logger
 
 PIPELINE_EXCEPTIONS = Counter(
     "pipeline_errors_total",
@@ -34,6 +35,7 @@ BENTOML_ROUTES = {#preset routes in bentoml/services.py
 def classify_image(self,image_bytes_b64:list[str],variant:str="default",response_id: Optional[str]=None):
 
     if variant not in BENTOML_ROUTES:
+        logger.exception(f"Unknown variant: {variant}")
         raise ValueError(f"Unknown variant: {variant}")
 
     variant_url = BENTOML_ROUTES[variant]
@@ -45,9 +47,11 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
     try:
         response_row = db.query(ClassificationResponseRecord).get(response_id)#filter pk of response record
         if response_row is None:
+            logger.exception(f"No ClassificationResponseRecord found for id {response_id}")
             raise ValueError(f"No ClassificationResponseRecord found for id {response_id}")
 
-        # BentoML's route only accepts list[Image.Image], in format of [("images", (filename, file_bytes, content_type)),images,(...))]
+        # BentoML's route only accepts list[Image.Image], 
+        # in format of [("images", (filename, file_bytes, content_type)),images,(...))]
         files = [
             ("images", (f"img{i}.jpg", base64.b64decode(b), "image/jpeg"))
             for i, b in enumerate(image_bytes_b64)
@@ -77,6 +81,7 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
             
             response_row.status = "failed"
             response_row.error_message = str(exc)
+            logger.exception(f"Error occurred while processing request: {exc}")
             db.commit()
 
             PIPELINE_EXCEPTIONS.labels(
@@ -99,7 +104,7 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
             .order_by(ImageUpload.uploaded_at)
             .all()
         )
-
+        logger.info(f"Received {len(results_data)} results from BentoML for {len(uploads)} uploads")
         # Ensure the number of uploads matches the number of results from BentoML
         if len(uploads) != len(results_data):
             response_row.status = "failed"
@@ -112,6 +117,9 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
                             error_code="bento_response_mismatch", endpoint=f"/{variant}"
                         ).inc()
 
+            logger.exception(
+                f"Mismatch: {len(uploads)} uploads vs {len(results_data)} BentoML results"
+            )
             raise BentoResponseMismatchError(
                 response_row.error_message,
                 task_id=self.request.id,

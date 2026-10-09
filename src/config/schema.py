@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -219,7 +219,7 @@ class MLflowConfig(ConfigModel):
 
 
 class RootConfig(ConfigModel):
-    active_variant: str
+    active_variant: Literal["Default", "Hubble", "Dirichlet"]
     env: EnvConfig
     mode: str
     variants: dict[str, VariantConfig]

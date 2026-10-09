@@ -6,6 +6,12 @@ from core.database import init_db
 from core.storage import get_storage, close_storage
 
 from prometheus_client import make_asgi_app
+from src.utils.logging_config import setup_app_logging, intercept_stdlib_logging
+from src.utils.yaml_utils import load_yaml
+
+core_config = load_yaml("configs/core.yaml")
+setup_app_logging(config=core_config, service="api", json_logs=True)
+intercept_stdlib_logging()  # Redirect stdlib logging to loguru
 
 
 @asynccontextmanager

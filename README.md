@@ -35,7 +35,9 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
 
 
 ## Movitation
-The reason for me working of project is due to multitude of factors. Firstly, I was always interested in astronomy and Neural networks and I wanted to buiild something regarding Astronomy. Then there also the motivation to build something better than my lat project [AQI_predictor](https://github.com/YubikNakarmi/Aqi_predictor), which is pretty messy. I wanted to contiune to learn to build better systems wich more cleaner and maintainable code with also better organizations and potability. With as miminal use of AI as possible, except is somethign like comments, docstrings or documentation .Lastly, I also wanted to learn new tools for DevOPS, Mlops, and ML in general I leared tools like:
+The reason for me working of project is due to multitude of factors. Firstly, I was always interested in astronomy and Neural networks and I wanted to buiild something regarding Astronomy. Then there also the motivation to build something better than my lat project [AQI_predictor](https://github.com/YubikNakarmi/Aqi_predictor), which is pretty messy. I wanted to contiune to learn to build better systems wich more cleaner and maintainable code with also better organizations and potability. 
+
+With as miminal use of AI as possible, except is somethign like comments, docstrings or documentation .Lastly, I also wanted to learn new tools for DevOPS, Mlops, and ML in general I leared tools like:
 - Pytorch
 - FastAPI
 - BentoML
@@ -60,6 +62,10 @@ and more
 
 ## Architecture
 ![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
+
+## models
+- Default: default 5 class residual CNN. 
+- Dirichlet: voting ratio based model with dirilichlet nll loss and multi head output with same backbone as default. 
 ## Running
 
 The project itself is build using microservice architecture. The project is divided into 3 main services:
