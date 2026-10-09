@@ -50,7 +50,12 @@ class GalaxyClassification:
         mlflow.set_tracking_uri(ctx.mlflow_tracking_uri)
 
         modelloader_default = ModelLoader(registered_model_name=default_model_name,
-                                          local_cache=True, local_cache_dir=root / "models/cached",
+                                          local_cache=True,
+                                          local_cache_dir=ctx.cfg.storage.local.checkpoints.model_cache_dir,
+                                          metadata_save_file_path=(
+                                              ctx.cfg.storage.local.checkpoints.model_cache_dir
+                                              / "model.json"
+                                          ),
                                           ctx = ctx,
                                           model_top_n = 3,metric = "f1_macro")
 

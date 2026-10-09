@@ -32,9 +32,9 @@ galax status
 ### Importing a model
 ```sh
 $ galax -vv cache import \
---checkpoint_path="models\cached\9e2fb45714864e35bf92fc2223d7e7fe.pt" \
---variant="Default" --num_classes=5 --model_name="default" \
---local_cache_dir="tests" --metadata_save_file_path="models.json" \
+--checkpoint_path="models\cache\9e2fb45714864e35bf92fc2223d7e7fe.pt" \
+--variant="Default" --num_classes=5 --model_name="galaxy-classification-default" \
+--local_cache_dir="models/cache" --metadata_save_file_path="models/cache/model.json" \
 --metric_name="test" --metric=0.1
 ```
 
@@ -67,6 +67,3 @@ galax logs show -n 50 -s "ml"
 ```
 
 ![result](../assets/cli/logs.png)
-
-
-

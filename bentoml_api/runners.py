@@ -21,14 +21,14 @@ from bentoml_api.consts import (TRANSFORM, DEVICE,
 root = Path(__file__).parent.parent
 
 def build_gradcam(model: torch.nn.Module) -> Optional[GradCAM]:
-    from pytorch_grad_cam import GradCAM
-    
     try:
+        from pytorch_grad_cam import GradCAM
+
         target_layer = [model.group5.units[-1].conv2]#second last layer or last group to capture high feature maps
         return GradCAM(model=model, target_layers=target_layer)
     
     except Exception as e:
-        logger.critical(f"Failed to build GradCAM: {e}")
+        logger.error(f"GradCAM is unavailable; continuing without heatmaps: {e}")
         return None
     
 def run_gradcam(
@@ -80,7 +80,7 @@ def run_default_model(model: torch.nn.Module, cam: GradCAM, orig_img: list[Image
     for i,(prob, img) in enumerate(zip(probabilities, orig_img)): #enumerate over each image and its corresponding probabilities
         pred_class = np.argmax(prob)
         heat_start = time.perf_counter()
-        heatmap_b64 = run_gradcam(cam, tensor[i], img)
+        heatmap_b64 = run_gradcam(cam, tensor[i], img) if cam is not None else None
         heat_end = time.perf_counter()
         
         results.append(ClassificationResult(
@@ -97,5 +97,4 @@ def run_hubble_model():
 
 def run_dirichlet_model():
     pass 
-
 

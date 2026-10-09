@@ -142,14 +142,19 @@ class GalaxyClassifier_ResNet(nn.Module):
         out = self.fc(out)              
         return out
 
-def default_head(self,x):
-    ''' Default head for the model.'''
-    out = self.avgpool(x)         
-    out = out.flatten(1)            
-    out = self.dropout(out)
-    out = self.fc(out)              
-    return out
+    def default_head(self,x):
+        ''' Default head for the model.'''
+        out = self.avgpool(x)         
+        out = out.flatten(1)            
+        out = self.dropout(out)
+        out = self.fc(out)              
+        return out
 
-def dirichlet_head(self,x,n_classes):
-    """Dirlchlet head output dirichlet alphas for uncertainty estimation. Trained for voting classification"""
-    pass
+    def dirichlet_head(self,x,n_classes):
+        """Dirlchlet head output dirichlet alphas for uncertainty estimation. Trained for voting classification
+        
+        Args:
+            x (torch.Tensor): Input tensor to the head.
+            n_classes (int): Number of classes for the classification task.
+        """
+        self.heads = nn.ModuleList([nn.Linear(2048, n_classes) for _ in range(n_classes)])

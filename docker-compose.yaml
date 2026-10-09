@@ -91,7 +91,7 @@ services:
       - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
       - ./src:/home/bentoml/bento/src/src #mount for editable files without building
       - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
-      - ./models/cached:/home/bentoml/bento/src/models/cached/ #mount cached for presistance
+      - ./models/cache:/home/bentoml/bento/src/models/cache/ #mount cache for persistence
       - ./configs:/home/bentoml/bento/src/configs
 
     container_name: bentoml

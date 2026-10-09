@@ -326,9 +326,18 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
 
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
+    from rich.prompt import Confirm
 
 
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
+    
+    if Confirm.ask("Are you sure you want to start training? \
+                   This may take a long time and consume significant resources.", default=False):
+        pass
+    
+    else:
+        ui.info("Training aborted by user.")
+        return
     
     try:
         app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
