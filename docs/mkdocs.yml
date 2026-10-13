@@ -64,7 +64,6 @@ plugins:
       enable_git_follow: false
   - bibtex: 
       bib_file: docs/references.bib
-      
 
   - mkdocstrings:
       handlers:
@@ -81,6 +80,7 @@ plugins:
 
 
 markdown_extensions:
+  - mkdocs-click
   - abbr
   - admonition
   - attr_list
@@ -156,6 +156,9 @@ nav:
       - Configuration: getting-started/configuration.md
       - Running locally: getting-started/running-locally.md
 
+  - CLI:
+      - Overview: cli/index.md
+      
   - Architecture:
       - Overview: architecture/index.md
       - System overview: architecture/overview.md
