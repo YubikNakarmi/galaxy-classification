@@ -107,7 +107,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
                                                                       cfg.train.scheduler.min_lr 
                                                                      ,T_mult=2)
     
-    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
     metrics   = make_metrics(cfg.variant.num_classes, dev)
     writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
 
@@ -304,7 +304,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 
                 status.update("Uploading artifacts to Azure Blob Storage")
                 ui.debug("Uploading artifacts to Azure Blob Storage")
-                upload_artifact(blob, run_id,experiment_name=experiment_name)
+                upload_artifact(blob, run_id, experiment_name=experiment_name, cfg=cfg)
 
         writer.close()
         logger.success("Training complete.")
@@ -327,9 +327,19 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
     from rich.prompt import Confirm
+    from src.training import validate_setup
+                
+    
+    from src.utils.logging_config import forward_mlflow_logs_to_rich
+    
+    
+    
 
 
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
+    
+    forward_mlflow_logs_to_rich(console = ui.console)
+
     
     if Confirm.ask("Are you sure you want to start training? \
                    This may take a long time and consume significant resources.", default=False):
@@ -356,8 +366,9 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
             status.update("Importing required modules...")
 
             import mlflow
-            from src.training import validate_setup
-            from ml.pipeline.eval import evaluate as eval
+
+            from ml.pipeline.eval import evaluate as evaluate_command #for click ctx
+
 
             status.update("Validating setup...")
             if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
@@ -378,13 +389,16 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
             mlflow.set_experiment(cfg.variant.experiment.root)
             run_id = train_default(cfg,ui)
             ui.success("Training complete." ,style = "bold spring_green2")
+            
 
             if evaluate:
                 ui.rule("Evaluating the trained model...", style="bold spring_green2")
                 ui.info("Starting evaluation of the trained model...")
-                eval(ctx, run_id=run_id, variant=variant, model_version=None,
+                
+                evaluate_command.callback(run_id=run_id, variant=variant, model_version=None,
                     min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                     model_source="mlflow")
+                
     except Exception as e:
         ui.error(f"An error occurred during training: {e}",show_execption=True)
         raise  

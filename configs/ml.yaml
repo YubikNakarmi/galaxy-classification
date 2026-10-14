@@ -184,7 +184,7 @@ train:
     checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     
   batch_size: 64
-  num_epochs: 3
+  num_epochs: 1
 
   learning_rate: 0.001
   weight_decay: 0.0001

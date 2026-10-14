@@ -19,6 +19,8 @@ from loguru import logger
 from pathlib import Path
 import sys
 import logging
+import io
+from contextlib import contextmanager, redirect_stdout, redirect_stderr
 
 
 root = Path(__file__).resolve().parent.parent.parent
@@ -81,6 +83,49 @@ def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None, 
     _configure(cfg, service, json_logs, verbose, std_out)
 
 
+def suppress_mlflow_logs(level: int = logging.ERROR) -> None:
+    """Hide MLflow log messages below `level`. Other libraries are untouched."""
+    logger = logging.getLogger("mlflow")
+    logger.setLevel(level)
+    for h in logger.handlers:     
+        h.setLevel(level)
+    logger.propagate = False       
+
+
+def forward_mlflow_logs_to_rich(console, verbose: int = 0) -> None:
+    
+    from rich.logging import RichHandler
+    
+    """Send only MLflow logs through the given Rich console.
+    """
+    level = {0: logging.WARNING, 1: logging.INFO}.get(verbose, logging.DEBUG)
+
+    logger = logging.getLogger("mlflow")
+    logger.handlers.clear()
+    logger.addHandler(
+        RichHandler(console=console, show_path=False, markup=False, rich_tracebacks=True)
+    )
+    logger.setLevel(level)
+    logger.propagate = False
+
+    noisy_level = logging.ERROR if verbose == 0 else logging.NOTSET
+    logging.getLogger("mlflow.pytorch").setLevel(noisy_level)
+    logging.getLogger("mlflow.utils.requirements_utils").setLevel(noisy_level)
+    
+    
+    
+@contextmanager
+def mlflow_output(console, verbose: int = 0):
+    """Capture raw stdout/stderr (e.g. 'View run' lines) from code inside the block."""
+    buf = io.StringIO()
+    try:
+        with redirect_stdout(buf), redirect_stderr(buf):
+            yield
+    finally:
+        if verbose > 0:
+            for line in buf.getvalue().splitlines():
+                console.print(line, markup=False, highlight=False)    
+    
 class InterceptHandler(logging.Handler):
     '''Redirects stdlib logging (uvicorn, sqlalchemy, celery) into loguru.'''
     def emit(self, record):
