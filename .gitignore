@@ -27,3 +27,4 @@ images/*
 
 /.pytest_cache
 .vscode
+*.db
