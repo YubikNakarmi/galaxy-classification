@@ -162,7 +162,6 @@ dvc remote modify azure_remote sas_token <generated_sas_token>
 Migrations are managed with Alembic:
  
 ```sh
-alembic revision --autogenerate -m "init tables"
 alembic upgrade head
 ```
  
