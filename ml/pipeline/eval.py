@@ -232,7 +232,7 @@ def evaluate(ctx, run_id, variant, model_version,
             logger.info(f"Evaluating model {model_name} version {model_version} from run {run_id}")
         
             metrics   = make_metrics(cfg.variant.num_classes, dev)
-            results = eval(metrics, model,cfg=cfg)
+            results = eval(metrics, model,cfg=cfg,ui=ui)
 
         
             mlflow.log_metrics(results)
@@ -262,5 +262,3 @@ def evaluate(ctx, run_id, variant, model_version,
 
         mlflow.end_run()
 
-if __name__ == "__main__":
-    evaluate()

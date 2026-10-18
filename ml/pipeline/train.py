@@ -45,6 +45,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     ui.info(f"Starting training for variant: {cfg.variant.name} \
             with resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}")
     ui.info(f"Set MLflow experiment to '{experiment_name}' for training run.")
+    
     logger.info(
         "Training configuration | device={} | seed={} | batch_size={} | num_epochs={} | train_path={} | val_path={}",
         cfg.env.device,
@@ -66,8 +67,6 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    
-
     train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), img_dir=cfg.data.img_dir, transform=raw_transforms)
     val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), img_dir=cfg.data.img_dir, transform=val_transforms)
     logger.info(
@@ -85,8 +84,10 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     logger.info("Weighted sampler prepared | class_weights={}", train_class_weights)
     ui.debug(f"Weighted sampler prepared | class_weights={train_class_weights}")
 
-    train_dataloader = DataLoader(train_dataset, batch_size=cfg.train.batch_size, shuffle=False,sampler=train_sampler)
-    val_dataloader = DataLoader(val_dataset, batch_size=cfg.train.batch_size, shuffle=False)
+    train_dataloader = DataLoader(num_workers=2, dataset=train_dataset, 
+                                  batch_size=cfg.train.batch_size, shuffle=False, sampler=train_sampler, pin_memory=True)
+    val_dataloader = DataLoader(num_workers=2, dataset=val_dataset, 
+                                batch_size=cfg.train.batch_size, shuffle=False,pin_memory=True)
     
     #load models and optimizers
     assert cfg.variant.num_classes is not None, \
@@ -100,14 +101,13 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     model.to(dev)
 
     
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate) #weight decay
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg.train.scheduler.warmup_epochs,eta_min =
                                                                       cfg.train.scheduler.min_lr 
                                                                      ,T_mult=2)
     
-    criterion = torch.nn.CrossEntropyLoss(weight=torch.tensor(train_class_weights).to(dev))
+    criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
     metrics   = make_metrics(cfg.variant.num_classes, dev)
     writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
 
@@ -304,7 +304,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 
                 status.update("Uploading artifacts to Azure Blob Storage")
                 ui.debug("Uploading artifacts to Azure Blob Storage")
-                upload_artifact(blob, run_id,experiment_name=experiment_name)
+                upload_artifact(blob, run_id, experiment_name=experiment_name, cfg=cfg)
 
         writer.close()
         logger.success("Training complete.")
@@ -319,25 +319,26 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 @click.option("--variant","-v", type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", help="Training variant to use")
 @click.option("--evaluate","-e", is_flag=True, default=False, help="Evaluate the model after training")
 @click.option("-c","--status","show_config", is_flag=True, default=False, help="Show the configuration before training")
+@click.option("-y","--yes", is_flag=True, default=False, help="Automatically confirm all prompts")
 @click.option("--checkpoint_run_id", type=str, default=None, help="Run ID of the checkpoint to resume from")
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:str):
+def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:str,yes:bool):
 
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
     from rich.prompt import Confirm
-
-
+    from src.training import validate_setup
+                
+    from src.utils.logging_config import forward_mlflow_logs_to_rich
+    
+    
+    
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
     
-    if Confirm.ask("Are you sure you want to start training? \
-                   This may take a long time and consume significant resources.", default=False):
-        pass
-    
-    else:
-        ui.info("Training aborted by user.")
-        return
+    forward_mlflow_logs_to_rich(console = ui.console)
+
+   
     
     try:
         app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
@@ -349,6 +350,19 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
                 config_ui = ConfigUI(ui)
                 config_ui.show_train_config(cfg, variant, MLFLOW_TRACKING_URI)
                 return  # Exit after showing the configuration
+            
+            
+        if yes:
+            ui.info("Auto-confirm enabled. Proceeding with training without user confirmation.")
+        
+        else:
+            if Confirm.ask("Are you sure you want to start training? \
+                        This may take a long time and consume significant resources.", default=False):
+                pass
+            
+            else:
+                ui.info("Training aborted by user.")
+                return
 
         #slower importing time so modules were put below    
         with ui.status("Starting training process...", spinner="dots") as status:
@@ -356,8 +370,9 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
             status.update("Importing required modules...")
 
             import mlflow
-            from src.training import validate_setup
-            from ml.pipeline.eval import evaluate as eval
+
+            from ml.pipeline.eval import evaluate as evaluate_command #for click ctx
+
 
             status.update("Validating setup...")
             if not validate_setup(required_paths=[cfg.data.img_dir,cfg.data.train_path,cfg.data.val_path], 
@@ -374,17 +389,21 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
     
                 
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        
         if variant == "Default":
             mlflow.set_experiment(cfg.variant.experiment.root)
             run_id = train_default(cfg,ui)
             ui.success("Training complete." ,style = "bold spring_green2")
+            
 
             if evaluate:
                 ui.rule("Evaluating the trained model...", style="bold spring_green2")
                 ui.info("Starting evaluation of the trained model...")
-                eval(ctx, run_id=run_id, variant=variant, model_version=None,
+                
+                evaluate_command.callback(run_id=run_id, variant=variant, model_version=None,
                     min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                     model_source="mlflow")
+                
     except Exception as e:
         ui.error(f"An error occurred during training: {e}",show_execption=True)
         raise  

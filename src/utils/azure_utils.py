@@ -23,7 +23,13 @@ from typing import Optional
 
 
 root = Path(__file__).resolve().parent.parent.parent
-load_dotenv(root / '.env') 
+
+try:
+    load_dotenv(root / '.env') 
+    
+except Exception as e:
+    logger.warning(f"Could not load .env file: {e}")
+    
 
 
 _AZURE_STORAGE_CONNECTION_STRING = os.getenv('AZURE_STORAGE_CONNECTION_STRING') #default env var entries``

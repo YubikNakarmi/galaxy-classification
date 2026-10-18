@@ -236,6 +236,15 @@ class UI:
         if self.verbose >= level:
             with self.console.status(message, spinner=spinner) as status:
                 yield status
+        else:
+            yield _SilentStatus()
+
+
+class _SilentStatus:
+    def update(self, message):
+        pass
+
+
 class TableUI:
     def __init__(self,ui:UI,table:Optional[Table|None]=None):
         self.ui = ui
@@ -395,12 +404,14 @@ class _TrainSession:
         )
         self.batch_progress = Progress(
             SpinnerColumn(),
-            TextColumn("[bright_blue]Batch"),
+            TextColumn("{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
             TextColumn("[dim]{task.fields[stats]}"),
             console=console,
         )
+        self.val_task = None
+        self._last_train = {}
 
         self.epoch_task = None
         self.batch_task = None
@@ -440,9 +451,30 @@ class _TrainSession:
 
     def start_epoch(self, epoch: int):
         self._current_epoch = epoch
-        self.batch_task = self.batch_progress.add_task("batches", total=self.steps_per_epoch, stats="")
+        self._last_train = {}
+        self.batch_task = self.batch_progress.add_task(
+            "[bright_blue]Batch", total=self.steps_per_epoch, stats=""
+        )
         self.live.update(self._render())
 
+    def update_batch(self, **stats):
+        self._last_train = stats  # remember latest train metrics
+        stat_str = "  ".join(
+            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+            for k, v in stats.items()
+        )
+        self.batch_progress.update(self.batch_task, advance=1, stats=stat_str)
+        self.live.update(self._render())
+
+    def end_epoch(self, **final_stats):
+        self.epoch_progress.update(self.epoch_task, advance=1)
+        self.batch_progress.remove_task(self.batch_task)
+        if self.val_task is not None:
+            self.batch_progress.remove_task(self.val_task)
+            self.val_task = None
+        self.history.append({"epoch": self._current_epoch, **self._last_train, **final_stats})
+        self.live.update(self._render())
+        
     def start_validation(self, val_steps: int):
         self.val_task = self.batch_progress.add_task(
             "[magenta]Val batch", total=val_steps, stats=""
@@ -456,19 +488,7 @@ class _TrainSession:
         self.batch_progress.update(self.val_task, advance=1, stats=stat_str)
         self.live.update(self._render())
         
-    def update_batch(self, **stats):
-        stat_str = "  ".join(
-            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
-            for k, v in stats.items()
-        )
-        self.batch_progress.update(self.batch_task, advance=1, stats=stat_str)
-        self.live.update(self._render())
-
-    def end_epoch(self, **final_stats):
-        self.epoch_progress.update(self.epoch_task, advance=1)
-        self.batch_progress.remove_task(self.batch_task)
-        self.history.append({"epoch": self._current_epoch, **final_stats})
-        self.live.update(self._render())
+   
 
 class TreeUI:
     def __init__(self, ui: UI):

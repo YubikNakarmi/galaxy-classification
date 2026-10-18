@@ -31,6 +31,10 @@ logging:
     compression: zip
 ```
 The loggin can be configured in `core.yaml` as shown above. The `app` logger is used for logging the application logs and the `ml` logger is used for logging the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config). 
+### MLflow console output
+
+Training keeps Rich UI output enabled while suppressing informational MLflow client messages in the console. The training command configures the `mlflow` logger at `WARNING`, so MLflow warnings and errors remain visible and MLflow tracking continues normally. This affects the training client only; logs emitted by a separately running MLflow server must be configured on the server.
+
 ---
 ## File Stream
 

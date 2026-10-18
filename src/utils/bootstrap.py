@@ -46,7 +46,11 @@ def load_context( *,
     ml_yaml_path = ml_yaml_path or ROOT / "configs" / "ml.yaml"
     core_yaml_path = core_yaml_path or ROOT / "configs" / "core.yaml"
 
-    load_dotenv(env_path)
+    try:
+        load_dotenv(env_path)
+        
+    except Exception as e:
+        logger.warning(f"Could not load .env file: {e}")
 
     core_cfg = load_yaml(core_yaml_path)
     image_dir = Path(core_cfg["dirs"]["data"]["images"])
