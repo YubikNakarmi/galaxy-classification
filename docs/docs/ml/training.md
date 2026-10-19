@@ -92,12 +92,26 @@ These variables control training behaviour. Set them in your `.env` file or inje
 
 
 ### checkpoints
+
 By default Checkpoints are updated using [src.training.checkpoints](https://github.com/YubikNakarmi/galaxy-classification/blob/dev/src/training/checkpoint.py). As the architecutral diagrams shws the checkpoints are updated both locally in and Azure storage blob. 
 - eval checkpoints
 - training epoch based checkpoints
 
+### mlflow
+Training requires mlflow which is a central repository for models and also metrics. The system meterics are also enabled with final model version upload to the registry. During local training mlflow can be hosted in a local machine but I specifically hosted it in VM for my training. 
+
+!!! Note
+    Checkout more infra about my training strategy in [training infra](../infra/train.md)
+
+### Artifacts Upload
+The artifacts for training are uploaded to Azure blob storage. The artifacts include the following:
+- Checkpoints
+- Logs
+- Reports
+The checkpoints are uploaded every epoch if it improves on the best model. The logs and reports are uploaded at the end of training.
+
 ### visualizations
-- Mlflow and tensorboard, and reports functions
+Mlflow and tensorboard, and reports functions
 
 
 

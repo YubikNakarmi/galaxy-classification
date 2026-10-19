@@ -64,6 +64,7 @@ def validate_path_exists(root: str|Path,
         if validate_root:#only validate if the candidate path is within the root if validate_root is True
             try:
                 candidate.relative_to(root)
+                
             except ValueError:
                 raise UnsafeCacheDirError(
                     f"dir '{path}' resolves to '{candidate}', "

@@ -17,7 +17,7 @@ variants:
   Default:
     preprocessing: Default
     num_classes: 5
-    label_file: data/preprocessed/labels/labeled_data_1.csv
+    label_file: /kaggle/input/datasets/yubiknakarmi/label-processed-1/labeled_data_1.csv
 
     data:
       split:
@@ -83,16 +83,16 @@ variants:
       model_name: galaxy-classification-dirichlet
 
 data:
-  img_dir: /kaggle/input/datasets/yubiknakarmi/galaxy-zoo-imgs
+  img_dir: /kaggle/input/datasets/yubiknakarmi/galaxy-zoo-imgs/images
   raw_paths: 
     - labels: data/raw/labels.csv
     - mappings: data/raw/mapping.csv
     
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
-  train_path: /kaggle/input/datasets/yubiknakarmi/splits/train.csv #realpath: data/preprocessed/split/train.csv
-  val_path: /kaggle/input/datasets/yubiknakarmi/splits/val_sample.csv
-  eval_path: /kaggle/input/datasets/yubiknakarmi/splits/eval_sample.csv
+  train_path: /kaggle/input/datasets/yubiknakarmi/splits/train_split.csv #realpath: data/preprocessed/split/train.csv
+  val_path: /kaggle/input/datasets/yubiknakarmi/splits/val_split.csv
+  eval_path: /kaggle/input/datasets/yubiknakarmi/splits/test_split.csv
 
   input_size: 128
 
