@@ -33,7 +33,7 @@ def train_epoch(
     running_loss = 0.0
     num_samples = 0
 
-    for images,labels in dataloader:
+    for i,(images,labels) in enumerate(dataloader):
          
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
@@ -48,7 +48,7 @@ def train_epoch(
 
         dash.update_batch(loss=loss.item(), acc=(outputs.argmax(dim=1) == labels).float().mean().item())
         optimizer.step()
-        scheduler.step(epoch + global_step/len(dataloader))  # type: ignore[arg-type]
+        scheduler.step(epoch + (i+1)/len(dataloader))  # type: ignore[arg-type]
         num_samples += batch_size
         global_step += 1
 

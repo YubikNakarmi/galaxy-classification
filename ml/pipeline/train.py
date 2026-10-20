@@ -104,11 +104,14 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     model.to(dev)
 
     
-    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate) #weight decay
+    optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate,
+                                  weight_decay=cfg.train.weight_decay) #weight decay
 
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=cfg.train.scheduler.warmup_epochs,eta_min =
-                                                                      cfg.train.scheduler.min_lr 
-                                                                     ,T_mult=2)
+    scheduler = torch.optim.lr_scheduler.\
+    CosineAnnealingWarmRestarts(optimizer, 
+                                T_0=cfg.train.scheduler.warmup_epochs,
+                                eta_min =cfg.train.scheduler.min_lr 
+                                ,T_mult=2)
     
     criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
     metrics   = make_metrics(cfg.variant.num_classes, dev)
@@ -406,6 +409,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
                 evaluate_command.callback(run_id=run_id, variant=variant, model_version=None,
                     min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                     model_source="mlflow")
+                
                 
     except Exception as e:
         ui.error(f"An error occurred during training: {e}",show_execption=True)

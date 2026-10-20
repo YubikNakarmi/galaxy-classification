@@ -27,22 +27,25 @@ def make_metrics(num_classes:int, device: torch.device) -> dict:
         "roc_auc":            AUROC(task="multiclass", num_classes=num_classes).to(device),
     }
 # Hardcoded as there will be less editing of these transforms, but can be moved to config if needed
+MEAN = [0.1376, 0.1276, 0.1187]
+STD  = [0.1728, 0.1586, 0.1488]
+
 raw_transforms = transforms.Compose([
-    RandomCenterCrop(170, 240), 
-    transforms.Resize(160),                            
-    transforms.RandomCrop(128),                        
-    transforms.RandomRotation(degrees = [0, 360]),
+    # rotate the full image first; the crops below sit inside the valid region
+    transforms.RandomRotation(degrees=[0, 360],
+                              interpolation=transforms.InterpolationMode.BILINEAR),
+    RandomCenterCrop(170, 240),
+    transforms.Resize(160),
+    transforms.RandomCrop(128),
     transforms.RandomHorizontalFlip(),
-    transforms.ColorJitter(brightness=0.2, contrast=0.5, saturation=0.4, hue=0.1),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),   # no hue or saturation
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
-                         std= [0.1728, 0.1586, 0.1488])    
+    transforms.Normalize(mean=MEAN, std=STD),
 ])
 
 val_transforms = transforms.Compose([
-    transforms.CenterCrop(207),  
+    transforms.CenterCrop(164),   # = 0.8 × mean train crop (205)
     transforms.Resize(128),
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.1376, 0.1276, 0.1187],
-                         std= [0.1728, 0.1586, 0.1488])    
+    transforms.Normalize(mean=MEAN, std=STD),
 ])
