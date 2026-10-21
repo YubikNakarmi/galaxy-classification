@@ -1,1 +1,18 @@
-J
+apiVersion: v1
+kind: Service
+metadata:
+  name: Api-service
+  namespace: default
+spec:
+  selector:
+    app: fast-api
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: Api-service
+    protocol: TCP
+    port: 8000
+    targetPort: 8000

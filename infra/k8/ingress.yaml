@@ -1,0 +1,18 @@
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: IngressAPI
+  namespace: default
+spec:
+  rules:
+  - host: localhost:8000
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ServiceName
+            port:
+              number: 80

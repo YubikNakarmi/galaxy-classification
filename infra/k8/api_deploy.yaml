@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: api-deployment
   labels:
-    app: fast-api-deployment
+    app: fast-api
     version: v1
     tier: backend
 
