@@ -70,8 +70,11 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     ui.info("Initializing training components...")
 
     ui.info("Loading datasets from {cfg.data.train_path} and {cfg.data.val_path}")
-    train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), img_dir=cfg.data.img_dir, transform=raw_transforms)
-    val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), img_dir=cfg.data.img_dir, transform=val_transforms)
+    train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), 
+                                  img_dir=cfg.data.img_dir, transform=raw_transforms)
+    
+    val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), 
+                                img_dir=cfg.data.img_dir, transform=val_transforms)
     logger.info(
         "Loaded datasets | train_samples={} | val_samples={} | image_dir={}",
         len(train_dataset),
@@ -80,7 +83,8 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     )
 
     ui.debug(
-        f"Loaded datasets | train_samples={len(train_dataset)} | val_samples={len(val_dataset)} | image_dir={cfg.data.img_dir}",
+        f"Loaded datasets | train_samples={len(train_dataset)} \
+        | val_samples={len(val_dataset)} | image_dir={cfg.data.img_dir}",
     )
 
     train_sampler, train_class_weights = train_dataset.make_weighted_sampler()
@@ -88,7 +92,9 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     ui.debug(f"Weighted sampler prepared | class_weights={train_class_weights}")
 
     train_dataloader = DataLoader(num_workers=2, dataset=train_dataset, 
-                                  batch_size=cfg.train.batch_size, shuffle=False, sampler=train_sampler, pin_memory=True)
+                                  batch_size=cfg.train.batch_size, shuffle=False, 
+                                  sampler=train_sampler, pin_memory=True)
+    
     val_dataloader = DataLoader(num_workers=2, dataset=val_dataset, 
                                 batch_size=cfg.train.batch_size, shuffle=False,pin_memory=True)
     
@@ -97,6 +103,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     f"variant '{cfg.active_variant}' has num_classes=null, cannot use classification model"
 
     model = GalaxyClassifier_ResNet(num_classes=cfg.variant.num_classes)
+    
     if dev != torch.device("cuda"):
         logger.warning("CUDA device not available, training will be performed on CPU. This may be slow.")
         ui.warning("CUDA device not available, training will be performed on CPU. This may be slow.")

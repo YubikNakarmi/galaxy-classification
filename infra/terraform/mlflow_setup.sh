@@ -2,7 +2,7 @@
 set -euo pipefail
 exec > >(tee -a /var/log/mlflow-setup.log) 2>&1
 
-MLFLOW_USER="bishwa"
+MLFLOW_USER="yubik"
 MLFLOW_PASS="CHANGE_ME"
 APP_DIR="/opt/mlflow"
 
@@ -101,5 +101,30 @@ volumes:
   mlflow_data:
 EOF
 
-docker compose up -d
+#auto start mlflow service on boot
+sudo cat > /etc/systemd/system/mlflow.service <<EOF
+[Unit]
+Description=My Docker Compose Application
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/mlflow
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+
+sudo systemctl enable mlflow
+
+sudo systemctl start mlflow
+
 echo "MLflow is up at http://$PUBLIC_IP:5000"
