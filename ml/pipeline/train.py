@@ -69,7 +69,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 
     ui.info("Initializing training components...")
 
-    ui.info("Loading datasets from {} and {}", cfg.data.train_path, cfg.data.val_path)
+    ui.info("Loading datasets from {cfg.data.train_path} and {cfg.data.val_path}")
     train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), img_dir=cfg.data.img_dir, transform=raw_transforms)
     val_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.val_path), img_dir=cfg.data.img_dir, transform=val_transforms)
     logger.info(
