@@ -16,12 +16,12 @@ from rich.progress import (
 from rich.tree import Tree
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Confirm
 from loguru import logger
 from contextlib import contextmanager
 from src.config import RootConfig
 from pydantic import BaseModel
 from pathlib import Path
+import os
 
 
 class UI:
@@ -240,6 +240,78 @@ class UI:
             yield _SilentStatus()
 
 
+
+def _live_allowed(console) -> bool:
+    
+    """
+    Example:
+    ```python
+    !NO_LIVE=1 python train.py
+    ``` 
+        
+    """
+    if os.environ.get("NO_LIVE") == "1":
+        return False
+    if "KAGGLE_KERNEL_RUN_TYPE" in os.environ or os.path.exists("/kaggle"):
+        return False                      
+    return console.is_terminal           
+
+class _NullSession:
+    """Used when Live is disabled: prints a heartbeat every N batches instead."""
+    def __init__(self, console, epochs, steps_per_epoch, history, every=100):
+        self.console, self.epochs, self.steps = console, epochs, steps_per_epoch
+        self.history, self.every = history, every
+        self._ep, self._batch, self._last = 0, 0, {}
+
+    def __enter__(self): return self
+    def __exit__(self, *exc): return False
+
+    def start_epoch(self, epoch):
+        self._ep, self._batch, self._last = epoch, 0, {}
+        self.console.print(f"Epoch {epoch+1}/{self.epochs} started")
+
+    def update_batch(self, **stats):
+        """Update the progress of the current batch."""
+        self._batch += 1
+        self._last = stats
+        if self._batch % self.every == 0 or self._batch == self.steps:
+            s = "  ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+                          for k, v in stats.items())
+            self.console.print(f"  batch {self._batch}/{self.steps}  {s}")
+
+    def end_epoch(self, **final):
+        self.history.append({"epoch": self._ep, **self._last, **final})
+
+    def start_validation(self, val_steps): self._vsteps, self._vb = val_steps, 0
+    def update_val_batch(self, **stats):
+        self._vb += 1
+        if self._vb % self.every == 0 or self._vb == self._vsteps:
+            self.console.print(f"  val batch {self._vb}/{self._vsteps}")
+
+class _NullEvalSession:
+    def __init__(self, console, steps, history, every=100):
+        self.console, self.steps, self.history, self.every = console, steps, history, every
+        self._n = 0
+ 
+    def __enter__(self):
+        return self
+ 
+    def __exit__(self, *exc):
+        return False
+ 
+    def update_batch(self, **stats):
+        self._n += 1
+        self.history.append({"step": self._n, **stats})
+        if self._n % self.every == 0 or self._n == self.steps:
+            self.console.print(f"  eval batch {self._n}/{self.steps}  {_fmt_stats(stats)}")
+ 
+    def __getattr__(self, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return lambda *a, **k: None
+ 
+
+            
 class _SilentStatus:
     def update(self, message):
         pass
@@ -304,8 +376,9 @@ class EvalDashboard:
         self.metrics_history: list[dict] = []
 
     def session(self, steps: int) -> "_EvalSession":
-        return _EvalSession(self._ui.console, steps, self.metrics_history)
-
+        if not _live_allowed(self._ui.console):
+                    return _NullEvalSession(self._ui.console, steps, self.metrics_history)
+        return _EvalSession(self._ui, steps, self.metrics_history)
 
 class _EvalSession:
     def __init__(self, console: Console, steps: int, history: list[dict]):
@@ -385,8 +458,12 @@ class TrainDashboard:
         self.metrics_history: list[dict] = []
 
     def session(self, epochs: int, steps_per_epoch: int):
+        
+        if not _live_allowed(self._ui.console):
+                return _NullSession(self._ui.console, epochs, steps_per_epoch, self.metrics_history)
+            
         return _TrainSession(self._ui.console, epochs, steps_per_epoch, self.metrics_history)
-
+    
 class _TrainSession:
     def __init__(self, console, epochs, steps_per_epoch, history):
         self.console = console

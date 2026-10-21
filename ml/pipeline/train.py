@@ -64,12 +64,12 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     random.seed(cfg.env.seed)
     torch.manual_seed(cfg.env.seed)
     torch.cuda.manual_seed_all(cfg.env.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
 
     ui.info("Initializing training components...")
 
-    ui.info("Loading datasets from {cfg.data.train_path} and {cfg.data.val_path}")
+    ui.info(f"Loading datasets from {cfg.data.train_path} and {cfg.data.val_path}")
     train_dataset = GalaxyDataset(labels_df=pd.read_csv(cfg.data.train_path), 
                                   img_dir=cfg.data.img_dir, transform=raw_transforms)
     
@@ -91,12 +91,15 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     logger.info("Weighted sampler prepared | class_weights={}", train_class_weights)
     ui.debug(f"Weighted sampler prepared | class_weights={train_class_weights}")
 
-    train_dataloader = DataLoader(num_workers=2, dataset=train_dataset, 
+    train_dataloader = DataLoader(num_workers=4, dataset=train_dataset, 
                                   batch_size=cfg.train.batch_size, shuffle=False, 
-                                  sampler=train_sampler, pin_memory=True)
+                                  sampler=train_sampler,pin_memory=True, 
+                                  persistent_workers=True, prefetch_factor=4,)
     
-    val_dataloader = DataLoader(num_workers=2, dataset=val_dataset, 
-                                batch_size=cfg.train.batch_size, shuffle=False,pin_memory=True)
+    val_dataloader = DataLoader(num_workers=4, dataset=val_dataset, 
+                                batch_size=cfg.train.batch_size, 
+                                shuffle=False,pin_memory=True,
+                                persistent_workers=True, prefetch_factor=4,)
     
     #load models and optimizers
     assert cfg.variant.num_classes is not None, \
@@ -261,18 +264,16 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
                     logger.info("New best validation loss {:.4f} at epoch {}", val_loss, ep + 1)
                     ui.info(f"New best validation loss {val_loss:.4f} at epoch {ep + 1}")
 
-                    with ui.status("Saving best checkpoint...", spinner="dots",level=1) as status:
-                        status.update(f"Saving best checkpoint at epoch {ep + 1}...")
-                        chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], 
-                                cfg_snapshot, filename="best.pt")
-                        
-                        status.update(f"Best checkpoint saved at epoch {ep + 1}. Uploading to Azure...")
+                    chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], 
+                            cfg_snapshot, filename="best.pt")
+                    try:
                         ckpt_url =chkpt.upload_checkpoint_to_azure(filename="best.pt")#upload immediately after improvement for better restore
                         mlflow.set_tag("checkpoint_url", ckpt_url)
                         mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
-                        logger.info("Best checkpoint synced to Azure | url={}", ckpt_url)
-
                         ui.info(f"Best checkpoint synced to Azure | url={ckpt_url}")
+                    except Exception as e:
+                        logger.error("Azure upload failed: {}", e)
+                        ui.warning(f"Azure upload failed (local best.pt saved): {e}")
 
                 dash.end_epoch(val_loss=val_loss, val_acc=val_metrics["val_acc"])
         # after training   
@@ -345,13 +346,14 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
                 
     from src.utils.logging_config import forward_mlflow_logs_to_rich
     
-    
+    import os
     
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
     
     forward_mlflow_logs_to_rich(console = ui.console)
 
    
+
     
     try:
         app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
