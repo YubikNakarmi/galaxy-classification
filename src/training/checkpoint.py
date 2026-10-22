@@ -17,7 +17,7 @@ root = Path(__file__).parent.parent.parent
 @dataclass
 class CheckpointState:
     start_epoch: int
-    best_val_loss: float
+    best_val_f1_macro: float
     resume_run_id: Optional[str]
 
 class CheckpointManager:
@@ -156,7 +156,7 @@ class CheckpointManager:
 
         if not self.resume_enabled:
             logger.info("Resume is disabled. Starting training from scratch.")
-            return CheckpointState(start_epoch=0, best_val_loss=float('inf'), resume_run_id=None)
+            return CheckpointState(start_epoch=0, best_val_f1_macro=float('-inf'), resume_run_id=None)
         
         resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path("best.pt", self.resume_run_id) #use filename argument else create
         
@@ -194,15 +194,15 @@ class CheckpointManager:
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
 
         start_epoch = ckpt["epoch"] + 1
-        best_val_loss = ckpt["val_loss"]
+        best_val_f1_macro = ckpt["val_f1_macro"]
         resume_run_id = ckpt.get("run_id")
 
         logger.success(
-            "Checkpoint loaded successfully. Resuming from epoch {} with best validation loss {}.",
+            "Checkpoint loaded successfully. Resuming from epoch {} with best validation f1 macro {}.",
             start_epoch,
-            best_val_loss,
+            best_val_f1_macro,
         )
-        return CheckpointState(start_epoch=start_epoch, best_val_loss=best_val_loss, resume_run_id=resume_run_id)
+        return CheckpointState(start_epoch=start_epoch, best_val_f1_macro=best_val_f1_macro, resume_run_id=resume_run_id)
         
     # Internal class helpers
     def _blob_path(self, filename: str | Path, run_id:str) -> str:

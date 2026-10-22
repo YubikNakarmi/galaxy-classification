@@ -8,8 +8,15 @@ import click
 from ml.pipeline import pipeline
 from src.cli.style import UI
 
-
-
+def cycle_ends(t0: int, t_mult: int, max_epoch: int) -> set[int]:
+    """Epoch counts (1-indexed) at which each cosine cycle finishes."""
+    
+    ends, length, total = set(), t0, 0
+    while total + length <= max_epoch:
+        total += length
+        ends.add(total)
+        length *= t_mult
+    return ends
 
 
 def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]=None):
@@ -41,6 +48,8 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
     experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
     # normalize device to a torch.device once
     dev = torch.device(cfg.env.device)
+    
+    LATEST_UPLOAD_EPOCHS = cfg.train.checkpoint.save_freq_epoch
 
 
     #trainin start
@@ -126,7 +135,9 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                                 eta_min =cfg.train.scheduler.min_lr 
                                 ,T_mult=2)
     
-    criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
+    train_criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
+    val_criterion = torch.nn.CrossEntropyLoss() #single weighted for training only
+    
     metrics   = make_metrics(cfg.variant.num_classes, dev)
     writer    = SummaryWriter(log_dir=cfg.storage.local.logs.tensorboard_dir / experiment_name)
 
@@ -156,7 +167,8 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                                         scheduler=scheduler, device=dev,
                                         save_filename="best_resume.pt")
     
-    best_val_loss = chkpt_state.best_val_loss
+    best_val_f1_macro = float("-inf")   #-inf, on resume_checkpoint, run fresh so it can beat its own 
+    MIN_DELTA = 1e-3    
 
     cfg_snapshot = {
         "variant":     cfg.active_variant,
@@ -173,6 +185,9 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
     if Resume:
         experiment_name = f"resume_{experiment_name}"  #resume diff name 
         logger.info(f"Resuming training from checkpoint | experiment_name={experiment_name}")
+        
+    if chkpt_state.start_epoch >= cfg.train.num_epochs:
+        raise ValueError(f"num_epochs={cfg.train.num_epochs} <= start_epoch={chkpt_state.start_epoch}; nothing to train.")
     
     #split run for checkpoints instead of same run in resume  
     with mlflow.start_run(run_name=experiment_name, 
@@ -187,51 +202,50 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
             run_id,
             chkpt_state.resume_run_id,
             chkpt_state.start_epoch,
-            chkpt_state.best_val_loss,
+            chkpt_state.best_val_f1_macro,
         )
 
         ui.info(
             f"MLflow run started | run_id={run_id} | resume_run_id={chkpt_state.resume_run_id} |\
-              start_epoch={chkpt_state.start_epoch} | best_val_loss={chkpt_state.best_val_loss}",
+              start_epoch={chkpt_state.start_epoch} | best_val_f1_macro={chkpt_state.best_val_f1_macro}",
         )
 
-        if chkpt_state.resume_run_id is None:
-            mlflow.log_params({
-                "epochs":          cfg.train.num_epochs,
-                "batch_size":      cfg.train.batch_size,
-                "lr":              cfg.train.learning_rate,
-                "weight_decay":    cfg.train.weight_decay,
-                "grad_clip":       cfg.train.grad_clip_max_norm,
-                "label_smoothing": cfg.train.label_smoothing,
-                "variant":         cfg.active_variant,
-                "num_classes":     cfg.variant.num_classes,
-                "optimizer":       cfg.train.optimizer,
-                "scheduler":       cfg.train.scheduler.type,
-                "T_0":             cfg.train.scheduler.warmup_epochs,
-                "T_mult":          2,
-                "seed":            cfg.env.seed,
-            })
-        else:
-            logger.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
-            ui.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
-
+        mlflow.log_params({
+            "epochs":          cfg.train.num_epochs,
+            "batch_size":      cfg.train.batch_size,
+            "lr":              cfg.train.learning_rate,
+            "weight_decay":    cfg.train.weight_decay,
+            "grad_clip":       cfg.train.grad_clip_max_norm,
+            "label_smoothing": cfg.train.label_smoothing,
+            "variant":         cfg.active_variant,
+            "num_classes":     cfg.variant.num_classes,
+            "optimizer":       cfg.train.optimizer,
+            "scheduler":       cfg.train.scheduler.type,
+            "T_0":             cfg.train.scheduler.warmup_epochs,
+            "T_mult":          2,
+            "seed":            cfg.env.seed,
+        })
+        
         global_step = chkpt_state.start_epoch * len(train_dataloader)
         with ui.train.session(epochs=cfg.train.num_epochs, steps_per_epoch=len(train_dataloader)) as dash: #ui
+            
+            
             for ep in range(chkpt_state.start_epoch, cfg.train.num_epochs):
                 dash.start_epoch(ep)
                 # need to use rich for a bar during training
                 train_loss, global_step = train_epoch(
-                    model, train_dataloader, optimizer, scheduler, criterion,
+                    model, train_dataloader, optimizer, scheduler, train_criterion,
                     writer, ep, cfg.train.num_epochs, global_step,
                     cfg.train.grad_clip_max_norm,ui,dash ,dev,
                 )
                 
                 val_loss, val_metrics = validate_epoch(
-                    model, val_dataloader, criterion, metrics,
+                    model, val_dataloader, val_criterion, metrics,
                     ep, cfg.train.num_epochs,ui,dash ,dev,
                     
                 )
 
+                val_f1_macro = val_metrics["val_f1_macro"]
                 mlflow.log_metrics({
                     "train_loss":          train_loss,
                     "val_loss":            val_loss,
@@ -275,12 +289,12 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                     f"val_acc={val_metrics['val_acc']:.4f} | val_f1_macro={val_metrics['val_f1_macro']:.4f}"
                 )
 
-            
 
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    logger.info("New best validation loss {:.4f} at epoch {}", val_loss, ep + 1)
-                    ui.info(f"New best validation loss {val_loss:.4f} at epoch {ep + 1}")
+
+                if val_f1_macro > best_val_f1_macro + MIN_DELTA:  # Check for improvement with a minimum delta
+                    best_val_f1_macro = val_f1_macro
+                    logger.info("New best validation f1 macro {:.4f} at epoch {}", val_f1_macro, ep + 1)
+                    ui.info(f"New best validation f1 macro {val_f1_macro:.4f} at epoch {ep + 1}")
 
                     chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], 
                             cfg_snapshot, filename="best.pt")
@@ -292,10 +306,25 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                     except Exception as e:
                         logger.error("Azure upload failed: {}", e)
                         ui.warning(f"Azure upload failed (local best.pt saved): {e}")
+                
+                chkpt.save(model, optimizer, scheduler, ep, val_loss, #save every epoch locally
+                    val_metrics["val_f1_macro"], cfg_snapshot, filename="latest.pt")
+                
+                if (ep + 1) % LATEST_UPLOAD_EPOCHS == 0:
+                    chkpt.upload_checkpoint_to_azure(filename="latest.pt")
 
+                
+                CYCLE_ENDS = cycle_ends(scheduler.T_0, scheduler.T_mult, cfg.train.num_epochs) 
+                # cycle ends for lr have better metrics naturally
+                if (ep + 1) in CYCLE_ENDS:
+                    chkpt.save(model, optimizer, scheduler, ep, val_loss,
+                            val_metrics["val_f1_macro"], cfg_snapshot, filename=f"cycle_end_ep{ep+1}.pt")
+                    chkpt.upload_checkpoint_to_azure(filename=f"cycle_end_ep{ep+1}.pt")
+                    ui.info(f"Cycle end checkpoint saved and uploaded: cycle_end_ep{ep+1}.pt")
+                    
                 dash.end_epoch(val_loss=val_loss, val_acc=val_metrics["val_acc"])
         # after training   
-        # 
+        
 
         #non verbosed artifact upload for final best checkpoint and report generation
         with ui.status("Finalizing training and uploading artifacts to Azure Blob Storage...", spinner="dots") as status:
@@ -340,8 +369,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
 
         writer.close()
         logger.success("Training complete.")
-        
-           
+         
     mlflow.end_run()
     return run_id
 
@@ -437,7 +465,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
                 evaluate_command.callback(run_id=run_id, variant=variant, model_version=None,
                     min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                     model_source="mlflow")
-                
+
                 
     except Exception as e:
         ui.error(f"An error occurred during training: {e}",show_execption=True)

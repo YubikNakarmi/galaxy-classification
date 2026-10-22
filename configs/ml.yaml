@@ -214,7 +214,7 @@ train:
     experiment_name: galaxy-classification-training
 
   checkpoint:
-    save_freq_epoch: 10
+    save_freq_epoch: 5
     save_best: true
     save_latest: true
 
