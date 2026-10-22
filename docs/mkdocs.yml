@@ -199,6 +199,7 @@ nav:
       - Overview: infra/index.md
       - Train: infra/train.md
       - Docker Compose: infra/docker-compose.md
+      - Kubernetes: infra/k8.md
       - CI/CD (GitHub Actions): infra/cicd.md
       - Prometheus & Grafana: infra/observability.md
 

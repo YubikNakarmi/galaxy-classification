@@ -6,6 +6,7 @@ metadata:
 spec:
   selector:
     app: fast-api
+    
   type: ClusterIP
   sessionAffinity: None
   sessionAffinityConfig:

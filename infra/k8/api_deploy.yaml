@@ -56,14 +56,4 @@ spec:
         ports:
         - containerPort: 8000
 
-      - name: prometheus
-        image: prom/prometheus:v3.13.1
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 9090
-
-      - name: loki
-        image: grafana/loki:2.8.2
-        imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 3100
+      

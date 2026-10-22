@@ -1,11 +1,12 @@
-## Setup
+## Architecture Overview
+![arch](../assets/architecture/galaxy-classification-infra.drawio.png)
 
-### Mlflow VM
+## MLflow VM
 I used Azure Bv1as VM to setup the MLflow server. The VM was setup with 2 vCPUs, 4GB RAM and 32GB SSD. The VM was setup with Ubuntu 20.04 LTS. The VM was setup with Docker and Docker Compose. The MLflow server was setup using nginx as a reverse proxy for basic auth and mlflow v3.13.0, both in docker compose. Some general setup in vm are as follows:
 
+## Setup
+
 ```bash title="install docker and docker compose"
-
-
 #install docker compose and nginx
 sudo apt-get update
 sudo apt-get install -y ca-certificates curl
