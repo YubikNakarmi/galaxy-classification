@@ -3,14 +3,17 @@ from __future__ import annotations
 import datetime
 import random
 from pathlib import Path
-
+from typing import Optional
 import click
 from ml.pipeline import pipeline
 from src.cli.style import UI
 
 
 
-def train_default(cfg,ui:UI):  # no console type hint for fast CLI
+
+
+def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]=None):
+    # no console type hint for fast CLI
     import mlflow
     import pandas as pd
     import torch
@@ -132,9 +135,11 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
     az_checkpoint_dir = cfg.train.checkpoints.checkpoint_restore_path
     chkpt_local_path = Path(cfg.train.checkpoints.local_checkpoint_path) / experiment_name   
 
-    chkpt = CheckpointManager(cfg=cfg,checkpoint_dir_local=chkpt_local_path,
-                                   checkpoint_dir_azure=az_checkpoint_dir,
-                                   run_id=cfg.train.checkpoints.run_id)
+    chkpt = CheckpointManager(cfg=cfg,
+                                checkpoint_dir_local=chkpt_local_path,
+                                checkpoint_dir_azure=az_checkpoint_dir,
+                                resume_enabled=resume,
+                                resume_run_id = resume_id or cfg.train.checkpoints.resume_run_id)
     logger.info(
         "Checkpoint manager initialized | local_dir={} | azure_dir={} | resume_enabled={}",
         chkpt_local_path,
@@ -147,7 +152,9 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
         azure_dir={az_checkpoint_dir} | resume_enabled={cfg.train.checkpoints.resume_from_checkpoint}",)
     
     # checkpoint manager already handles the logic for getting config if you want to resume or not
-    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, scheduler=scheduler, device=dev,save_filename="tmp.pt")
+    chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, 
+                                        scheduler=scheduler, device=dev,
+                                        save_filename="best_resume.pt")
     
     best_val_loss = chkpt_state.best_val_loss
 
@@ -160,10 +167,21 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 
     mlflow.enable_system_metrics_logging()
     ui.trace(f"MLflow system metrics logging enabled | tracking_uri={mlflow.get_tracking_uri()}")
+    
+    Resume = resume or cfg.train.checkpoints.resume_from_checkpoint
 
-    with mlflow.start_run(run_name=experiment_name,run_id=chkpt_state.resume_run_id) as run:
+    if Resume:
+        experiment_name = f"resume_{experiment_name}"  #resume diff name 
+        logger.info(f"Resuming training from checkpoint | experiment_name={experiment_name}")
+    
+    #split run for checkpoints instead of same run in resume  
+    with mlflow.start_run(run_name=experiment_name, 
+                          tags= {"resume": Resume,
+                                 "parent_run_id": chkpt_state.resume_run_id if Resume else None}) as run:  #set tag for parents for easy tracking 
+        
         run_id = run.info.run_id
-        chkpt.run_id = run_id #resuign same functino to update the run_id incase of new run
+        chkpt.run_id = run_id #assign new run_id to checkpoint manager for future saves
+        
         logger.info(
             "MLflow run started | run_id={} | resume_run_id={} | start_epoch={} | best_val_loss={}",
             run_id,
@@ -197,7 +215,7 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
             logger.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
             ui.info("Resumed MLflow run detected; skipping duplicate parameter logging.")
 
-        global_step = 0
+        global_step = chkpt_state.start_epoch * len(train_dataloader)
         with ui.train.session(epochs=cfg.train.num_epochs, steps_per_epoch=len(train_dataloader)) as dash: #ui
             for ep in range(chkpt_state.start_epoch, cfg.train.num_epochs):
                 dash.start_epoch(ep)
@@ -332,12 +350,13 @@ def train_default(cfg,ui:UI):  # no console type hint for fast CLI
 @pipeline.command()
 @click.option("--variant","-v", type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", help="Training variant to use")
 @click.option("--evaluate","-e", is_flag=True, default=False, help="Evaluate the model after training")
+@click.option("--resume","-r", is_flag=True, default= None, help="Resume training from the last checkpoint if available")
 @click.option("-c","--status","show_config", is_flag=True, default=False, help="Show the configuration before training")
 @click.option("-y","--yes", is_flag=True, default=False, help="Automatically confirm all prompts")
-@click.option("--checkpoint_run_id", type=str, default=None, help="Run ID of the checkpoint to resume from")
+@click.option("--resume_run_id","-rid", type=str, default=None, help="Run ID of the checkpoint to resume from")
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:str,yes:bool):
+def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, resume:Optional[bool], yes:bool):
 
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
@@ -407,7 +426,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, checkpoint_run_id:s
         
         if variant == "Default":
             mlflow.set_experiment(cfg.variant.experiment.root)
-            run_id = train_default(cfg,ui)
+            run_id = train_default(cfg,ui,resume=resume,resume_id=resume_run_id)
             ui.success("Training complete." ,style = "bold spring_green2")
             
 

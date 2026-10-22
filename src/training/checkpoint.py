@@ -26,7 +26,10 @@ class CheckpointManager:
 
 
     def __init__(self, checkpoint_dir_local: str|Path,checkpoint_dir_azure: 
-                 str,cfg:RootConfig,run_id:str | None = None):
+                 str,cfg:RootConfig,
+                 run_id:str | None = None,
+                 resume_run_id: Optional[str] = None,
+                 resume_enabled: Optional[bool] = None):
         
 
 
@@ -40,8 +43,9 @@ class CheckpointManager:
         self.az_container = cfg.storage.cloud.experiments.container 
         self.resume_hard = cfg.train.checkpoints.checkpoint_resume_hard
 
-        self.resume_enabled = cfg.train.checkpoints.resume_from_checkpoint
+        self.resume_enabled = resume_enabled or cfg.train.checkpoints.resume_from_checkpoint
         self.run_id = run_id 
+        self.resume_run_id = resume_run_id or cfg.train.checkpoints.resume_run_id
 
     def save(self, model, optimizer, scheduler, epoch: int, val_loss: float,
              val_f1_macro: float, cfg_snapshot: dict,filename:str|Path="best.pt") -> None:
@@ -83,7 +87,9 @@ class CheckpointManager:
 
         logger.success("Checkpoint saved locally at {}", target)
 
-    def upload_checkpoint_to_azure(self,filename:str| Path="best.pt", blob_path:Optional[str|Path]=None)->str| None:
+    def upload_checkpoint_to_azure(self,filename:str| Path="best.pt", 
+                                   blob_path:Optional[str|Path]=None)->str| None:
+        
         ''' Uploads the checkpoint file from local storage to Azure Blob Storage.  
         Args:
             filename: The name of the checkpoint file to upload.
@@ -96,7 +102,7 @@ class CheckpointManager:
         if not self.run_id:
             raise RuntimeError("run_id must be set before uploading checkpoint.")
         
-        blob_name = str(Path(blob_path)) if blob_path else self._blob_path(filename)
+        blob_name = str(Path(blob_path)) if blob_path else self._blob_path(filename, self.run_id) #for uplaod runid
         local_file = self.checkpoint_dir / Path(filename)
         logger.info(
             "Uploading checkpoint | local_file={} | blob_name={} | container={}",
@@ -129,7 +135,9 @@ class CheckpointManager:
 
  
 
-    def load_checkpoint(self, model, optimizer,scheduler, device,save_filename:str|Path="best.pt", blob_path:Optional[str|Path]=None)-> CheckpointState:
+    def load_checkpoint(self, model, optimizer,scheduler, device,save_filename:str|Path="best.pt", 
+                        blob_path:Optional[str|Path]=None)-> CheckpointState:
+        
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
         and optimizer state from the checkpoint. 
 
@@ -150,7 +158,8 @@ class CheckpointManager:
             logger.info("Resume is disabled. Starting training from scratch.")
             return CheckpointState(start_epoch=0, best_val_loss=float('inf'), resume_run_id=None)
         
-        resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path("best.pt") #use filename argument else create
+        resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path("best.pt", self.resume_run_id) #use filename argument else create
+        
         local_path = self.checkpoint_dir / Path(save_filename)
         logger.warning(
             "Attempting to resume checkpoint | blob_name={} | local_path={} | container={}",
@@ -162,6 +171,7 @@ class CheckpointManager:
         try:
             with AzureBlobStorage(container_name=self.az_container) as az_loader:
                 downloaded_url = az_loader.load_blob(blob_name=resolved_blob_name, local_path=local_path)
+                
         except Exception as e:
             logger.exception(f"Unexpected error contacting Azure Blob Storage: {e}")
             return self._handle_missing()
@@ -195,12 +205,13 @@ class CheckpointManager:
         return CheckpointState(start_epoch=start_epoch, best_val_loss=best_val_loss, resume_run_id=resume_run_id)
         
     # Internal class helpers
-    def _blob_path(self, filename: str | Path) -> str:
+    def _blob_path(self, filename: str | Path, run_id:str) -> str:
         """Single source of truth for the blob path — used by both upload and load
         so the two can never diverge."""
-        if not self.run_id:
+        if not run_id:
             raise RuntimeError("run_id must be set before building a blob path.")
-        return str(Path(self.run_id) / self.checkpoint_dir_azure / Path(filename))
+        
+        return str(Path(run_id) / self.checkpoint_dir_azure / Path(filename))
     
     def _handle_missing(self) -> CheckpointState:
         if self.resume_hard:

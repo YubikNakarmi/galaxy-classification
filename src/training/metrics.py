@@ -3,6 +3,9 @@ import torch
 from torchvision import transforms 
 import random
 from torchvision.transforms import functional as tf
+from typing import Optional
+from pathlib import Path
+
 class RandomCenterCrop:
     def __init__(self, min_size, max_size):
         self.min_size = min_size
@@ -49,3 +52,57 @@ val_transforms = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=MEAN, std=STD),
 ])
+
+
+
+def load_mlflow_metrics(run_id: str, metrics: Optional[list[str]]=None, save_path:Optional[str|Path]=None) -> dict:
+    """_summary_
+
+    Args:
+        run_id (str): run id to pull metrics from
+        metrics (Optional[list[str]], optional): List of metric names to load. If None, all metrics will be loaded. Defaults to None.
+        save_path (Optional[str | Path], optional): Path to save the metrics CSV files. Defaults to None.
+
+    Returns:
+        dict: all metrics dictionary
+        
+    Example:
+    ```python
+    metrics = load_mlflow_metrics(run_id="e3b866df7f01417fb0db72e0da051f23", metrics=["accuracy", "f1_macro"], save_path="metrics/")
+    ```
+    """
+    
+    import mlflow
+    import pandas as pd
+
+    # Load metrics from MLflow
+    client = mlflow.tracking.MlflowClient()
+    
+    run = client.get_run(run_id)
+    
+    if metrics is None:
+        metrics = list(run.data.metrics.keys()) #getall keys metrics
+    
+    metrics_data = {}
+    for metric_name in metrics:
+        metric_history = client.get_metric_history(run_id, metric_name)
+        
+        if metric_history:
+            df = pd.DataFrame([{"step": m.step, "value": m.value} for m in metric_history])
+            
+            if save_path:
+                save_path = Path(save_path)
+                save_path.mkdir(parents=True, exist_ok=True)
+                df.to_csv(save_path / f"{metric_name}.csv", index=False)
+                
+            metrics_data[metric_name] = df
+        else:
+            df = pd.DataFrame(columns=["step", "value"])
+            metrics_data[metric_name] = df
+            
+            if save_path:
+                save_path = Path(save_path)
+                save_path.mkdir(parents=True, exist_ok=True)
+                df.to_csv(save_path / f"{metric_name}.csv", index=False)
+
+    return metrics_data

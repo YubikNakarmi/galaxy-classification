@@ -181,7 +181,7 @@ train:
     #used if resume_from_checkpoint is true and saves to this destination path in local
     local_checkpoint_path: "models/checkpoints" 
     checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
-    run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
+    resume_run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
     checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     
   batch_size: 64

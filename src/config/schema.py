@@ -156,7 +156,7 @@ class CheckpointTrainConfig(ConfigModel):
     resume_from_checkpoint: bool
     local_checkpoint_path: Path | None
     checkpoint_restore_path: str | None
-    run_id: str | None
+    resume_run_id: str | None
     checkpoint_resume_hard: bool
 
 
