@@ -215,7 +215,7 @@ train:
 
   checkpoint:
     save_freq_epoch: 5
-    save_best: true
+    save_cycle: true
     save_latest: true
 
 eval:

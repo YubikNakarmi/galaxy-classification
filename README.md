@@ -15,14 +15,16 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
   - [Table of Contents](#table-of-contents)
   - [Movitation](#movitation)
   - [Tech Stack](#tech-stack)
+  - [Architecture](#architecture)
+  - [models](#models)
   - [Running](#running)
-  - [CLI](#cli)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [File Setup](#file-setup)
-    - [DVC Setup](#dvc-setup)
-    - [Azure Blob Setup](#azure-blob-setup)
+    - [DVC Setup (Optional)](#dvc-setup-optional)
+    - [Azure Blob Setup (Optional)](#azure-blob-setup-optional)
   - [Database Migrations](#database-migrations)
+  - [CLI](#cli)
   - [Training \& eval](#training--eval)
     - [Training on a VM](#training-on-a-vm)
     - [Eval](#eval)
@@ -82,7 +84,7 @@ The project itself is build using microservice architecture. The project is divi
 docker-compose up #runs all which might not be necessary
 ```
 
-## CLI 
+
 
 ## Getting Started
 
@@ -116,7 +118,7 @@ mkdir -p logs models data
 touch logs/.gitkeep models/.gitkeep data/.gitkeep
 ```
  
-### DVC Setup
+### DVC Setup (Optional)
  
 Initialize DVC and configure an Azure remote for data/model versioning:
  
@@ -143,7 +145,7 @@ dvc remote modify azure_remote --local connection_string "DefaultEndpointsProtoc
 dvc remote modify azure_remote sas_token <generated_sas_token>
 ```
  
-### Azure Blob Setup
+### Azure Blob Setup (Optional)
  
 1. Create a storage account in Azure (or use **Azurite** for local emulation).
 2. Create the required containers within that account.
@@ -164,7 +166,14 @@ Migrations are managed with Alembic:
 ```sh
 alembic upgrade head
 ```
- 
+
+## CLI 
+
+importing a model 
+
+```sh
+galax cache import --model-path <path_to_model> --variant <variant_name>
+```
 ## Training & eval
  
 ### Training on a VM

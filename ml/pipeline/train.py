@@ -307,21 +307,23 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                         logger.error("Azure upload failed: {}", e)
                         ui.warning(f"Azure upload failed (local best.pt saved): {e}")
                 
-                chkpt.save(model, optimizer, scheduler, ep, val_loss, #save every epoch locally
-                    val_metrics["val_f1_macro"], cfg_snapshot, filename="latest.pt")
+                if cfg.train.checkpoint.save_latest:
+
+                    chkpt.save(model, optimizer, scheduler, ep, val_loss, #save every epoch locally
+                        val_metrics["val_f1_macro"], cfg_snapshot, filename="latest.pt")
                 
                 if (ep + 1) % LATEST_UPLOAD_EPOCHS == 0:
-                    chkpt.upload_checkpoint_to_azure(filename="latest.pt")
-
+                    chkpt.upload_checkpoint_to_azure(filename="latest.pt")   
                 
-                CYCLE_ENDS = cycle_ends(scheduler.T_0, scheduler.T_mult, cfg.train.num_epochs) 
-                # cycle ends for lr have better metrics naturally
-                if (ep + 1) in CYCLE_ENDS:
-                    chkpt.save(model, optimizer, scheduler, ep, val_loss,
-                            val_metrics["val_f1_macro"], cfg_snapshot, filename=f"cycle_end_ep{ep+1}.pt")
-                    chkpt.upload_checkpoint_to_azure(filename=f"cycle_end_ep{ep+1}.pt")
-                    ui.info(f"Cycle end checkpoint saved and uploaded: cycle_end_ep{ep+1}.pt")
-                    
+                if cfg.train.checkpoint.save_cycle:
+                    CYCLE_ENDS = cycle_ends(scheduler.T_0, scheduler.T_mult, cfg.train.num_epochs) 
+                    # cycle ends for lr have better metrics naturally
+                    if (ep + 1) in CYCLE_ENDS:
+                        chkpt.save(model, optimizer, scheduler, ep, val_loss,
+                                val_metrics["val_f1_macro"], cfg_snapshot, filename=f"cycle_end_ep{ep+1}.pt")
+                        chkpt.upload_checkpoint_to_azure(filename=f"cycle_end_ep{ep+1}.pt")
+                        ui.info(f"Cycle end checkpoint saved and uploaded: cycle_end_ep{ep+1}.pt")
+                        
                 dash.end_epoch(val_loss=val_loss, val_acc=val_metrics["val_acc"])
         # after training   
         
