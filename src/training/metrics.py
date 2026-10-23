@@ -5,6 +5,16 @@ import random
 from torchvision.transforms import functional as tf
 from typing import Optional
 from pathlib import Path
+from src.cli.style import UI
+import mlflow
+import pandas as pd
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+ROOT = Path(__file__).parent.parent.parent
+load_dotenv(ROOT / ".env")
+
 
 class RandomCenterCrop:
     def __init__(self, min_size, max_size):
@@ -55,54 +65,84 @@ val_transforms = transforms.Compose([
 
 
 
-def load_mlflow_metrics(run_id: str, metrics: Optional[list[str]]=None, save_path:Optional[str|Path]=None) -> dict:
-    """_summary_
+def load_mlflow_metrics(run_id: str, metrics: Optional[list[str]]=None,
+                        save_path:Optional[str|Path]=None,
+                        ui:UI= UI(verbose=0),
+                        exclude_system: bool = True) -> dict:
+    """
+    Load metrics from MLflow for a given run.
 
     Args:
         run_id (str): run id to pull metrics from
         metrics (Optional[list[str]], optional): List of metric names to load. If None, all metrics will be loaded. Defaults to None.
-        save_path (Optional[str | Path], optional): Path to save the metrics CSV files. Defaults to None.
+        save_path (Optional[str | Path], optional): Directory or CSV path for the
+            combined metrics file. Defaults to None.
+        exclude_system (bool, optional): Whether to exclude system metrics. Defaults to True.
 
     Returns:
         dict: all metrics dictionary
-        
+
     Example:
     ```python
     metrics = load_mlflow_metrics(run_id="e3b866df7f01417fb0db72e0da051f23", metrics=["accuracy", "f1_macro"], save_path="metrics/")
     ```
     """
-    
-    import mlflow
-    import pandas as pd
+
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
 
     # Load metrics from MLflow
     client = mlflow.tracking.MlflowClient()
     
+    ui.debug(f"tracking set to {os.getenv('MLFLOW_TRACKING_URI')}")
+    ui.info(f"Loading metrics for run_id: {run_id}...")
     run = client.get_run(run_id)
     
     if metrics is None:
-        metrics = list(run.data.metrics.keys()) #getall keys metrics
+        if exclude_system:
+            metrics = [k for k in run.data.metrics.keys() if not k.startswith("system/")]
+        else:
+            metrics = list(run.data.metrics.keys()) #getall keys metrics
+        ui.warning(f"No metrics specified. Loading all metrics: {metrics}")
     
     metrics_data = {}
+    combined_rows = []
     for metric_name in metrics:
         metric_history = client.get_metric_history(run_id, metric_name)
         
         if metric_history:
-            df = pd.DataFrame([{"step": m.step, "value": m.value} for m in metric_history])
+            rows = [
+                {
+                    "metric": metric_name,
+                    "step": m.step,
+                    "value": m.value,
+                    "timestamp": m.timestamp,}
+                for m in metric_history
+            ]
+            combined_rows.extend(rows)
             
-            if save_path:
-                save_path = Path(save_path)
-                save_path.mkdir(parents=True, exist_ok=True)
-                df.to_csv(save_path / f"{metric_name}.csv", index=False)
-                
+            df = pd.DataFrame(rows).drop(columns=["metric"])
             metrics_data[metric_name] = df
+            ui.success(f"Metrics loaded for {metric_name}")
         else:
-            df = pd.DataFrame(columns=["step", "value"])
-            metrics_data[metric_name] = df
+
+            ui.warning(f"No data found for metric: {metric_name}. Creating empty DataFrame.")
             
-            if save_path:
-                save_path = Path(save_path)
-                save_path.mkdir(parents=True, exist_ok=True)
-                df.to_csv(save_path / f"{metric_name}.csv", index=False)
+            df = pd.DataFrame(columns=["step", "value", "timestamp"])
+            metrics_data[metric_name] = df
+            ui.success(f"Metrics loaded for {metric_name}")
+
+    if save_path:
+        save_path = Path(save_path)
+        
+        output_path = save_path if save_path.suffix.lower() == ".csv" else save_path / "metrics.csv"
+        
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        combined_df = pd.DataFrame(
+            combined_rows,
+            columns=["metric", "step", "value", "timestamp"],
+        )
+        combined_df.to_csv(output_path, index=False)
+        ui.success(f"Metrics saved to {output_path}")
 
     return metrics_data

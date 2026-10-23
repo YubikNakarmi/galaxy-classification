@@ -107,9 +107,8 @@ def eval(metrics:dict,model,cfg,ui:UI)-> dict:
 
 def evaluate(ctx, run_id, variant, model_version, 
              min_improvement, metric_name, alias,model_source):
-
+    #need to add model source for local eval and upload to registry
     '''
-    
     
     
     '''
@@ -151,6 +150,7 @@ def evaluate(ctx, run_id, variant, model_version,
         except Exception as e:
             logger.error(f"MLflow not reachable: {e}")
             return
+        
         active_var = cfg.active_variant
         dev = cfg.env.device
         experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
