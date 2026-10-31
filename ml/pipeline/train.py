@@ -190,9 +190,13 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
         raise ValueError(f"num_epochs={cfg.train.num_epochs} <= start_epoch={chkpt_state.start_epoch}; nothing to train.")
     
     #split run for checkpoints instead of same run in resume  
+    
+    tags = {"resume": str(bool(Resume)).lower()}          
+    if Resume and chkpt_state.resume_run_id:
+        tags["parent_run_id"] = str(chkpt_state.resume_run_id)
+        
     with mlflow.start_run(run_name=experiment_name, 
-                          tags= {"resume": Resume,
-                                 "parent_run_id": chkpt_state.resume_run_id if Resume else None}) as run:  #set tag for parents for easy tracking 
+                          tags= tags) as run:  #set tag for parents for easy tracking 
         
         run_id = run.info.run_id
         chkpt.run_id = run_id #assign new run_id to checkpoint manager for future saves
