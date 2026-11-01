@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import random
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 import click
 from ml.pipeline import pipeline
 from src.cli.style import UI
@@ -106,7 +106,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
     train_dataloader = DataLoader(num_workers=4, dataset=train_dataset, 
                                   batch_size=cfg.train.batch_size, shuffle=False, 
                                   sampler=train_sampler,pin_memory=True, 
-                                  persistent_workers=True, prefetch_factor=4,)
+                                  persistent_workers=True, prefetch_factor=4)
     
     val_dataloader = DataLoader(num_workers=4, dataset=val_dataset, 
                                 batch_size=cfg.train.batch_size, 
@@ -135,7 +135,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
                                 eta_min =cfg.train.scheduler.min_lr 
                                 ,T_mult=2)
     
-    train_criterion = torch.nn.CrossEntropyLoss(weight=torch.as_tensor(train_class_weights,dtype=torch.float32).to(dev))
+    train_criterion = torch.nn.CrossEntropyLoss(label_smoothing=cfg.train.label_smoothing) #weighted for training only
     val_criterion = torch.nn.CrossEntropyLoss() #single weighted for training only
     
     metrics   = make_metrics(cfg.variant.num_classes, dev)
@@ -219,14 +219,19 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
             "batch_size":      cfg.train.batch_size,
             "lr":              cfg.train.learning_rate,
             "weight_decay":    cfg.train.weight_decay,
+            "applied_weight_decay": optimizer.param_groups[0]["weight_decay"],
             "grad_clip":       cfg.train.grad_clip_max_norm,
             "label_smoothing": cfg.train.label_smoothing,
+            "applied_label_smoothing": train_criterion.label_smoothing,
             "variant":         cfg.active_variant,
             "num_classes":     cfg.variant.num_classes,
             "optimizer":       cfg.train.optimizer,
             "scheduler":       cfg.train.scheduler.type,
-            "T_0":             cfg.train.scheduler.warmup_epochs,
-            "T_mult":          2,
+            "T_0":             scheduler.T_0,
+            "T_mult":          scheduler.T_mult,
+            "resumed":           str(bool(Resume)),
+            "resume_run_id":     chkpt_state.resume_run_id,
+            "start_epoch":         chkpt_state.start_epoch,
             "seed":            cfg.env.seed,
         })
         
@@ -382,15 +387,30 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
 
 # CLI entry
 @pipeline.command()
-@click.option("--variant","-v", type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", help="Training variant to use")
-@click.option("--evaluate","-e", is_flag=True, default=False, help="Evaluate the model after training")
-@click.option("--resume","-r", is_flag=True, default= None, help="Resume training from the last checkpoint if available")
-@click.option("-c","--status","show_config", is_flag=True, default=False, help="Show the configuration before training")
-@click.option("-y","--yes", is_flag=True, default=False, help="Automatically confirm all prompts")
-@click.option("--resume_run_id","-rid", type=str, default=None, help="Run ID of the checkpoint to resume from")
+@click.option("--variant","-v", 
+              type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", 
+              help="Training variant to use")
+@click.option("--evaluate","-e", 
+              is_flag=True, default=False, 
+              help="Evaluate the model after training")
+@click.option("--resume","-r", 
+              is_flag=True, default= None, 
+              help="Resume training from the last checkpoint if available")
+@click.option("-c","--status","show_config", 
+              is_flag=True, default=False, 
+              help="Show the configuration before training")
+@click.option("-y","--yes", 
+              is_flag=True, default=False, 
+              help="Automatically confirm all prompts")
+@click.option("--resume_run_id","-rid", 
+              type=str, default=None, 
+              help="Run ID of the checkpoint to resume from")
+@click.option("--resume_checkpoint_from",
+              type=click.Choice(["Best","Latest","Cycle_End"]),default = "Best",
+              help="The checkpoint to resume from from best,latest and cycle end checkpoints from blob")
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, resume:Optional[bool], yes:bool):
+def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, resume:Optional[bool], yes:bool,resume_checkpoint_from:str):
 
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
@@ -409,8 +429,9 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
 
     
     try:
-        app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
-        cfg = app_ctx.cfg
+        
+        app_ctx: Any = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
+        cfg: Any = app_ctx.cfg
         MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
         if show_config:
@@ -450,7 +471,11 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
                     cfg.storage.local.logs.reports_dir,
                     cfg.storage.local.logs.tensorboard_dir]):
                 
-                ui.error("setup validation failed. Please check the logs for details.")
+                
+            
+                ui.error("setup validation failed. Please check the logs for details at:")
+                if app_ctx.log_path is not None:
+                    ui.print(ui.link_path(app_ctx.log_path))
                 return
 
             status.update("starting training for variant: {}".format(variant))

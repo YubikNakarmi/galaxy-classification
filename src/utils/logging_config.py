@@ -75,12 +75,14 @@ def setup_app_logging(config: dict, service: str = "app", json_logs: bool = None
     cfg = config["logging"]["app"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
     _configure(cfg, service, json_logs, verbose, std_out)
+    return cfg
 
 
 def setup_ml_logging(config: dict, service: str = "ml", json_logs: bool = None, verbose: bool = True,std_out: bool = True):
     cfg = config["logging"]["ml"]
     json_logs = json_logs if json_logs is not None else cfg.get("json", False)
     _configure(cfg, service, json_logs, verbose, std_out)
+    return cfg
 
 
 def suppress_mlflow_logs(level: int = logging.ERROR) -> None:

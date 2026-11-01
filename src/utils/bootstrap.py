@@ -26,6 +26,8 @@ class Context:
     mlflow_tracking_uri: str
     image_dir: Path
     core_cfg: dict | None = None  # Optional core configuration dictionary
+    log_path: Path | None = None  # Optional log path for logging purposes
+    service: str | None = None  # Optional service name for logging purposes
 
 def load_context( *,
     service: str = "ml",
@@ -55,10 +57,13 @@ def load_context( *,
     core_cfg = load_yaml(core_yaml_path)
     image_dir = Path(core_cfg["dirs"]["data"]["images"])
     if service == "ml":
-        setup_ml_logging(core_cfg,verbose=verbose,std_out=std_out)
+        log_config = setup_ml_logging(core_cfg,verbose=verbose,std_out=std_out)
     else:
         json_logs = os.getenv("LOG_JSON", "false").lower() in ("true", "1", "yes")
-        setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose,std_out=std_out)
+        log_config = setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose,std_out=std_out)
+
+    configured_log_file = log_config.get("file")
+    log_path = ROOT / configured_log_file if configured_log_file else None
 
     cfg = load_and_validate_config(ml_yaml_path, root=ROOT, env_path=env_path)
 
@@ -71,4 +76,6 @@ def load_context( *,
     return Context(root=ROOT, cfg=cfg, 
                    mlflow_tracking_uri=mlflow_uri, 
                    image_dir=image_dir,
-                   core_cfg=core_cfg)
+                   core_cfg=core_cfg,
+                   log_path=log_path,
+                   service=service)
