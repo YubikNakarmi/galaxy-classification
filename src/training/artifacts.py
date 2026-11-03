@@ -2,6 +2,7 @@
 This module provides functions to register models with MLflow, upload training logs, reports, and tensorboard artifacts to Azure Blob Storage. 
 It also sets up logging configurations for both application and ML logging.'''
 
+import click
 import torch
 import mlflow
 from dotenv import load_dotenv
@@ -16,10 +17,33 @@ from src.utils.azure_utils import AzureBlobStorage
 from src.utils.yaml_utils import load_yaml
 from src.config import load_and_validate_config
 
+from __future__ import annotations
+
+import datetime
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final, Optional
+
+
+
+
+if TYPE_CHECKING:
+    from mlflow.entities.model_registry import ModelVersion
+    from mlflow.tracking import MlflowClient
+    from torch import Tensor
+    from torch.nn import Module
+ 
 
 root = Path(__file__).parent.parent.parent
 load_dotenv(root / ".env")
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
+
+SkeletonFactory = Callable[[], "Module"] #callable skeleton of module for typing
+_STATE_KEYS: Final[tuple[str, ...]] = ("model_state", "state_dict", "model_state_dict")
+
+
+
+
 
 
 file_config = root / 'configs' / 'ml.yaml'
@@ -94,6 +118,25 @@ def upload_artifact(blob: AzureBlobStorage, run_id: str,experiment_name: str,cfg
     except Exception as e:
         logger.exception(f"Could not upload tensorboard logs for run {run_id}: {e}")
 
+def get_champion(client, name, alias):
+    try:
+        return client.get_model_version_by_alias(name, alias)
+    except mlflow.MlflowException as e:
+        if e.error_code != "RESOURCE_DOES_NOT_EXIST":
+            raise
+        return None
+    
+def should_promote(client, name, alias, metric_name, candidate_metric, min_improvement)->tuple[bool,str]:
+    
+    champ = get_champion(client, name, alias)
+    if champ is None:
+        return True, "no_champion"
+    raw = champ.tags.get(metric_name)
+    if raw is None:
+        return True, "champion_missing_metric"
+    if candidate_metric > float(raw) + min_improvement:
+        return True, f"improved_{metric_name}"
+    return False, "not_better"
 
 def promote_if_better(
     registered_model_name: str,
@@ -137,3 +180,80 @@ def promote_if_better(
         logger.info("Candidate version {} is not better than current champion version {}. No promotion.", candidate_version, current_champion.version)
         return False
     
+def load_local_model(model_path: str | Path, build_skeleton: SkeletonFactory) -> Module:
+    """Load a local checkpoint as an eval-mode nn.Module on CPU.
+
+    Accepts an MLflow model directory, a fully pickled module, or a state_dict
+    checkpoint (optionally nested under model_state / state_dict / model_state_dict).
+    ``build_skeleton`` is only called for state_dict checkpoints.
+    """
+    import torch
+    from loguru import logger
+
+    p = Path(model_path)
+    if not p.exists():
+        raise FileNotFoundError(f"Model path {p} does not exist.")
+
+    if p.is_dir():
+        if not (p / "MLmodel").exists():
+            raise ValueError(f"{p} is a directory but not an MLflow model (no MLmodel file).")
+        import mlflow.pytorch
+
+        loaded: Module = mlflow.pytorch.load_model(str(p))
+        return loaded.eval()
+
+    obj: Any
+    try:
+        obj = torch.load(p, map_location="cpu", weights_only=True)
+    except Exception:
+        logger.warning("weights_only load failed for {}; falling back to full unpickle.", p)
+        obj = torch.load(p, map_location="cpu", weights_only=False)
+
+    if isinstance(obj, torch.nn.Module):
+        return obj.eval()
+    if not isinstance(obj, dict):
+        raise TypeError(f"Unrecognised checkpoint type {type(obj).__name__} in {p}")
+
+    raw_state: dict[str, Any] = next((obj[k] for k in _STATE_KEYS if k in obj), obj)
+    state: dict[str, Tensor] = {k.removeprefix("module."): v for k, v in raw_state.items()}
+
+    model = build_skeleton()
+    try:
+        model.load_state_dict(state, strict=True)
+    except RuntimeError as e:
+        raise RuntimeError(f"Checkpoint {p} doesn't match the model architecture:\n{e}") from e
+
+    logger.info("Loaded state_dict from {} into skeleton model.", p)
+    return model.eval()
+
+def upload_model(
+    model: Module,
+    registered_name: str,
+    source_path: Optional[str | Path] = None,) -> str:
+    """Log ``model`` in its own run and register it. Returns the new version string.
+
+    The run is closed before returning, so it never collides with the eval run.
+    """
+   
+
+    with mlflow.start_run(run_name=f"upload_{registered_name}_{_timestamp()}") as run:
+        info = mlflow.pytorch.log_model(
+            model,
+            name="model", 
+            registered_model_name=registered_name,
+        )
+        mlflow.set_tags(
+            {
+                "registered_during_eval": "True",
+                "recovered_from_checkpoint": "True" if source_path else "False",
+                "source_path": str(source_path or ""),
+            })
+        
+
+    version = getattr(info, "registered_model_version", None)
+    if version is None: #older mlflow vers
+        versions = MlflowClient().search_model_versions(f"run_id='{run.info.run_id}'")
+        if not versions:
+            raise click.ClickException("Model was logged but no registry version was found.")
+        version = max(versions, key=lambda v: int(v.version)).version
+    return str(version)

@@ -136,7 +136,7 @@ class CheckpointManager:
  
 
     def load_checkpoint(self, model, optimizer,scheduler, device,save_filename:str|Path="best.pt", 
-                        blob_path:Optional[str|Path]=None)-> CheckpointState:
+                        blob_path:Optional[str|Path]=None,blob_file_name:Optional[str]="best.pt")-> CheckpointState:
         
         ''' Loads checkpoint to local storage from Azure Blob Storage if it exists, and then loads the model 
         and optimizer state from the checkpoint. 
@@ -158,7 +158,7 @@ class CheckpointManager:
             logger.info("Resume is disabled. Starting training from scratch.")
             return CheckpointState(start_epoch=0, best_val_f1_macro=float('-inf'), resume_run_id=None)
         
-        resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path("best.pt", self.resume_run_id) #use filename argument else create
+        resolved_blob_name = str(Path(blob_path)) if blob_path else self._blob_path(blob_file_name, self.resume_run_id) #use filename argument else create
         
         local_path = self.checkpoint_dir / Path(save_filename)
         logger.warning(

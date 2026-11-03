@@ -5,7 +5,8 @@
 An end-to-end MLOps pipeline for classifying galaxy morphologies from images, built with PyTorch, FastAPI, and BentoML — with full experiment tracking, data versioning, and observability baked in.
 
 > Full documentation is available at the [docs site](https://github.com/YubikNakarmi/galaxy-classification), generated via MkDocs and deployed automatically on push.
- 
+
+>Model available at [Hugging Face](https://huggingface.co/YubikNakarmi/GalaxyZooCNN)
 ---
  
 ## Table of Contents

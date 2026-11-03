@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import random
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Literal
 import click
 from ml.pipeline import pipeline
 from src.cli.style import UI
@@ -19,7 +19,9 @@ def cycle_ends(t0: int, t_mult: int, max_epoch: int) -> set[int]:
     return ends
 
 
-def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]=None):
+def train_default(cfg, ui:UI, resume:Optional[bool]=None,
+                  resume_id:Optional[str]=None,
+                  chkpt_type:Literal["Best","Latest"]="Best") -> str:
     # no console type hint for fast CLI
     import mlflow
     import pandas as pd
@@ -42,7 +44,10 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
         val_transforms,
     )
     from src.utils.azure_utils import AzureBlobStorage
-
+    
+    
+    CHKPT_TYPE = {"Best": "best.pt",
+                  "Latest": "latest.pt"}
     #configs
     #used throughout all loggings runs for local saves, cloud saves use mlflow run_id
     experiment_name = cfg.active_variant + "_" + str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))  
@@ -103,12 +108,12 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
     logger.info("Weighted sampler prepared | class_weights={}", train_class_weights)
     ui.debug(f"Weighted sampler prepared | class_weights={train_class_weights}")
 
-    train_dataloader = DataLoader(num_workers=4, dataset=train_dataset, 
+    train_dataloader = DataLoader(num_workers=cfg.env.num_workers, dataset=train_dataset, 
                                   batch_size=cfg.train.batch_size, shuffle=False, 
                                   sampler=train_sampler,pin_memory=True, 
                                   persistent_workers=True, prefetch_factor=4)
     
-    val_dataloader = DataLoader(num_workers=4, dataset=val_dataset, 
+    val_dataloader = DataLoader(num_workers=cfg.env.num_workers, dataset=val_dataset, 
                                 batch_size=cfg.train.batch_size, 
                                 shuffle=False,pin_memory=True,
                                 persistent_workers=True, prefetch_factor=4,)
@@ -165,7 +170,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
     # checkpoint manager already handles the logic for getting config if you want to resume or not
     chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, 
                                         scheduler=scheduler, device=dev,
-                                        save_filename="best_resume.pt")
+                                        blob_file_name= CHKPT_TYPE[chkpt_type], save_filename="best_resume.pt")
     
     best_val_f1_macro = float("-inf")   #-inf, on resume_checkpoint, run fresh so it can beat its own 
     MIN_DELTA = 1e-3    
@@ -406,11 +411,18 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,resume_id:Optional[str]
               type=str, default=None, 
               help="Run ID of the checkpoint to resume from")
 @click.option("--resume_checkpoint_from",
-              type=click.Choice(["Best","Latest","Cycle_End"]),default = "Best",
+              type=click.Choice(["Best","Latest"]),default = "Best",
               help="The checkpoint to resume from from best,latest and cycle end checkpoints from blob")
+
 @click.pass_context
 
-def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, resume:Optional[bool], yes:bool,resume_checkpoint_from:str):
+def train(ctx, 
+          variant:str, 
+          evaluate:bool, 
+          show_config:bool, 
+          resume_run_id:str, 
+          resume:Optional[bool], yes:bool,
+          resume_checkpoint_from:Literal["Best","Latest"]):
 
     from src.utils.bootstrap import load_context
     from src.cli.status import ConfigUI
@@ -430,8 +442,10 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
     
     try:
         
-        app_ctx: Any = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
-        cfg: Any = app_ctx.cfg
+        app_ctx = ctx.obj or load_context(service="ml",std_out=False) #retrive from top level of click cmd in __init__py, fallback to load_context if not present
+        cfg= app_ctx.cfg
+        
+        
         MLFLOW_TRACKING_URI = app_ctx.mlflow_tracking_uri
 
         if show_config:
@@ -485,7 +499,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
         
         if variant == "Default":
             mlflow.set_experiment(cfg.variant.experiment.root)
-            run_id = train_default(cfg,ui,resume=resume,resume_id=resume_run_id)
+            run_id = train_default(cfg,ui,resume=resume,resume_id=resume_run_id,chkpt_type=resume_checkpoint_from)
             ui.success("Training complete." ,style = "bold spring_green2")
             
 
@@ -496,7 +510,7 @@ def train(ctx, variant:str, evaluate:bool, show_config:bool, resume_run_id:str, 
                 evaluate_command.callback(run_id=run_id, variant=variant, model_version=None,
                     min_improvement=0.005, metric_name="f1_macro", alias="Champion", 
                     model_source="mlflow")
-
+    
                 
     except Exception as e:
         ui.error(f"An error occurred during training: {e}",show_execption=True)

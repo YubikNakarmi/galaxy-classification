@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import json
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import URLError
@@ -109,7 +109,38 @@ def validate_setup(
     return True
 
 
+def find_model(client, run_id):
+    """Returns ("registered", mv) | ("logged", artifact_path) | ("none", None)"""
 
+    #check registered
+    versions = client.search_model_versions(f"run_id='{run_id}'")
+    if versions:
+        #return newest
+        return "registered", max(versions, key=lambda v: int(v.version))
+
+    #logged but isnt registred
+    run = client.get_run(run_id)
+    history = run.data.tags.get("mlflow.log-model.history")
+    if history:  
+        entries = json.loads(history)
+        if entries:
+            return "logged", entries[-1]["artifact_path"]
+
+    # fallback: scan artifacts for an MLmodel file
+    def has_mlmodel(path=None):
+        for a in client.list_artifacts(run_id, path):
+            if a.is_dir:
+                if has_mlmodel(a.path):
+                    return a.path
+            elif a.path.endswith("MLmodel"):
+                return path or ""
+        return None
+
+    found = has_mlmodel()
+    if found is not None:
+        return "logged", found
+
+    return "none", None
 
 
 # validate_mlflow(mlflow_tracking_uri=os.environ.get("MLFLOW_TRACKING_URI"))
