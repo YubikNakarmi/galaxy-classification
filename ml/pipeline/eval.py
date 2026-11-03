@@ -234,32 +234,30 @@ def evaluate(ctx,
         metrics = make_metrics(matching_variant.num_classes, dev)
         
         #eval run
-        status.update(f"Evaluating model '{model_name}' on {cfg.data.eval_path}...")
-        with mlflow.start_run(run_name=run_name) as run:
-            eval_run_id: str = run.info.run_id
-            ui.info(f"Evaluating {model_name} (source run {run_id})")
+    with mlflow.start_run(run_name=run_name) as run:
+        eval_run_id: str = run.info.run_id
+        ui.info(f"Evaluating {model_name} (source run {run_id})")
 
-            results = run_eval(model, metrics, cfg, dev, ui)
-            mlflow.log_metrics(results)
-            ui.info(f"Eval results | {results}")
+        results = run_eval(model, metrics, cfg, dev, ui)
+        mlflow.log_metrics(results)
+        ui.info(f"Eval results | {results}")
 
-            candidate_metric = results.get(metric_name) #metric name by comparision
-            if candidate_metric is None:
-                raise click.ClickException(
-                    f"Metric '{metric_name}' not in eval results {sorted(results)}; cannot promote."
-                )
-
-            mlflow.set_tags(
-                {
-                    "eval_metric": metric_name,
-                    "evaluated": "True",
-                    "evaluated_model_name": model_name,
-                    "source_run_id": run_id,
-                    "model_source": model_source,
-                    "eval_data": str(cfg.data.eval_path),
-                }
+        candidate_metric = results.get(metric_name) #metric name by comparision
+        if candidate_metric is None:
+            raise click.ClickException(
+                f"Metric '{metric_name}' not in eval results {sorted(results)}; cannot promote."
             )
-            
+
+        mlflow.set_tags(
+            {
+                "eval_metric": metric_name,
+                "evaluated": "True",
+                "evaluated_model_name": model_name,
+                "source_run_id": run_id,
+                "model_source": model_source,
+                "eval_data": str(cfg.data.eval_path),
+            })
+        
     promoted = False
     reason = "not_registered"
 
