@@ -96,7 +96,6 @@ def run_eval(
               help="Path to the model file to evaluate",default=None)
 @click.option("--alias", type=str,default="Champion", help="Alias for the registered model")
 
-@click.pass_context
 @click.option("--register", is_flag=True, default=True,
               help="Register the model to MLflow if it is missing")
 @click.pass_context
