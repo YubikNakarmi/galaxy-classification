@@ -8,7 +8,7 @@ command_modules = {
         "train": ("ml.pipeline.train", "train"),
         "evaluate": ("ml.pipeline.eval", "evaluate"),
         "preprocess": ("ml.pipeline.preprocess", "preprocess"),
-        "load-metrics": ("ml.pipeline.load_metrics", "load_metrics"),
+        "load-metrics": ("ml.pipeline.mlflow", "load_metrics"),
         }
 
 class PipelineGroup(LazyPipelineGroup):

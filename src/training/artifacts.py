@@ -249,6 +249,7 @@ def upload_model(
                 "registered_during_eval": "True",
                 "recovered_from_checkpoint": "True" if source_path else "False",
                 "source_path": str(source_path or ""),
+                
             })
         
 

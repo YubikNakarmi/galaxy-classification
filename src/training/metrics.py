@@ -134,7 +134,7 @@ def load_mlflow_metrics(run_id: str, metrics: Optional[list[str]]=None,
     if save_path:
         save_path = Path(save_path)
         
-        output_path = save_path if save_path.suffix.lower() == ".csv" else save_path / "metrics.csv"
+        output_path = save_path if save_path.suffix.lower() == ".csv" else save_path / f"{run_id}-metrics.csv"
         
         output_path.parent.mkdir(parents=True, exist_ok=True)
         

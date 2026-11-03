@@ -39,3 +39,6 @@ def load_metrics(ctx,run_id: str,
     except Exception as e:
         ui.error(f"Failed to load metrics for run_id: {run_id}. Error: {str(e)}",show_execption=True)
         raise
+
+def upload_missing_model():
+    pass

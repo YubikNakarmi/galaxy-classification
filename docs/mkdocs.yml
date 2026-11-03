@@ -158,6 +158,10 @@ nav:
 
   - CLI:
       - Overview: cli/index.md
+      - Global usage and logging: cli/global.md
+      - ML pipeline: cli/pipeline.md
+      - Model cache: cli/cache.md
+      - Setup, cloud, and BentoML: cli/integrations.md
       - Training and evaluation: cli/train_and_eval.md
       
   - Architecture:

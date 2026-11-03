@@ -212,8 +212,8 @@ def evaluate(ctx,
             )
             model_name = registry_name
 
-            def register_fn() -> str:
-                return upload_model(model, registry_name, source_path=model_path)
+            def register_fn(eval_id: str) -> str:
+                return upload_model(model, registry_name, source_path=model_path,source_run_id = eval_id)
 
         matching_variant = next(
         (v for v in cfg.variants.values() if v.mlflow.model_name == model_name), None

@@ -47,6 +47,7 @@ With as miminal use of AI as possible, except is somethign like comments, docstr
 - Promethus
 - Grafana
 - Alembic
+- Kuberentes
 and more
 
 
@@ -59,7 +60,7 @@ and more
 | Experiment Tracking | MLflow |
 | Serving            | FastAPI, BentoML |
 | Observability      | Prometheus, Grafana, Loki |
-| Infrastructure     | Terraform, Azure, Docker / Docker Compose |
+| Infrastructure     | Terraform, Azure, Docker / Docker Compose, Kuberentes |
 | Docs               | MkDocs |
 | cli                 | Click, Rich |
 
