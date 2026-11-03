@@ -303,7 +303,7 @@ class _NullEvalSession:
         self._n += 1
         self.history.append({"step": self._n, **stats})
         if self._n % self.every == 0 or self._n == self.steps:
-            self.console.print(f"  eval batch {self._n}/{self.steps}  {_fmt_stats(stats)}")
+            self.console.print(f"  eval batch {self._n}/{self.steps}")
  
     def __getattr__(self, name):
         if name.startswith("__"):
