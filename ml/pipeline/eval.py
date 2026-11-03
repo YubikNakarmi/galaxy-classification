@@ -4,7 +4,6 @@ from __future__ import annotations
 import datetime
 from pathlib import Path
 import click
-import validate
 from src.cli.style import UI
 from typing import TYPE_CHECKING, Optional, Literal
 from collections.abc import Callable
@@ -96,8 +95,7 @@ def run_eval(
 @click.option("model_path","-m", type = click.Path(exists=True),
               help="Path to the model file to evaluate",default=None)
 @click.option("--alias", type=str,default="Champion", help="Alias for the registered model")
-@click.option("--register_if_missing", is_flag=True, default=False,
-              help="Register the model to MLflow if it is missing")
+
 @click.pass_context
 @click.option("--register", is_flag=True, default=True,
               help="Register the model to MLflow if it is missing")
