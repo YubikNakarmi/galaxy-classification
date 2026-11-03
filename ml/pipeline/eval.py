@@ -19,8 +19,6 @@ from ml.pipeline import pipeline
 root = Path(__file__).resolve().parent.parent
 
 
-def _timestamp() -> str:
-    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 #no typing to lower the latnency of click cli command and avoid loading config multiple times in each command
 def run_eval(
@@ -140,7 +138,7 @@ def evaluate(ctx,
         from src.training.artifacts import (promote_if_better,
                                             should_promote,
                                             get_champion,load_local_model,
-                                            upload_model,
+                                            upload_model,_timestamp
                                             )
         from src.training.metrics import make_metrics
         from src.training.validation import validate_setup, find_model

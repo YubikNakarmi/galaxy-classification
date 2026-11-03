@@ -158,6 +158,7 @@ nav:
 
   - CLI:
       - Overview: cli/index.md
+      - Training and evaluation: cli/train_and_eval.md
       
   - Architecture:
       - Overview: architecture/index.md

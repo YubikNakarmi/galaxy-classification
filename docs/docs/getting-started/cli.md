@@ -1,4 +1,4 @@
-## Intro 
+## Intro
 
 !!! Warning
     To be able to use CLI you need to install the editable pacakge of use uv. Also ensure that you have virtual environment activated as it might not work if you have multiple python versions installed.
@@ -21,7 +21,10 @@ You should see something like this:
 
 > More detailed architecute of cli on [CLI](/docs/docs/development/cli.md#overview) documentation.
 
-## Basic Commands
+For the complete command reference, including pipeline, cache, cloud, setup,
+and BentoML commands, see the [CLI documentation](../cli/index.md).
+
+## Basic commands
 ### Status
 ```sh
 galax status
@@ -52,9 +55,9 @@ galax pipeline train -c
 Running Training
 
 ```sh
-galax pipeline train --variant "default"
+galax pipeline train --variant "Default"
 #with verbose
-galax -vv pipeline train --variant "default" 
+galax -vv pipeline train --variant "Default"
 # level 2
 ```
 
@@ -63,7 +66,7 @@ galax -vv pipeline train --variant "default"
 ### View logs
 
 ```sh
-galax logs show -n 50 -s "ml"
+galax log show -n 50 -s "ml"
 ```
 
 ![result](../assets/cli/logs.png)

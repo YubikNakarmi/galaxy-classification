@@ -19,15 +19,9 @@ def cycle_ends(t0: int, t_mult: int, max_epoch: int) -> set[int]:
     return ends
 
 
-<<<<<<< Updated upstream
 def train_default(cfg, ui:UI, resume:Optional[bool]=None,
                   resume_id:Optional[str]=None,
                   chkpt_type:Literal["Best","Latest"]="Best") -> str:
-=======
-def train_default(cfg, ui:UI, 
-                  resume:Optional[bool]=None,
-                  resume_id:Optional[str]=None,chkpt_type:Literal["Best","Latest","Cycle_End"]="Best") -> str:
->>>>>>> Stashed changes
     # no console type hint for fast CLI
     import mlflow
     import pandas as pd
@@ -176,12 +170,7 @@ def train_default(cfg, ui:UI,
     # checkpoint manager already handles the logic for getting config if you want to resume or not
     chkpt_state = chkpt.load_checkpoint(model=model, optimizer=optimizer, 
                                         scheduler=scheduler, device=dev,
-<<<<<<< Updated upstream
                                         blob_file_name= CHKPT_TYPE[chkpt_type], save_filename="best_resume.pt")
-=======
-                                        save_filename="best_resume.pt",
-                                        blob_path = )
->>>>>>> Stashed changes
     
     best_val_f1_macro = float("-inf")   #-inf, on resume_checkpoint, run fresh so it can beat its own 
     MIN_DELTA = 1e-3    

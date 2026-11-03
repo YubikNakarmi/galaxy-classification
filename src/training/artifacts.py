@@ -43,6 +43,8 @@ _STATE_KEYS: Final[tuple[str, ...]] = ("model_state", "state_dict", "model_state
 
 
 
+def _timestamp() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
 
