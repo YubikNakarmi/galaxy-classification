@@ -1,6 +1,7 @@
 ''' Artifacts management for MLflow and Azure Blob Storage. 
 This module provides functions to register models with MLflow, upload training logs, reports, and tensorboard artifacts to Azure Blob Storage. 
 It also sets up logging configurations for both application and ML logging.'''
+from __future__ import annotations
 
 import click
 import torch
@@ -17,7 +18,6 @@ from src.utils.azure_utils import AzureBlobStorage
 from src.utils.yaml_utils import load_yaml
 from src.config import load_and_validate_config
 
-from __future__ import annotations
 
 import datetime
 from collections.abc import Callable
@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 root = Path(__file__).parent.parent.parent
 load_dotenv(root / ".env")
-MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000")
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
 
 SkeletonFactory = Callable[[], "Module"] #callable skeleton of module for typing
 _STATE_KEYS: Final[tuple[str, ...]] = ("model_state", "state_dict", "model_state_dict")

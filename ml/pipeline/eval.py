@@ -169,12 +169,14 @@ def evaluate(ctx,
         # Set only when the model isnt in the registry yet
         register_fn: Callable[[], str] | None = None
         
+        status.update(f"Loading model from {model_source}...")
         if model_source == "mlflow":
             
             if model_version is not None:  #check form argument and directly get the model
                 model_version = str(model_version)
                 model_name = client.get_model_version(registry_name, model_version).name
                 model_uri = f"models:/{model_name}/{model_version}"  #main link that loads model
+                
             else:
                 state, info = find_model(client, run_id)  #check if its registered if not provided in arg
                 ui.info(f"Run '{run_id}' model state: {state}")
@@ -196,12 +198,16 @@ def evaluate(ctx,
                     )
 
             ui.info(f"Loading model from {model_uri}")
+            
+            status.update(f"Loading model from MLflow registry: {model_uri}")
             model = mlflow.pytorch.load_model(model_uri)
 
         else: #local
             from src.models.model import GalaxyClassifier_ResNet
 
             ui.info(f"Loading local model from {model_path}")
+            
+            status.update(f"loading local model from {model_path}")
             model = load_local_model(
                 model_path, 
                 lambda: GalaxyClassifier_ResNet(N=2, k=2, num_classes=variant_cfg.num_classes),
@@ -228,13 +234,14 @@ def evaluate(ctx,
         metrics = make_metrics(matching_variant.num_classes, dev)
         
         #eval run
+        status.update(f"Evaluating model '{model_name}' on {cfg.data.eval_path}...")
         with mlflow.start_run(run_name=run_name) as run:
             eval_run_id: str = run.info.run_id
-            ui.info("Evaluating {} (source run {})", model_name, run_id)
+            ui.info(f"Evaluating {model_name} (source run {run_id})")
 
             results = run_eval(model, metrics, cfg, dev, ui)
             mlflow.log_metrics(results)
-            ui.info("Eval results | {}", results)
+            ui.info(f"Eval results | {results}")
 
             candidate_metric = results.get(metric_name) #metric name by comparision
             if candidate_metric is None:
@@ -256,6 +263,7 @@ def evaluate(ctx,
     promoted = False
     reason = "not_registered"
 
+    status.update(f"Checking if model '{model_name}' should be promoted to '{alias}'...")
     if model_version is not None:
         # Already in the registry
         ui.info(f"Model '{model_name}' is already registered.")
