@@ -15,7 +15,7 @@ root = Path(__file__).parent.parent.parent
 @click.option("--export_path", "-e", default=None, type=str, required=True, help="Path to save the exported model")
 @click.option("--input_shape", "-i", default=(1,3,128,128), type=tuple, required=False, help="Input shape for the model")
 @click.option("--format", "-f", default="onnx", 
-              type=click.Choice(["onnx", "torchscript","torchscript_pt2" ,"tensorrt"]), 
+              type=click.Choice(["onnx", "torchscript","torchscript_pt2" ,"tensorrt","safetensors"], case_sensitive=False), 
               required=True, help="Export format")
 
 def export_model(ctx, model_path:str, export_path:str, format:str,i:tuple):
@@ -41,6 +41,8 @@ def export_model(ctx, model_path:str, export_path:str, format:str,i:tuple):
         exporter.export_torchscript_pt2()
     elif format == "tensorrt":
         exporter.export_tensorRT()
+    elif format == "safetensors":
+        exporter.export_safetensors()
     else:
         ui.error(f"Unsupported export format: {format}")
         raise ValueError(f"Unsupported export format: {format}")

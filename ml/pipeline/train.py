@@ -116,7 +116,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
     val_dataloader = DataLoader(num_workers=cfg.env.num_workers, dataset=val_dataset, 
                                 batch_size=cfg.train.batch_size, 
                                 shuffle=False,pin_memory=True,
-                                persistent_workers=True, prefetch_factor=4,)
+                                persistent_workers=True, prefetch_factor=4)
     
     #load models and optimizers
     assert cfg.variant.num_classes is not None, \
@@ -272,6 +272,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
                     "val_recall_macro":    val_metrics["val_recall_macro"],
                     "val_roc_auc":         val_metrics["val_roc_auc"],
                     "lr":                  optimizer.param_groups[0]["lr"],
+                    "epoch":            ep + 1,
                 }, step=global_step)
 
                 # Log classwise metrics to MLflow
@@ -436,9 +437,6 @@ def train(ctx,
     ui = ctx.find_object(UI) or UI(verbose=0)  # Retrieve the UI object from the context or create a new one
     
     forward_mlflow_logs_to_rich(console = ui.console)
-
-   
-
     
     try:
         

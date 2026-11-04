@@ -65,3 +65,13 @@ class ModelExporter:
                                      enabled_precisions = {self.torch.float},
                                      workspace_size = 1 << 22)
         self.torch.jit.save(trt, str(self.export_path))
+        
+    def export_safetensors(self,run_id:str=""):
+        import torch
+        from safetensors.torch import save_file
+        
+        state = torch.load(str(self.model_path), map_location="cpu", weights_only=True)
+        
+        state = {k: v.contiguous() for k, v in state.items()}
+        
+        save_file(state, "model.safetensors", metadata={"format": "pt", "run_id": run_id})

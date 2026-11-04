@@ -120,8 +120,6 @@ class CheckpointManager:
                                        data=local_file,#gets locally
                                          Overwrite=True)
                 
-           
-
         except Exception as e:
             logger.exception(f"Error uploading checkpoint to Azure Blob Storage for {blob_name}: {e}")  
             return None
@@ -220,7 +218,7 @@ class CheckpointManager:
                 "but no checkpoint found. Exiting."
             )
         logger.warning("No checkpoint found. Starting fresh training with a clean state.")
-        return CheckpointState(start_epoch=0, best_val_loss=float("inf"), resume_run_id=None)
+        return CheckpointState(start_epoch=0, best_val_f1_macro=float("inf"), resume_run_id=None)
 
 
 

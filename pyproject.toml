@@ -89,6 +89,7 @@ docs = [
 
 extra_cli=[
     "torch_tensorrt==2.13.0",
+    "safetensors==0.8.0"
     
 ]
 
