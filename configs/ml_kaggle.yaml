@@ -1,8 +1,5 @@
 active_variant: Default
 
-
-
-
 env:
   name: galaxy_classification_env
   python_version: 3.12.10
@@ -182,7 +179,7 @@ train:
     resume_from_checkpoint: False
     local_checkpoint_path: "/kaggle/working/checkpoints" #used if resume_from_checkpoint is true and mode is local
     checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
-    run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
+    resume_run_id: null #renamed from run_id; only used when resume_from_checkpoint is True
     checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     
   batch_size: 64
@@ -216,7 +213,7 @@ train:
 
   checkpoint:
     save_freq_epoch: 10
-    save_best: true
+    save_cycle: true 
     save_latest: true
 
 eval:

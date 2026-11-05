@@ -53,11 +53,11 @@ def export_model(ctx, model_path:str, export_path:str, format:str,i:tuple):
 
 @click.option("--checkpoint_path", default = None, type=str, required=True, help="Path to the checkpoint file")
 @click.option('--model_name', type=str, required=True, help='Registered model name to import')
-@click.option('--variant', type=str, required=True, help='Variant name to import')
+@click.option('--variant', type=click.Choice(["Default", "Hubble", "Dirichlet"]), required=True, help='Variant name to import')
 @click.option("--num_classes", default = 5,type=int, required=True, help="Number of classes in the model")
 
 @click.option("--run_id", default = f"manual_{uuid.uuid4()}",type=str, required=False, help="Run ID for the model")
-@click.option("--metric_name", default = "vf1_macro",type=str, required=False, help="Metric name to extract from checkpoint")
+@click.option("--metric_name", default = "f1_macro",type=str, required=False, help="Metric name to extract from checkpoint")
 @click.option("--metric", default = None,type=float, required=False, help="Metric value to use if not present in checkpoint")
 @click.option("--local_cache_dir", default = None,type=str, required=False, 
               help="Directory to store cached models")

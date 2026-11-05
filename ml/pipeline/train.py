@@ -318,6 +318,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
                         mlflow.set_tag("checkpoint_url", ckpt_url)
                         mlflow.set_tag("checkpoint_blob_path", f"checkpoints/{run_id}/best.pt")
                         ui.info(f"Best checkpoint synced to Azure | url={ckpt_url}")
+                        
                     except Exception as e:
                         logger.error("Azure upload failed: {}", e)
                         ui.warning(f"Azure upload failed (local best.pt saved): {e}")

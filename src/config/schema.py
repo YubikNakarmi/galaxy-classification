@@ -184,7 +184,7 @@ class TrainMLflowConfig(ConfigModel):
 
 
 class TrainCheckpointConfig(ConfigModel):
-    save_freq_epoch: int
+    save_freq_epoch: int = 10
     save_cycle: bool = True
     save_latest: bool = True
 
