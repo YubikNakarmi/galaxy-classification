@@ -10,7 +10,7 @@ from src.utils.logging_config import setup_app_logging, intercept_stdlib_logging
 from src.utils.yaml_utils import load_yaml
 
 core_config = load_yaml("configs/core.yaml")
-setup_app_logging(config=core_config, service="api", json_logs=True)
+setup_app_logging(config=core_config, service="api", json_logs=False)
 intercept_stdlib_logging()  # Redirect stdlib logging to loguru
 
 

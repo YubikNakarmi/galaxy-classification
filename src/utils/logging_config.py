@@ -54,6 +54,8 @@ def _configure(cfg: dict, service: str, json_logs: bool,verbose: bool = True,std
                 level=cfg["level"],
                 format=_FMT_CONSOLE,
                 colorize=True,
+                backtrace=False,  #avoid long tracebacks in console
+                diagnose=False,
             )
 
     if cfg.get("file"):# for human readable in log file

@@ -11,6 +11,7 @@ from .classify.models import ClassificationResponseRecord, ImageUpload, Predicti
 from .exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
 from prometheus_client import Counter
 from loguru import logger
+from core.settings import settings
 
 PIPELINE_EXCEPTIONS = Counter(
     "pipeline_errors_total",
@@ -20,7 +21,11 @@ PIPELINE_EXCEPTIONS = Counter(
 
 
 
-celery_app = Celery('api', broker='redis://redis:6379/0',backend='redis://redis:6379/1')#Host redis on docker compose first
+celery_app = Celery(
+    "api",
+    broker=settings.celery.broker_url,
+    backend=settings.celery.result_backend,
+)
 celery_app.conf.task_track_started = True
 
 
@@ -163,7 +168,6 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
 
     return results_data
  
-
 
 
 

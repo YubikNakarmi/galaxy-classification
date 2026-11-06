@@ -1,8 +1,6 @@
-from pydantic import BaseModel
 from typing import Literal
 
-
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 class ClassifyRequest(BaseModel):
     image_b64: list[str]
@@ -10,9 +8,10 @@ class ClassifyRequest(BaseModel):
 
 
 class ClassificationResponse(BaseModel):
-
+    batch_id: str
     task_id: str
-    image_upload_id: str
-    blob_url: str
+    image_upload_ids: list[str]
+    urls: list[str]
+    status: Literal["processing", "completed", "failed"]
 
 VARIANTS = ["default", "hubble", "dirichlet"]
