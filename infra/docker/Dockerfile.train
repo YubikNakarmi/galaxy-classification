@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
 WORKDIR /pipeline
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 COPY src/ src/
 COPY logs/system/ logs/system/
