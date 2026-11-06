@@ -8,23 +8,79 @@ metadata:
 spec:
   template:
     metadata:
-      name: MYAPP
+      name: Train
       labels:
-        app: MYAPP
+        app: Train
     spec:
-      containers:
-      - name: MYAPP
-        image: python:3.7.6-alpine3.10
-        command: ['sh', '-c', 'python3 manage.py makemigrations && python3 manage.py migrate']
+      initContainers:
+      
+      - name: check-mlflow  #checking mlflow conn beore training
+        image: alpine:3.18.4
+        command: 
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                if wget -q --spider --timeout=5 "$MLFLOW_TRACKING_URI/health"; then
+                  echo "MLflow is up."
+                  exit 0
+                fi
+                echo "Attempt $i/30: MLflow not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "MLflow unreachable after 30 attempts, failing."
+              exit 1
+                        
+
         env:
-        - name: ENV_NAME
-          value: ENV_VALUE
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+      
+      containers:
+      - name: 
+        image: Train:v1.0.0
+        command: ["galax","pipeline","train","-y"]
+        env:
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: Azure-secrets  #needed for uploading of models during training
+              key: connection-string
         volumeMounts:
         - name: localtime
           mountPath: /etc/localtime
       volumes:
       - name: localtime
         hostPath:
-          path: /usr/share/zoneinfo/Asia/Shanghai
+          path: /usr/share/zoneinfo/Asia/Kathmandu
       restartPolicy: Never
+      backoffLimit: 3    
       dnsPolicy: ClusterFirst
