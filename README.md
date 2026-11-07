@@ -1,12 +1,24 @@
-#  Galaxy Classification
- 
+# Galaxy Classification
+
 [![Deploy Documentation](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml)
- 
-An end-to-end MLOps pipeline for classifying galaxy morphologies from images, built with PyTorch, FastAPI, and BentoML — with full experiment tracking, data versioning, and observability baked in.
+[![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-> Full documentation is available at the [docs site](https://github.com/YubikNakarmi/galaxy-classification), generated via MkDocs and deployed automatically on push.
+An end-to-end MLOps pipeline for classifying galaxy morphologies from images, built with PyTorch, FastAPI, and BentoML. The project includes experiment tracking, asynchronous inference, and production observability.
 
->Model available at [Hugging Face](https://huggingface.co/YubikNakarmi/GalaxyZooCNN)
+<p align="center">
+  <a href="https://pytorch.org/"><img src="https://img.shields.io/badge/PyTorch-2.13-EE4C2C?logo=pytorch&logoColor=white" alt="PyTorch"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.136-009688?logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://www.bentoml.com/"><img src="https://img.shields.io/badge/BentoML-1.4-000000?logo=bentoml&logoColor=white" alt="BentoML"></a>
+  <a href="https://mlflow.org/"><img src="https://img.shields.io/badge/MLflow-3.13-0194E2?logo=mlflow&logoColor=white" alt="MLflow"></a>
+  <a href="https://rich.readthedocs.io/"><img src="https://img.shields.io/badge/Rich-CLI-CA4B3C?logo=python&logoColor=white" alt="Rich"></a>
+  <a href="https://click.palletsprojects.com/"><img src="https://img.shields.io/badge/Click-CLI-000000?logo=python&logoColor=white" alt="Click"></a>
+  <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://kubernetes.io/"><img src="https://img.shields.io/badge/Kubernetes-ready-326CE5?logo=kubernetes&logoColor=white" alt="Kubernetes"></a>
+</p>
+
+> Full documentation is available on the [docs site](https://yubiknakarmi.github.io/galaxy-classification/), generated with MkDocs and deployed automatically on push.
+
+> The trained model is available on [Hugging Face](https://huggingface.co/YubikNakarmi/GalaxyZooCNN).
 ---
  
 ## Table of Contents
@@ -14,21 +26,20 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
  
 - [Galaxy Classification](#galaxy-classification)
   - [Table of Contents](#table-of-contents)
-  - [Movitation](#movitation)
+  - [Motivation](#motivation)
   - [Tech Stack](#tech-stack)
   - [Architecture](#architecture)
-  - [models](#models)
+  - [Models](#models)
   - [Running](#running)
   - [Getting Started](#getting-started)
     - [Prerequisites](#prerequisites)
     - [File Setup](#file-setup)
-    - [DVC Setup (Optional)](#dvc-setup-optional)
     - [Azure Blob Setup (Optional)](#azure-blob-setup-optional)
   - [Database Migrations](#database-migrations)
   - [CLI](#cli)
-  - [Training \& eval](#training--eval)
+  - [Training & evaluation](#training--evaluation)
     - [Training on a VM](#training-on-a-vm)
-    - [Eval](#eval)
+    - [Evaluation](#evaluation)
   - [Testing](#testing)
   - [Azurite (Local Blob Emulator) Testing](#azurite-local-blob-emulator-testing)
   - [Roadmap / Known Improvements](#roadmap--known-improvements)
@@ -37,53 +48,50 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
 ---
 
 
-## Movitation
-The reason for me working of project is due to multitude of factors. Firstly, I was always interested in astronomy and Neural networks and I wanted to buiild something regarding Astronomy. Then there also the motivation to build something better than my lat project [AQI_predictor](https://github.com/YubikNakarmi/Aqi_predictor), which is pretty messy. I wanted to contiune to learn to build better systems wich more cleaner and maintainable code with also better organizations and potability. 
+## Motivation
 
-With as miminal use of AI as possible, except is somethign like comments, docstrings or documentation .Lastly, I also wanted to learn new tools for DevOPS, Mlops, and ML in general I leared tools like:
-- Pytorch
-- FastAPI
-- BentoML
-- Promethus
-- Grafana
-- Alembic
-- Kuberentes
-and more
-
+This project combines an interest in astronomy with the goal of building a maintainable,
+production-oriented machine-learning system. It is also a practical way to explore modern
+ML and DevOps tooling while keeping the complete workflow—from data preparation to
+observable inference—in one repository.
 
 ## Tech Stack
- 
-| Layer            | Tools |
-|-------------------|-------|
-| Modeling           | PyTorch |
-| Data & Pipeline Versioning | DVC |
-| Experiment Tracking | MLflow |
-| Serving            | FastAPI, BentoML |
-| Observability      | Prometheus, Grafana, Loki |
-| Infrastructure     | Terraform, Azure, Docker / Docker Compose, Kuberentes |
-| Docs               | MkDocs |
-| cli                 | Click, Rich |
+
+<table>
+  <tr>
+    <td align="center"><strong>Machine learning</strong><br>PyTorch<br>torchvision<br>scikit-learn</td>
+    <td align="center"><strong>Data & experiments</strong><br>MLflow<br>Azure Blob Storage</td>
+    <td align="center"><strong>Serving</strong><br>FastAPI<br>BentoML<br>Celery<br>Redis</td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Observability</strong><br>Prometheus<br>Grafana<br>Loki<br>Grafana Alloy</td>
+    <td align="center"><strong>Infrastructure</strong><br>Docker Compose<br>Kubernetes<br>Terraform<br>Azure</td>
+    <td align="center"><strong>Developer experience</strong><br>uv<br>Click<br>Rich<br>pytest<br>MkDocs</td>
+  </tr>
+</table>
 
 ## Architecture
 ![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
 
-## models
-- Default: default 5 class residual CNN. 
-- Dirichlet: voting ratio based model with dirilichlet nll loss and multi head output with same backbone as default. 
+## Models
+
+- **Default:** Five-class residual CNN.
+- **Dirichlet:** A multi-head model with the same backbone as the default model. It predicts voting ratios using a Dirichlet negative log-likelihood loss.
+
 ## Running
 
-The project itself is build using microservice architecture. The project is divided into 3 main services:
-- **Training Service**: This service is responsible for training the model. It uses PyTorch for model training and DVC for data versioning. It also tracks experiments using MLflow.
-- **Serving Service**: This service is responsible for serving the trained model. It uses FastAPI and BentoML for serving the model. It also exposes metrics for Prometheus and Grafana.
-- **inference Service**: This service is responsible for making predictions using the trained model. It uses FastAPI and BentoML for serving the model. It also exposes metrics for Prometheus and Grafana.
+The project uses a microservice architecture with three main services:
 
-!!! Note 
-    There are also other serverices but these 3 are main services. 
+- **Training service:** Trains models with PyTorch and tracks experiments with MLflow.
+- **Serving service:** Serves models with FastAPI and BentoML.
+- **Inference service:** Handles predictions and exposes metrics for Prometheus and Grafana.
 
-`docker-compose.yml` is provided to run the services locally. You can run the services using the following command:
+Other supporting services are defined in the Docker Compose configuration.
+
+The `docker-compose.yml` file runs the local services:
 
 ```sh
-docker-compose up #runs all which might not be necessary
+docker compose up
 ```
 
 
@@ -120,33 +128,6 @@ mkdir -p logs models data
 touch logs/.gitkeep models/.gitkeep data/.gitkeep
 ```
  
-### DVC Setup (Optional)
- 
-Initialize DVC and configure an Azure remote for data/model versioning:
- 
-```sh
-dvc init
- 
-# Upload a file directly to blob storage (one-off)
-az storage blob upload \
-  --account-name <storage_account_name> \
-  --container-name <container_name> \
-  --name <blob_name> \
-  --file <file_path>
- 
-# Track a file with DVC
-dvc add <file_path>
- 
-# Configure the Azure remote
-dvc remote add -d azure_remote azure://<container_name>
-dvc remote modify azure_remote account_name <storage_account_name>
- 
-# Authenticate — pick one:
-dvc remote modify azure_remote --local connection_string "DefaultEndpointsProtocol=https;AccountName=<storage_account_name>;AccountKey=<storage_account_key>;EndpointSuffix=core.windows.net"
-# or
-dvc remote modify azure_remote sas_token <generated_sas_token>
-```
- 
 ### Azure Blob Setup (Optional)
  
 1. Create a storage account in Azure (or use **Azurite** for local emulation).
@@ -156,7 +137,6 @@ dvc remote modify azure_remote sas_token <generated_sas_token>
  
 | Container | Purpose |
 |---|---|
-| `dvc-storage` | DVC remote storage |
 | `mlflow` | MLflow tracking backend |
 | `galaxy-classification-experiments` | Experiment artifacts |
 | `galaxy-classification-logs` | Application/training logs |
@@ -169,14 +149,16 @@ Migrations are managed with Alembic:
 alembic upgrade head
 ```
 
-## CLI 
+## CLI
 
-importing a model 
+The `galax` CLI uses Click for command parsing and Rich for terminal output.
+
+Import a model:
 
 ```sh
 galax cache import --model-path <path_to_model> --variant <variant_name>
 ```
-## Training & eval
+## Training & evaluation
  
 ### Training on a VM
  
@@ -198,8 +180,9 @@ Run training script:
 ```sh
 galax pipeline train --variant <variant_name> --run-eval=True
 ```
-### Eval
-Eval requires run id
+### Evaluation
+
+Evaluation requires a run ID.
  
 > **Current model:** ~61.2M parameters (61,187,525).
  
@@ -235,20 +218,15 @@ blob.print_info()
  
 ## Roadmap / Known Improvements
  
-- **cli**, adding rich on training cli, whileusing loguru for logs. Summary and art in clie with status of current and configs. 
-  - **cli**- pass ui to child
-  -  infra cli for status
-  -  export model in formats
-  -  galaxy doctor
-  -  wrapper for dvc,bentoml,
-  -  azure cloud status
-- **import model**
+- **CLI improvements** — improve Rich-based training summaries, pass the UI to child commands, add infrastructure status, and add a `galaxy doctor` command.
+- **Model import** — improve the model import workflow.
+- **Model export** — support additional export formats.
 - **Model cache resilience** — the BentoML model loader cache should fall back to the most recent locally cached "best" model (or pull directly from blob storage) if MLflow is unreachable.
 - **Model caching** — cache the loaded model instead of reloading it on every request.
 - **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
 - **Config management** — evaluate adopting Hydra or OmegaConf instead of the current custom-built parser, which was written under time pressure while focused on the rest of the project.
-- **more variants** — add more model variants to experiment with, including larger models and different architectures.
-- **multi format loading from cache**- currently cache only handles the .pt format doesnt support other forats like .onnx, .tflite, .torchscript. But you can export the with cli. 
+- **More variants** — add larger models and alternative architectures.
+- **Multi-format cache loading** — support formats such as `.onnx`, `.tflite`, and TorchScript in addition to `.pt`.
 
 ## Sources / References
 - [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
