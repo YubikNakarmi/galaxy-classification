@@ -1,20 +1,30 @@
 service: "bentoml_api.service:GalaxyClassification"
-
+name: "galax-bentoml"
 description: "Galaxy Classification Service"
 
 labels:
   owner: "Yubik Nakarmi"
-  version: "0.6.0"
+  version: "v0.1.0"
 
 include:
-  - src/**
+  - src/
+  - bentoml_api/
   - configs/
-  - requirements.txt
-  - setup.py
+  - bentoml_api/requirements.bentoml.txt
+  - bentoml_api/setup_package.sh
 
 python:
-  requirements_txt: ./requirements.txt
+  requirements_txt: bentoml_api/requirements.bentoml.txt
+  lock_packages: false
 
 docker:
   distro: debian
   python_version: "3.12"
+
+  system_packages:
+    - libxcb1
+    - libglib2.0-0
+    - libgl1
+
+  env:
+    PYTHONPATH: /home/bentoml/bento #make /bentoml_api the working directory for the container

@@ -1,0 +1,237 @@
+active_variant: Default
+
+env:
+  name: galaxy_classification_env
+  python_version: 3.12.10
+  seed: 42
+  device: cuda # Change to cuda on VM[cpu,cuda]
+  num_workers: 4
+
+mode: cloud # options: local, cloud
+
+
+variants:
+  Default:
+    preprocessing: Default
+    num_classes: 5
+    label_file: /kaggle/input/datasets/yubiknakarmi/label-processed-1/labeled_data_1.csv
+
+    data:
+      split:
+        train_size: 0.70
+        val_size: 0.15
+        test_size: 0.15
+      stratify: true
+    experiment:
+      root: galaxy-classification-default-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
+
+    model:
+      architecture: ResNet
+      pretrained: false
+      K: 2
+      N: 2
+      conv1_stride: 2
+      input_size: 128
+
+    mlflow:
+      model_name: galaxy-classification-default
+
+  Hubble:
+    preprocessing: Hubble
+    num_classes: 10
+    label_file: data/preprocessed/labels/labeled_data_2.csv
+    dirichlet_branches: 11
+
+    experiment:
+      root: galaxy-classification-hubble-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
+    data:
+      split:
+        train_size: 0.70
+        val_size: 0.15
+        test_size: 0.15
+      stratify: true
+
+    mlflow:
+      model_name: galaxy-classification-hubble
+
+  Dirichlet:
+    preprocessing: Dirichlet
+    num_classes: null
+    label_file: data/preprocessed/labels/labeled_data_3.csv
+
+    experiment:
+      root: galaxy-classification-dirilchlet-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+      auto_timestamp: true
+      use_variant_name: true
+
+
+    data:
+      split:
+        train_size: 0.80
+        val_size: 0.10
+        test_size: 0.10
+      stratify: false
+
+    mlflow:
+      model_name: galaxy-classification-dirichlet
+
+data:
+  img_dir: /kaggle/input/datasets/yubiknakarmi/galaxy-zoo-imgs/images
+  raw_paths: 
+    - labels: data/raw/labels.csv
+    - mappings: data/raw/mapping.csv
+    
+  preprocessed_dir: data/preprocessed/
+  split_dir: data/preprocessed/split/
+  train_path: /kaggle/input/datasets/yubiknakarmi/splits/train_split.csv #realpath: data/preprocessed/split/train.csv
+  val_path: /kaggle/input/datasets/yubiknakarmi/splits/val_split.csv
+  eval_path: /kaggle/input/datasets/yubiknakarmi/splits/test_split.csv
+
+  input_size: 128
+
+  normalize:
+    mean: [0.1376, 0.1276, 0.1187]
+    std: [0.1728, 0.1586, 0.1488]
+
+  transforms:
+    raw_transforms:
+      - CenterCrop: 
+          size_range: [170, 240]
+      - Resize: 
+          size: 160
+      - RandomCrop: 
+          size: 128
+      - RandomRotation:
+          degrees: [90, 180]
+      - RandomRotation:
+          degrees: [0, 270]
+      - RandomHorizontalFlip: {}
+      - ColorJitter:
+          brightness: 0.4
+          contrast: 0.4
+          saturation: 0.4
+          hue: 0.1
+      - ToTensor: {}
+      - Normalize:
+          mean: [0.1376, 0.1276, 0.1187]
+          std: [0.1728, 0.1586, 0.1488]
+
+  sampler:
+    type: weighted
+
+storage:
+
+
+  #in azure blob container, config for local (will add in future auto local config)
+
+  local: #locals dirs
+
+    logs:
+      dir: logs/
+      tensorboard_dir: logs/tensorboard/
+      system_dir: logs/system/
+      reports_dir: logs/reports/
+
+    checkpoints:
+      dir: models/checkpoints/
+      model_cache_dir: models/cache/
+
+    predictions:
+      dir: models/predictions/
+    
+   
+
+  cloud: #blob dirs
+    dvc:
+      container: dvc-storage #stores training data like raw,preprocessed,split
+
+    experiments: 
+      container: galaxy-experiments #for models/logs
+      
+    # inside galaxy-classification-experiments/<experiment_name>/..
+    logs:
+      container: galaxy-experiments
+      dir: logs/
+
+    tensorboard:
+      dir: tensorboard/
+
+    checkpoints:
+      container: galaxy-experiments
+      dir: models/ #{run_id}/models/best.pt in cloud continer
+
+    predictions:
+      container: galaxy-experiments
+      dir: predictions/
+
+augmentation: {
+
+
+}
+
+
+train:
+  checkpoints:
+    resume_from_checkpoint: False
+    local_checkpoint_path: "/kaggle/working/checkpoints" #used if resume_from_checkpoint is true and mode is local
+    checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
+    resume_run_id: null #renamed from run_id; only used when resume_from_checkpoint is True
+    checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
+    
+  batch_size: 64
+  num_epochs: 70
+
+  learning_rate: 0.001
+  weight_decay: 0.01
+  optimizer: AdamW
+
+  grad_clip_max_norm: 1.0
+  label_smoothing: 0.1
+
+  criterion:
+    name: cross_entropy
+    weight: true
+
+  scheduler:
+    type: cosine_with_warmup
+    warmup_epochs: 10
+    min_lr: 0.000001
+
+  regularization:
+    dropout: 0.2
+    gradient_clipping: true
+    
+  mlflow:
+    log_data: true
+    log_model: true
+    log_metrics: true
+    experiment_name: galaxy-classification-training
+
+  checkpoint:
+    save_freq_epoch: 10
+    save_cycle: true 
+    save_latest: true
+
+eval:
+
+  batch_size: 32
+
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+
+
+  checkpoints:
+
+
+mlflow:
+  tracking_uri: ${MLFLOW_TRACKING_URI}
+  backend: mysql
+  artifact_store: azure
+  experiment_name: galaxy-classification

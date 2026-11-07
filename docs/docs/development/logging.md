@@ -1,6 +1,14 @@
-# Logging
 
-Logging is done through loguru library. The logging configuration is defined in `core.yaml` file under the `logging` section. There are two loggers defined, one for the application logs and another for the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings.
+Logging is done through loguru library. The logging configuration is defined in `core.yaml` file under the `logging` section. There are two loggers defined, one for the application logs and another for the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings. 
+
+Furthermore stderr and stdout can be configured to log a docker container. Services like **Bentoml** and **Fastapi** containers utilize this to log to the container. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config).
+
+!!! Note 
+    The logging was changed for CLI from `verbose` to `std_out` to avoid logging to stdout in the CLI commands. The `std_out` parameter can be set to `True` or `False` to enable or disable logging to stdout. The default value is `True`. `ml` and `cli` services have `std_out` set to `False` to avoid logging to stdout in the CLI commands. The `std_out` parameter can be set to `True` or `False` to enable or disable logging to stdout. The default value is `True`.Their default CLI logging will use `rich`. More details on [CLI](/docs/docs/development/cli.md#logging) logging.
+
+```sh title="view logs in docker container"
+docker logs <container_id> 
+```
 
 ## Configs
 
@@ -23,13 +31,18 @@ logging:
     compression: zip
 ```
 The loggin can be configured in `core.yaml` as shown above. The `app` logger is used for logging the application logs and the `ml` logger is used for logging the machine learning logs. The loggers can be configured with different levels, file paths, rotation, retention and compression settings. The log files will be created in the `logs/system/` directory. The log files will be rotated when they reach 10 MB in size, retained for 7 days and compressed using zip format (default config). 
+### MLflow console output
 
+Training keeps Rich UI output enabled while suppressing informational MLflow client messages in the console. The training command configures the `mlflow` logger at `WARNING`, so MLflow warnings and errors remain visible and MLflow tracking continues normally. This affects the training client only; logs emitted by a separately running MLflow server must be configured on the server.
+
+---
 ## File Stream
 
 `logs/system/app.log` and `logs/system/ml.log` are the file streams for the application and machine learning logs respectively. The logs will be written to these files based on the configuration defined in `core.yaml`. The log files will be created if they do not exist and will be rotated, retained and compressed based on the settings defined in the configuration. 
 
 `src/utils/logging_config.py` parses the yaml and setups local file stream in `logs/system`. To utilize logging: 
 
+### Normal Usage
 ``` py hl_lines="6 7"
 from loguru import logger
 from src.utils.yaml_utils import load_yaml
@@ -39,12 +52,33 @@ from src.utils.logging_config import setup_app_logging
 log_config = config = load_yaml(root / 'configs' / 'core.yaml') # loads config yaml file 
 setup_app_logging(log_config) #pass yaml file to parser and setup app mode logging
 
-logger.info("Hello :)") # example log message
+logger.bind.info("Hello :)") # example log message
 ```
 
 Result in `logs/system/app.log`:
 
 ``` txt title="Example log message in app.log"
-2026-06-04 20:42:36.542 | INFO     | __main__:<module>:122 - Hello :)
-
+2026-06-04 20:42:36.542 | INFO   | __main__:<module>:9- Hello :)
 ```
+### Using Binds
+```py title="fastapi logging example" hl_lines="4 5 6"
+import os
+from src.utils.logging_config import setup_app_logging, intercept_stdlib_logging
+
+json_logs = os.getenv("LOG_JSON", "true").lower() == "true"
+setup_app_logging(config, service="fastapi", json_logs=json_logs)
+intercept_stdlib_logging()# intercept stdlib logging to loguru
+
+from loguru import logger
+logger.info("fastapi startup complete")
+```
+
+```json title="output in docker logs"
+{"text": "fastapi startup complete\n", "record": {"time": {"repr": "2026-07-13T14:32:01"}, "level": {"name": "INFO"}, "message": "fastapi startup complete", "extra": {"service": "fastapi"}}}
+```
+---
+## Module usage
+
+## Bootstrap
+
+`src.utils.bootstrap` defines a central logging and configurations with logging already setup which can is used through the project. 

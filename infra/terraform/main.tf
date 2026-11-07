@@ -51,13 +51,6 @@ resource "azurerm_storage_container" "experiments" { #for checkpoints
 }
 
 
-
-
-
-
-
-
-
 #-------network----------------
 resource "azurerm_virtual_network" "vnet" {
     name     = "${var.resource_group_name}-vnet"
@@ -146,3 +139,4 @@ resource "azurerm_linux_virtual_machine" "vm" {
       ignore_changes = [custom_data]
     }
 }
+

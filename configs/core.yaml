@@ -1,23 +1,51 @@
 #core.yaml
 system:
   name: galaxy-classifier
-  version: 1.0
+  version: v0.8.0
 
 runtime:
   mode: local   # local or cloud
 
+cli:
+    style:
+      info: "bright_blue"
+      success: "bold spring_green2"
+      warning: "bold gold3"
+      error: "bold deep_pink3"
+      debug: "grey50"
+      trace: "dim grey37"
+      banner: "bold magenta"
+
+cloud:
+  azure:
+    storage:
+      connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
+      default_container: galaxy-experiments
+        
 ml:
   config_file: configs/ml.yaml
+  
 
 
-storage:
-  azure:
-    connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
-    container_name: ${AZURE_CONTAINER_NAME}
+dirs:
+  logs: 
+    bentoml:
+      service: logs/bentoml/service.log
+      api: logs/bentoml/api.log
+      ml: logs/bentoml/ml.log
 
-  mysql:
-    url: ${MYSQL_URL}
+  data: 
+    raw: data/raw
+    processed: data/processed
+    images: images
+    
+  models: models
+  artifacts: artifacts
 
+
+
+
+  
 
 # Only system logs like script execution, errors, etc. ML-specific logs (like training metrics) 
 # will be handled separately under mlflow and in differnt files though ml.yaml configs.

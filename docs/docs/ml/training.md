@@ -1,4 +1,13 @@
-# training factors
+##  Running Training
+
+```sh
+galax pipeline train -s #shows status
+galax pipeline -h #help
+
+galax pipeline train
+```
+
+## Training Factors
 | Component | Value | Notes |
 |---|---|---|
 | Loss | `CrossEntropyLoss` | `label_smoothing=0.1` |
@@ -9,13 +18,34 @@
 | Batch Size | 32–64 | Balance gradient quality vs memory |
 | Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
 
-# Architrure
-![training architecture diagram](../assets/training_process.drawio.png)
-# Customizations
+## Architecture
+![training architecture diagram](../assets/architecture/training_process.drawio.png)
+
+/// caption
+Figure 1: Training architecture diagram
+///
+
+## Training options
+
+### Default
+Default model variant with standard training settings. With 5 classes and using default model
+
+### Hubble
+Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
+
+!!! warning "Hubble model is not yet fully trained"
+    The hubble model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+
+### Dirilichet
+Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
+!!! warning "Dirilichet model is not yet fully trained"
+    The dirilichet model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+
+## Customizations
 All the training customaizations can be done through the `configs/ml.yaml` file. The following are the main sections of the configuration file:
 
 
-## Environment Variables
+### Environment Variables
 
 These variables control training behaviour. Set them in your `.env` file or inject via shell / Kaggle Secrets.
 
@@ -26,7 +56,7 @@ These variables control training behaviour. Set them in your `.env` file or inje
 | `AZURE_STORAGE_ACCOUNT_NAME` | — | — | Storage account name (used if connection string not set) |
 | `AZURE_STORAGE_ACCOUNT_KEY` | — | — | Storage account key |
 
-## Training Configuration (`configs/ml.yaml`)
+### Training Configuration (`configs/ml.yaml`)
 
 | Key | Path in YAML | Default | Description |
 |---|---|---|---|
@@ -54,29 +84,35 @@ These variables control training behaviour. Set them in your `.env` file or inje
 | MLflow model name | `variants.<active>.mlflow.model_name` | — | Registered model name in MLflow |
 | Experiment root | `variants.<active>.experiment.root` | — | Top-level MLflow experiment name |
 
-# Traininng Flow
+## Training Flow
+
+### Modular Approach
+`train.py ` is a wrapper that wraps main training files in `src.training`
 
 
 
-## checkpoints
+### checkpoints
+
+By default Checkpoints are updated using [src.training.checkpoints](https://github.com/YubikNakarmi/galaxy-classification/blob/dev/src/training/checkpoint.py). As the architecutral diagrams shws the checkpoints are updated both locally in and Azure storage blob. 
 - eval checkpoints
 - training epoch based checkpoints
 
-## visualizations
-- Mlflow and tensorboard, and reports functions
+### mlflow
+Training requires mlflow which is a central repository for models and also metrics. The system meterics are also enabled with final model version upload to the registry. During local training mlflow can be hosted in a local machine but I specifically hosted it in VM for my training. 
 
-## Training options
+!!! Note
+    Checkout more infra about my training strategy in [training infra](../infra/train.md)
 
-### Default
-    Default model variant with standard training settings. With 5 classes and using default model
+### Artifacts Upload
+The artifacts for training are uploaded to Azure blob storage. The artifacts include the following:
+- Checkpoints
+- Logs
+- Reports
+The checkpoints are uploaded every epoch if it improves on the best model. The logs and reports are uploaded at the end of training.
 
-### Hubble
-    Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
+### visualizations
+Mlflow and tensorboard, and reports functions
 
-### Dirilichet
-    Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
 
-## Default training model
 
-### Experiments
-Each training run should log its own experiment name with ```{time}_{model_variant}```
+

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: default
+  labels:
+    app: fast-api
+    version: v1
+    tier: backend
+
+spec:
+
+  replicas: 3
+  revisionHistoryLimit: 10 #10 hsitory after update
+
+  selector:
+    matchLabels:
+      app: fast-api
+      tier: backend
+  
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+
+  #pods definition
+  template:
+    metadata:
+      labels:
+        app: fast-api
+        tier: backend
+
+    spec:
+
+      containers:
+      - name: api
+        image: galax-api:v1.0.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 400Mi
+
+      

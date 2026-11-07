@@ -2,18 +2,81 @@
 services:
 
   api:
-    build: .
-    container_name: /infra/docker/Dockerfile.api
+    build: 
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+      
+    container_name: api
+    volumes: 
+      - ./api:/api #for live reload of api code
+      - ./src:/src
+      - ./configs:/configs
+      - ./logs/api:/logs/system
+      
     ports:
       - "8000:8000"
     env_file:
       - .env
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-    command: uvicorn api/main:app --host
+    command: uvicorn api.main:app --host 0.0.0.0 --reload
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: worker
+    command: celery -A api.tasks:celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - bentoml
+
+  grafana:
+    image: grafana/grafana:13.1.0
+    container_name: grafana
+    ports:
+      - "3001:3000" #avoid conflict with bentoml
+    env_file:
+      - .env
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+        test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+        interval: 30s
+        timeout: 5s
+        retries: 5
+        start_period: 15s
+
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+
+
+  prometheus:
+    image: prom/prometheus:v3.13.1
+    container_name: prometheus
+    restart: unless-stopped
+
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus #pth inside container
+
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     
   redis:
       image: redis:7-alpine
+      container_name: redis
       command: redis-server --appendonly yes
       ports:
       - "6379:6379"
@@ -29,21 +92,32 @@ services:
       restart: always
   
   bentoml:
-    image: galaxy_classification:v0.6 #built bento container using bentoml build
+    image: galaxy_classification:v0.6.0 #built bento container using bentoml build
 
     env_file:
       - .env
     volumes:
-      - ./bentoml:/bentoml
+      - ./bentoml_api:/bentoml
+      - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
+      - ./src:/home/bentoml/bento/src/src #mount for editable files without building
+      - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
+      - ./models/cache:/home/bentoml/bento/src/models/cache/ #mount cache for persistence
+      - ./configs:/home/bentoml/bento/src/configs
 
     container_name: bentoml
+
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
+      LOG_JSON: ${LOG_JSON}
+
     ports:
       - "3000:3000"
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
+
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s
@@ -60,24 +134,39 @@ services:
     env_file:
       - .env
     environment:
-        MYSQLURL_REMOTE: ${MYSQLURL_REMOTE}
+        MLFLOW_BACKEND_STORE_URI: ${MLFLOW_BACKEND_STORE_URI}
         MLFLOW_ARTIFACT_ROOT: ${MLFLOW_ARTIFACT_ROOT}
     
-      
-    command: >    #mlflow db upgrade \"${MYSQLURL_REMOTE}\" &&
+    command: >    #mlflow db upgrade \"${MLFLOW_BACKEND_STORE_URI}\" &&
          mlflow server
-          --backend-store-uri ${MYSQLURL_REMOTE}
+          --backend-store-uri ${MLFLOW_BACKEND_STORE_URI}
           --default-artifact-root ${MLFLOW_ARTIFACT_ROOT}
           --host 0.0.0.0
           --port 5000
           --allowed-hosts "*"
+          --cors-allowed-origins "http://104.211.98.50:5000"
           
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
       interval: 10s
-      timeout: 30s
-      retries: 50
-      start_period: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable
+    container_name: mlflow-nginx
+    ports:
+      - "5000:80"         #
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
   
   azureite:
     image: mcr.microsoft.com/azure-storage/azurite
@@ -97,6 +186,45 @@ services:
       - ./data/ml/tensorboard/experiment_1:/tensorboard
     command: tensorboard --logdir=/tensorboard --host=0.0.0.0
 
+  loki:
+    image: grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+
+  alloy:
+    image: grafana/alloy:latest
+    container_name: alloy
+    ports:
+      - "12345:12345"   # Alloy UI (optional but useful for debugging pipelines)
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config.alloy:/etc/alloy/config.alloy
+      
+    command: run --server.http.listen-addr=0.0.0.0:12345 /etc/alloy/config.alloy
+    depends_on:
+      - loki
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    privileged: true
 
 
-    
+volumes:
+  prometheus_data:
+  redis-data:
+  grafana_data:

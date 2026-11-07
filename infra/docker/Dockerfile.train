@@ -1,0 +1,42 @@
+# Build stage
+FROM python:3.12-slim AS builder
+
+COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /uvx /bin/
+
+WORKDIR /pipeline
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --extra ml --frozen --no-install-project
+
+COPY src/ src/
+COPY ml/ ml/
+COPY configs/ configs/
+
+RUN uv sync --extra ml --frozen
+
+# Runtime stage
+FROM python:3.12-slim
+
+WORKDIR /pipeline
+
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    PYTHONUNBUFFERED=1 \
+    PATH="/pipeline/.venv/bin:$PATH"
+
+# Copy only the venv from builder
+COPY --from=builder /pipeline/.venv /pipeline/.venv
+
+# Copy only source code (no data/images/logs)
+COPY src/ src/
+COPY ml/ ml/
+COPY configs/ configs/
+
+# Create necessary directories
+RUN mkdir -p data images logs/system models
+
+CMD ["python3"]

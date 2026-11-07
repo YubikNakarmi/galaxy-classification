@@ -2,10 +2,22 @@ from torch import nn
 
 class ResidualUnit(nn.Module):
 
-    ''' Resudual unit for resnet architecture.'''
+    ''' Each residual unit for resent groups.'''
 
+    def __init__(self, in_channels:int,
+                 mid_channel:int ,
+                 out_channels:int, 
+                 stride:int=1,dropout_rate:float=0.0):
 
-    def __init__(self, in_channels,mid_channel ,out_channels, stride=1,dropout_rate=0.8):
+        '''
+        Args:
+        in_channels (int): Number of input channels for the residual unit.
+        mid_channel (int): Number of channels in the intermediate convolutional layers.
+        out_channels (int): Number of output channels for the residual unit.
+        stride (int): Stride for the convolutional layers. Default is 1.
+        dropout_rate (float): Dropout rate for the dropout layer. Default is 0.8.
+
+        '''
         super(ResidualUnit, self).__init__()
 
         #block 1
@@ -25,8 +37,9 @@ class ResidualUnit(nn.Module):
         self.relu3 = nn.ReLU(inplace=True)
         self.conv3 = nn.Conv2d(mid_channel, out_channels, kernel_size=1, stride=1, padding=0)#shrink feature map with stride
 
-        '''if the dimensions of the input and output don't match,
-        we need to use a convolution to match them for the residual connection'''
+        # if the dimensions of the input and output don't match,
+        # we need to use a convolution to match them for the residual connection
+
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride),
@@ -44,7 +57,6 @@ class ResidualUnit(nn.Module):
         return out
     
 class ConvGroup(nn.Module):# Using N = 2
-
 
     ''' Convolution groups for resunits'''
     def __init__(self, in_channels, mid_channels, out_channels, N = 2,downsample=True):
@@ -74,7 +86,6 @@ class GalaxyClassifier_ResNet(nn.Module):
     ''' ResNet architecture for galaxy classification. 
     with modifications to better suit the task and dataset size.'''
 
-
     def __init__(self,head:str = "default" ,N=2, k=2, num_classes=5):
 
         '''
@@ -84,9 +95,13 @@ class GalaxyClassifier_ResNet(nn.Module):
             N (int): The number of residual units in each group. Default is 2.
             k (int): The width multiplier for the number of channels in the convolutional layers. Default is 2.
             num_classes (int): The number of output classes for classification. Default is 5.
+        
+        Example:
+            ``` python
+            model = GalaxyClassifier_ResNet(head="dropout", N=3, k=2, num_classes=5)
+            ```
 
         '''
-
 
         super(GalaxyClassifier_ResNet, self).__init__()
         
@@ -99,13 +114,15 @@ class GalaxyClassifier_ResNet(nn.Module):
         self.group4  = ConvGroup(512*k,    256*k,  1024*k, N=N, downsample=True)
         self.group5  = ConvGroup(1024*k,   512*k,  2048*k, N=N, downsample=False)
         
+        self.bn_final   = nn.BatchNorm2d(2048*k) #smoother
+        self.relu_final = nn.ReLU(inplace=True)
         #resnet head
         self.avgpool = nn.AdaptiveAvgPool2d(1) # global average pooling to get 1x1 feature map
         self.dropout = nn.Dropout(0.2)
         
         self.fc      = nn.Linear(2048*k, num_classes) #k = 2
 
-        for m in self.modules():# he initializiing to help with convergence as per 
+        for m in self.modules():# he initialization to help with convergence 
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
                 
@@ -114,15 +131,34 @@ class GalaxyClassifier_ResNet(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        out = self.conv1(x)             # [128, 128] input 
+        
+        out = self.conv1(x)             # [3,128, 128] input 
         out = self.maxpool1(out) 
         out = self.group2(out)         
         out = self.group3(out)         
         out = self.group4(out)          
-        out = self.group5(out)        
+        out = self.group5(out) 
+        out = self.relu_final(self.bn_final(out))   
+        out = self.avgpool(out)       
         out = self.avgpool(out)         
         out = out.flatten(1)            
         out = self.dropout(out)
         out = self.fc(out)              
         return out
 
+    def default_head(self,x):
+        ''' Default head for the model.'''
+        out = self.avgpool(x)          
+        out = out.flatten(1)            
+        out = self.dropout(out)
+        out = self.fc(out)              
+        return out
+
+    def dirichlet_head(self,x,n_classes):
+        """Dirlchlet head output dirichlet alphas for uncertainty estimation. Trained for voting classification
+        
+        Args:
+            x (torch.Tensor): Input tensor to the head.
+            n_classes (int): Number of classes for the classification task.
+        """
+        self.heads = nn.ModuleList([nn.Linear(2048, n_classes) for _ in range(n_classes)])

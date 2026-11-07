@@ -1,3 +1,4 @@
+from __future__ import annotations
 from .schema import *
 
 def _parse_env(raw: dict) -> EnvConfig:
@@ -68,11 +69,16 @@ def _parse_data(raw: dict, root: Path) -> DataConfig:
         split_dir=root / d["split_dir"],
         train_path=root / d["train_path"],
         val_path=root / d["val_path"],
+        eval_path=root / d["eval_path"],
         input_size=int(d.get("input_size", 128)),
 
         normalize=NormalizeConfig(
             mean=list(norm.get("mean", [0.1376, 0.1276, 0.1187])),
             std=list(norm.get("std", [0.1728, 0.1586, 0.1488])),
+        ),
+        raw_paths=RawDataConfig(
+            labels=root / d["raw_paths"][0]["labels"],
+            mappings=root / d["raw_paths"][1]["mappings"],
         ),
     )
  
@@ -92,11 +98,28 @@ def _parse_storage(raw: dict, root: Path) -> StorageConfig:
             ),
             checkpoints=LocalCheckpointsConfig(
                 dir=root / loc["checkpoints"]["dir"],
+                model_cache_dir=root / loc["checkpoints"]["model_cache_dir"]
             ),
+            predictions=root / loc["predictions"]["dir"],
         ),
         cloud=CloudStorageConfig(
             dvc=CloudContainerConfig(container=cld["dvc"]["container"]),
             experiments=CloudContainerConfig(container=cld["experiments"]["container"]),
+            logs=CloudLogsConfig(
+                container=cld["logs"]["container"],
+                dir=cld["logs"]["dir"],
+            ),
+            tensorboard=CloudTensorboardConfig(
+                dir=cld["tensorboard"]["dir"],
+            ),
+            checkpoints=CloudCheckpointsConfig(
+                container=cld["checkpoints"]["container"],
+                dir=cld["checkpoints"]["dir"],
+            ),
+            predictions=CloudPredictionsConfig(
+                container=cld["predictions"]["container"],
+                dir=cld["predictions"]["dir"],
+            ),
         ),
     )
  
@@ -108,8 +131,8 @@ def _parse_train(raw: dict, root: Path) -> TrainConfig:
     return TrainConfig(
         checkpoints=CheckpointTrainConfig(
             resume_from_checkpoint=bool(ckpt["resume_from_checkpoint"]),
-            local_checkpoint_path=root / ckpt["local_checkpoint_path"],
-            checkpoint_restore_path=ckpt["checkpoint_restore_path"],
+            local_checkpoint_path=(root / ckpt["local_checkpoint_path"]) if ckpt.get("local_checkpoint_path") else None,
+            checkpoint_restore_path=ckpt["checkpoint_restore_path"] if ckpt.get("checkpoint_restore_path") else None,
             checkpoint_resume_hard=bool(ckpt["checkpoint_resume_hard"]),
             run_id=ckpt.get("run_id"),
         ),
@@ -146,18 +169,24 @@ def parse_config(raw: dict, root: Path) -> RootConfig:
         raw: validated dict from loader + validator
         root: project root Path (for resolving relative paths)
     """
-    variants = {
-        name: _parse_variant(name, v_raw, root)
-        for name, v_raw in raw.get("variants", {}).items()
+    payload = dict(raw)
+    payload["variants"] = {
+        name: {**variant, "name": name}
+        for name, variant in raw.get("variants", {}).items()
     }
- 
-    return RootConfig(
-        env=_parse_env(raw),
-        mode=raw.get("mode", "cloud"),
-        active_variant=raw["active_variant"],
-        variants=variants,
-        data=_parse_data(raw, root),
-        storage=_parse_storage(raw, root),
-        train=_parse_train(raw, root),
-        mlflow=_parse_mlflow(raw),
-    )
+
+    raw_paths = raw["data"]["raw_paths"]
+    payload["data"] = {
+        **raw["data"],
+        "raw_paths": {
+            "labels": raw_paths[0]["labels"],
+            "mappings": raw_paths[1]["mappings"],
+        },
+    }
+    
+    try:
+        cfg = RootConfig.model_validate(payload).resolve_paths(root)
+        return cfg
+    except Exception as e:
+        print(f"Error parsing config: {e}")
+        raise

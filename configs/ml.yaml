@@ -3,13 +3,12 @@ active_variant: Default
 
 env:
   name: galaxy_classification_env
-  python_version: 3.14.4
+  python_version: 3.12.10
   seed: 42
   device: cpu # Change to cuda on VM[cpu,cuda]
   num_workers: 4
 
 mode: cloud # options: local, cloud
-
 
 
 variants:
@@ -89,8 +88,9 @@ data:
     
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
-  train_path: data/preprocessed/sample/train_sample.csv
+  train_path: data/preprocessed/sample/train_sample.csv #realpath: data/preprocessed/split/train.csv
   val_path: data/preprocessed/sample/val_sample.csv
+  eval_path: data/preprocessed/sample/val_sample.csv
 
   input_size: 128
 
@@ -129,7 +129,7 @@ storage:
 
   #in azure blob container, config for local (will add in future auto local config)
 
-  local: #locals dires
+  local: #locals dirs
 
     logs:
       dir: logs/
@@ -139,36 +139,34 @@ storage:
 
     checkpoints:
       dir: models/checkpoints/
+      model_cache_dir: models/cache/
 
     predictions:
       dir: models/predictions/
+    
+   
 
   cloud: #blob dirs
     dvc:
       container: dvc-storage #stores training data like raw,preprocessed,split
 
     experiments: 
-  
-      container: galaxy-experiments #for models
-
-
-
-    upload:
-      checkpoint_every_epoch: true
-      best_model_only: true
-      logs_every_n_epochs: 5
-
+      container: galaxy-experiments #for models/logs
+      
     # inside galaxy-classification-experiments/<experiment_name>/..
     logs:
+      container: galaxy-experiments
       dir: logs/
 
     tensorboard:
       dir: tensorboard/
 
     checkpoints:
-      dir: models/
+      container: galaxy-experiments
+      dir: models/ #{run_id}/models/best.pt in cloud continer
 
     predictions:
+      container: galaxy-experiments
       dir: predictions/
 
 augmentation: {
@@ -180,16 +178,17 @@ augmentation: {
 train:
   checkpoints:
     resume_from_checkpoint: False
-    local_checkpoint_path: "models" #used if resume_from_checkpoint is true and mode is local
+    #used if resume_from_checkpoint is true and saves to this destination path in local
+    local_checkpoint_path: "models/checkpoints" 
     checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
-    run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
+    resume_run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
     checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
     
   batch_size: 64
-  num_epochs: 3
+  num_epochs: 1
 
   learning_rate: 0.001
-  weight_decay: 0.0001
+  weight_decay: 0.01
   optimizer: AdamW
 
   grad_clip_max_norm: 1.0
@@ -201,12 +200,13 @@ train:
 
   scheduler:
     type: cosine_with_warmup
-    warmup_epochs: 10
+    warmup_epochs: 5
     min_lr: 0.000001
 
   regularization:
     dropout: 0.2
     gradient_clipping: true
+    
   mlflow:
     log_data: true
     log_model: true
@@ -214,8 +214,8 @@ train:
     experiment_name: galaxy-classification-training
 
   checkpoint:
-    save_freq_epoch: 10
-    save_best: true
+    save_freq_epoch: 5
+    save_cycle: true
     save_latest: true
 
 eval:

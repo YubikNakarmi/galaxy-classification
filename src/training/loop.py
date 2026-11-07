@@ -3,15 +3,9 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from tqdm import tqdm
 from pathlib import Path
-from src.utils import load_yaml
-from src.utils.logging_config import setup_ml_logging
-from loguru import logger
-
+from src.cli.style import UI,_TrainSession
 root = Path(__file__).parent.parent.parent
-log_config = load_yaml(root / "configs" / "core.yaml")
-setup_ml_logging(log_config)
 
 def train_epoch(
     model: nn.Module,
@@ -24,6 +18,8 @@ def train_epoch(
     num_epochs: int,
     global_step: int,
     grad_clip: float,
+    Ui:UI,
+    dash:_TrainSession,
     device: torch.device) -> tuple[float, int]:
     
     '''
@@ -36,9 +32,8 @@ def train_epoch(
     model.train()
     running_loss = 0.0
     num_samples = 0
-    pbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch")
 
-    for images,labels in pbar:
+    for i,(images,labels) in enumerate(dataloader):
          
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
@@ -51,8 +46,9 @@ def train_epoch(
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=grad_clip)# Gradient clipping to prevent exploding gradients
 
+        dash.update_batch(loss=loss.item(), acc=(outputs.argmax(dim=1) == labels).float().mean().item())
         optimizer.step()
-        scheduler.step(epoch + global_step/len(dataloader))  # type: ignore[arg-type]
+        scheduler.step(epoch + (i+1)/len(dataloader))  # type: ignore[arg-type]
         num_samples += batch_size
         global_step += 1
 
@@ -61,21 +57,26 @@ def train_epoch(
         writer.add_scalar("LearningRate", optimizer.param_groups[0]['lr'], global_step)
         
         #cli visual
-        pbar.set_postfix({
-            "loss": f"{loss.item():.4f}",
-            "lr": f"{optimizer.param_groups[0]['lr']:.2e}"
-        })
+
+
+        #pbar.set_postfix({
+        #    "loss": f"{loss.item():.4f}",
+        #    "lr": f"{optimizer.param_groups[0]['lr']:.2e}"
+        #})
+
 
     train_loss = running_loss / num_samples
     return train_loss, global_step
 
 def validate_epoch(
-     model: nn.Module,
+    model: nn.Module,
     dataloader: DataLoader,
     criterion: nn.Module,
     metrics: dict,
     epoch: int,
     num_epochs: int,
+    Ui:UI,
+    dash:_TrainSession,
     device: torch.device) ->  tuple[float, dict]:
 
     ''' 
@@ -94,13 +95,18 @@ def validate_epoch(
     val_loss = 0.0
     with torch.no_grad():
 
-        for images, labels in tqdm(dataloader, desc=f"Epoch {epoch+1}/{num_epochs} [val]"):
+        for images, labels in dataloader:
+            dash.start_validation(val_steps=len(dataloader))
+
             images, labels = images.to(device), labels.to(device)
 
             
             outputs = model(images)
             loss = criterion(outputs, labels)
             batch_size = images.size(0)
+
+            dash.update_val_batch(loss=loss.item(), acc=(outputs.argmax(dim=1) == labels).float().mean().item())
+
 
             running_loss += loss.item() * batch_size
             num_samples += batch_size
