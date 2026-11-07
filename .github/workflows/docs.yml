@@ -35,16 +35,16 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+
       - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.12'
+        run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync --forzen --extra docs
+        run: uv sync --frozen --extra docs
+
       - name: Build documentation
         run: |
-          mkdocs build -f docs/mkdocs.yml 
+          uv run mkdocs build -f docs/mkdocs.yml 
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3

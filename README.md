@@ -68,8 +68,8 @@ and more
 ![arch](./docs/docs/assets/architecture/galaxy-classification-overview.png)
 
 ## models
-- Default: default 5 class residual CNN. 
-- Dirichlet: voting ratio based model with dirilichlet nll loss and multi head output with same backbone as default. 
+- Default: default 5-class residual CNN. 
+- Dirichlet: voting ratio-based model with Dirichlet NLL loss and multi-head output with the same backbone as default. 
 ## Running
 
 The project itself is build using microservice architecture. The project is divided into 3 main services:
@@ -86,11 +86,8 @@ The project itself is build using microservice architecture. The project is divi
 docker-compose up #runs all which might not be necessary
 ```
 
-
-
 ## Getting Started
 
- 
 ### Prerequisites
  
 - Python (see `pyproject.toml` / `uv.lock` for the pinned version)
@@ -171,7 +168,8 @@ alembic upgrade head
 
 ## CLI 
 
-importing a model 
+### Importing a model 
+Model can be found on the huggingface site. 
 
 ```sh
 galax cache import --model-path <path_to_model> --variant <variant_name>
@@ -235,18 +233,13 @@ blob.print_info()
  
 ## Roadmap / Known Improvements
  
-- **cli**, adding rich on training cli, whileusing loguru for logs. Summary and art in clie with status of current and configs. 
-  - **cli**- pass ui to child
-  -  infra cli for status
-  -  export model in formats
-  -  galaxy doctor
-  -  wrapper for dvc,bentoml,
-  -  azure cloud status
-- **import model**
+- **Improved API** - Update api with auth and history, the foundation is already set for these.
+- **Kuberentes** - Currently has kuberentes features, but isn't properly tested and fully implemented.
+- **Full trainin** - Currently model is not run for full epoch I only picked around 30 epoch, because of convergence at those epochs.
+- **LGTM** - Currently have loki, grafana & prometheus but not fully implemented. 
 - **Model cache resilience** — the BentoML model loader cache should fall back to the most recent locally cached "best" model (or pull directly from blob storage) if MLflow is unreachable.
 - **Model caching** — cache the loaded model instead of reloading it on every request.
 - **Config validation** — validate config paths upfront at startup rather than validating separately per training run.
-- **Config management** — evaluate adopting Hydra or OmegaConf instead of the current custom-built parser, which was written under time pressure while focused on the rest of the project.
 - **more variants** — add more model variants to experiment with, including larger models and different architectures.
 - **multi format loading from cache**- currently cache only handles the .pt format doesnt support other forats like .onnx, .tflite, .torchscript. But you can export the with cli. 
 
