@@ -105,6 +105,24 @@ For a local MySQL server, the URL commonly looks like this:
 DATABASE_URL=mysql+pymysql://galaxy_user:your_password@localhost:3306/galaxy_classification
 ```
 
+If MySQL reports `Plugin 'mysql_native_password' is not loaded`, the
+database account is configured with the legacy authentication plugin. MySQL
+8.4 disables that plugin by default. Connect as an administrative MySQL user
+and switch the application account to the default `caching_sha2_password`
+plugin:
+
+```sql
+ALTER USER '<username>'@'localhost'
+  IDENTIFIED WITH caching_sha2_password BY '<password>';
+FLUSH PRIVILEGES;
+```
+
+Use the host part that matches the account shown by `SELECT User, Host FROM
+mysql.user;` (for example, `'%'` when the application connects remotely).
+Restart the API after changing the account. A failed request may already have
+uploaded its image to Blob Storage even though its database transaction
+failed, so remove any orphaned blob when retrying failed requests.
+
 The `pymysql` driver is included in the project requirements. From the repository root, apply the database migrations:
 
 ```bash

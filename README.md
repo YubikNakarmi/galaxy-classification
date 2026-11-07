@@ -37,7 +37,7 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
     - [Azure Blob Setup (Optional)](#azure-blob-setup-optional)
   - [Database Migrations](#database-migrations)
   - [CLI](#cli)
-  - [Training & evaluation](#training--evaluation)
+  - [Training \& evaluation](#training--evaluation)
     - [Training on a VM](#training-on-a-vm)
     - [Evaluation](#evaluation)
   - [Testing](#testing)
@@ -94,11 +94,8 @@ The `docker-compose.yml` file runs the local services:
 docker compose up
 ```
 
-
-
 ## Getting Started
 
- 
 ### Prerequisites
  
 - Python (see `pyproject.toml` / `uv.lock` for the pinned version)

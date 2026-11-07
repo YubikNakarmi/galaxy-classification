@@ -21,6 +21,16 @@ services:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     command: uvicorn api.main:app --host 0.0.0.0 --reload
 
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.api
+    container_name: worker
+    command: celery -A api.tasks:celery_app worker --loglevel=info
+    depends_on:
+      - redis
+      - bentoml
+
   grafana:
     image: grafana/grafana:13.1.0
     container_name: grafana

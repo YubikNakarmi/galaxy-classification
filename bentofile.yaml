@@ -1,10 +1,10 @@
 service: "bentoml_api.service:GalaxyClassification"
-
+name: "galax-bentoml"
 description: "Galaxy Classification Service"
 
 labels:
   owner: "Yubik Nakarmi"
-  version: "v0.8.0"
+  version: "v0.1.0"
 
 include:
   - src/
