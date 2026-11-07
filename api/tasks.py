@@ -1,14 +1,23 @@
 import base64
+import os
+from io import BytesIO
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
 from celery import Celery
+from celery.exceptions import Retry
 from typing import Optional
 from core.storage import get_storage
 import uuid
 import datetime as dt
 import httpx
+from PIL import Image, UnidentifiedImageError
 from .classify.models import ClassificationResponseRecord, ImageUpload, Prediction
-from .exceptions import BentoResponseMismatchError, BentoServiceBadRequestError, BentoServiceTimeoutError
+from .exceptions import (
+    BentoResponseMismatchError,
+    BentoServiceBadRequestError,
+    BentoServiceTimeoutError,
+    BentoServiceUnavailableError,
+)
 from prometheus_client import Counter
 from loguru import logger
 from core.settings import settings
@@ -26,7 +35,26 @@ celery_app = Celery(
     broker=settings.celery.broker_url,
     backend=settings.celery.result_backend,
 )
-celery_app.conf.task_track_started = True
+celery_app.conf.update(
+    task_track_started=True,
+    worker_pool="solo" if os.name == "nt" else "prefork", #for linux/windows
+    worker_concurrency=1 if os.name == "nt" else None,
+)
+
+
+def _mark_response_failed(response_id: Optional[str], error_message: str) -> None:
+    if response_id is None:
+        return
+
+    db = SessionLocal()
+    try:
+        response_row = db.get(ClassificationResponseRecord, response_id)
+        if response_row is not None:
+            response_row.status = "failed"
+            response_row.error_message = error_message[:1024]
+            db.commit()
+    finally:
+        db.close()
 
 
 BENTOML_ROUTES = {#preset routes in bentoml/services.py
@@ -55,12 +83,29 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
             logger.exception(f"No ClassificationResponseRecord found for id {response_id}")
             raise ValueError(f"No ClassificationResponseRecord found for id {response_id}")
 
-        # BentoML's route only accepts list[Image.Image], 
+        # Bentoml route only accepts list[Image.Image], 
         # in format of [("images", (filename, file_bytes, content_type)),images,(...))]
-        files = [
-            ("images", (f"img{i}.jpg", base64.b64decode(b), "image/jpeg"))
-            for i, b in enumerate(image_bytes_b64)
-        ]
+        files = []
+        for i, encoded_image in enumerate(image_bytes_b64):
+            image_bytes = base64.b64decode(encoded_image, validate=True)
+            try:
+                with Image.open(BytesIO(image_bytes)) as image:
+                    image_format = image.format
+            except (UnidentifiedImageError, OSError) as exc:
+                raise ValueError(f"Image {i} is not a valid image: {exc}") from exc
+
+            if image_format is None:
+                raise ValueError(f"Image {i} has no detectable image format")
+
+            image_format = image_format.lower()
+            extension = "jpg" if image_format == "jpeg" else image_format #correct format for bentoml responsew hich takes imgs
+            content_type = f"image/{'jpeg' if image_format == 'jpeg' else image_format}"
+            files.append(
+                (
+                    "images",
+                    (f"img{i}.{extension}", image_bytes, content_type),
+                )
+            )
 
         try:
             
@@ -81,7 +126,28 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
         except httpx.HTTPStatusError as exc:
 
             if exc.response.status_code >= 500:
-                raise self.retry(exc=exc)
+                response_body = exc.response.text[:1024]
+                logger.error(
+                    "BentoML returned HTTP {} for {}: {}",
+                    exc.response.status_code,
+                    variant_url,
+                    response_body,
+                )
+                if self.request.retries >= 3: #mroe then 3 retries fail
+                    error_message = (
+                        f"BentoML returned HTTP {exc.response.status_code}: "
+                        f"{response_body}"
+                    )
+                    response_row.status = "failed"
+                    response_row.error_message = error_message
+                    db.commit()
+                    raise BentoServiceUnavailableError(
+                        error_message,
+                        variant=variant,
+                        task_id=self.request.id,
+                        status_code=exc.response.status_code,
+                    ) from exc
+                raise self.retry(exc=exc, countdown=30, max_retries=3)
             
             
             response_row.status = "failed"
@@ -99,6 +165,19 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
             task_id=self.request.id,
             status_code=exc.response.status_code,
                 )
+        except Retry:
+            raise
+        except Exception as exc:
+            response_row.status = "failed"
+            response_row.error_message = str(exc)
+            logger.exception(f"Unexpected error occurred while processing request: {exc}")
+            db.commit()
+
+            PIPELINE_EXCEPTIONS.labels(
+                error_code="bento_unexpected_error", endpoint=f"/{variant}"
+            ).inc()
+
+            raise 
 
         results_data = http_response.json()  # list[dict], same order as image_bytes_b64 
 
@@ -163,11 +242,13 @@ def classify_image(self,image_bytes_b64:list[str],variant:str="default",response
         response_row.completed_at = dt.datetime.now(dt.timezone.utc)
         db.commit()
 
+    except Retry:
+        raise
+    except Exception as exc:
+        _mark_response_failed(response_id, str(exc))
+        raise
     finally:
         db.close()
 
     return results_data
  
-
-
-

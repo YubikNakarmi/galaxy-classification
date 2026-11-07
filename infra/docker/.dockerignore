@@ -1,0 +1,17 @@
+data/
+images/
+logs/
+notebooks/
+.git/
+.github/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.dvc/
+.env
+.env.template
+.gitignore
+README.md
+docs/
+tests/

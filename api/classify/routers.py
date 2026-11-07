@@ -122,7 +122,20 @@ async def classify_image_endpoint(
     db.commit()
     db.refresh(response_row)
 
-    task = classify_image.delay(request.image_b64, request.variant,response_row.id) #call celery
+    logger.info("Created ClassificationResponseRecord with batch_id: {}, task_id: {}, variant: {}",
+                response_row.batch_id, response_row.task_id, response_row.variant)
+    try:
+        task = classify_image.delay(
+            request.image_b64, request.variant, response_row.id
+        )
+    except Exception as exc:
+        response_row.status = "failed"
+        response_row.error_message = str(exc)[:1024]
+        db.commit()
+        raise PipelineError(
+            message="Unable to submit classification task.",
+            task_id=response_row.id,
+        ) from exc
 
     response_row.task_id = task.id
     db.commit()
@@ -144,6 +157,13 @@ async def get_classification_results(batch_id: str, db: Session = Depends(get_db
     if response_row is None:
         API_EXCEPTIONS.labels(error_code="batch_not_found", endpoint="/results").inc()
         raise BatchNotFoundError(message=f"No classification results found for batch_id: {batch_id}")
+
+    if response_row.task_id and response_row.status not in {"completed", "failed"}:
+        task_result = AsyncResult(response_row.task_id, app=celery_app)
+        if task_result.state == "FAILURE":
+            response_row.status = "failed"
+            response_row.error_message = str(task_result.result)[:1024]
+            db.commit()
 
     return {
         "batch_id": batch_id,
@@ -177,5 +197,5 @@ async def get_task_status(task_id: str):
     if result.state == "FAILURE":
         return {"status": "failed", "error": str(result.result)}
     if result.ready():
-        return {"status": "done", "result": result.result}
+        return {"status": "completed", "result": result.result}
     return {"status": result.state.lower()}
