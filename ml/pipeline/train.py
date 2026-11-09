@@ -42,6 +42,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
         upload_artifact,
         validate_epoch,
         val_transforms,
+        get_scheduler
     )
     from src.utils.azure_utils import AzureBlobStorage
     
@@ -134,11 +135,13 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.train.learning_rate,
                                   weight_decay=cfg.train.weight_decay) #weight decay
 
-    scheduler = torch.optim.lr_scheduler.\
-    CosineAnnealingWarmRestarts(optimizer, 
-                                T_0=cfg.train.scheduler.warmup_epochs,
-                                eta_min =cfg.train.scheduler.min_lr 
-                                ,T_mult=2)
+    # scheduler = torch.optim.lr_scheduler.\
+    # CosineAnnealingWarmRestarts(optimizer, 
+    #                             T_0=cfg.train.scheduler.warmup_epochs,
+    #                             eta_min =cfg.train.scheduler.min_lr 
+    #                             ,T_mult=2)
+    
+    scheduler = get_scheduler(optimizer, train_dataloader, cfg)
     
     train_criterion = torch.nn.CrossEntropyLoss(label_smoothing=cfg.train.label_smoothing) #weighted for training only
     val_criterion = torch.nn.CrossEntropyLoss() #single weighted for training only

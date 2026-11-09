@@ -166,9 +166,11 @@ class CriterionConfig(ConfigModel):
 
 
 class SchedulerConfig(ConfigModel):
-    type: str
+    type: Literal["cosine_warmup", "cosine_warmup_restarts"] = "cosine_warmup_restarts"
     warmup_epochs: int
     min_lr: float
+    T_0: int | None = None
+    T_mult: int | None = None
 
 
 class RegularizationConfig(ConfigModel):

@@ -7,6 +7,63 @@ from pathlib import Path
 from src.cli.style import UI,_TrainSession
 root = Path(__file__).parent.parent.parent
 
+
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import (
+    LinearLR,
+    CosineAnnealingLR,
+    CosineAnnealingWarmRestarts,
+    SequentialLR,
+    LRScheduler,
+)
+
+
+def get_scheduler(
+    optimizer: Optimizer, train_dataloader, cfg,) -> LRScheduler:
+
+    steps_per_epoch = len(train_dataloader)
+    total_steps = cfg.train.num_epochs * steps_per_epoch
+    warmup_steps = cfg.train.scheduler.warmup_epochs * steps_per_epoch
+
+    scheduler_type = cfg.train.scheduler.name
+
+    #no restart with just warmup
+    if scheduler_type == "cosine_warmup":
+
+        warmup = LinearLR(
+            optimizer, start_factor=0.01, end_factor=1.0, total_iters=warmup_steps)
+
+        cosine = CosineAnnealingLR(
+            optimizer, T_max=total_steps - warmup_steps, eta_min=cfg.train.scheduler.min_lr,)
+
+        return SequentialLR( #combine into seq
+            optimizer,
+            schedulers=[warmup, cosine],
+            milestones=[warmup_steps])
+
+    #linear + simple cosine annealing with restart
+    elif scheduler_type == "cosine_warmup_restarts":
+        warmup = LinearLR(optimizer, start_factor=0.01,
+            end_factor=1.0, total_iters=warmup_steps,)
+
+        cosine = CosineAnnealingWarmRestarts(
+            optimizer,
+            T_0=cfg.train.scheduler.T_0 * steps_per_epoch,
+            T_mult=cfg.train.scheduler.T_mult,
+            eta_min=cfg.train.scheduler.min_lr,
+        )
+
+        return SequentialLR(
+            optimizer,
+            schedulers=[warmup, cosine],
+            milestones=[warmup_steps],
+        )
+    else:
+        raise ValueError(
+            f"Unsupported scheduler: {scheduler_type}")
+
+
+
 def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
