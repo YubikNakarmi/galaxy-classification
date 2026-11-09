@@ -175,7 +175,7 @@ ssh -i .\test-vm_key.pem -L 5000:localhost:5000 azureuser@<vm-ip>
 Run training script:
 
 ```sh
-galax pipeline train --variant <variant_name> --run-eval=True
+galax pipeline train --variant <variant_name> --evaluate
 ```
 ### Evaluation
 

@@ -398,7 +398,7 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
 # CLI entry
 @pipeline.command()
 @click.option("--variant","-v", 
-              type=click.Choice(["Default","Hubble","Dirlichlet"]), default="Default", 
+              type=click.Choice(["Default","Hubble","Dirichlet"]), default="Default",
               help="Training variant to use")
 @click.option("--evaluate","-e", 
               is_flag=True, default=False, 

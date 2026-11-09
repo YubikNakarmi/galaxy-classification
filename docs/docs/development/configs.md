@@ -1,501 +1,195 @@
-# Ml.yaml
+# ML configuration
 
+The ML pipeline reads [`configs/ml.yaml`](../../../configs/ml.yaml) when the
+CLI context is created. `configs/ml_kaggle.yaml` is an alternative profile for
+Kaggle paths and must be selected explicitly by tooling or copied to
+`configs/ml.yaml`; the CLI does not switch profiles automatically.
 
-## Overview
+The YAML is parsed into the typed models in
+[`src/config/schema.py`](../../../src/config/schema.py). Relative paths are
+resolved from the repository root.
 
-The configuration file is divided into the following sections:
+## Configuration sections
 
 | Section | Purpose |
-|---|---|
-| `env` | Runtime environment settings |
-| `experiment` | Experiment naming and artifact organization |
-| `active_variant` | Selects the active experiment variant |
-| `variants` | Task-specific configuration overrides |
-| `data` | Dataset locations and preprocessing |
-| `storage` | Local and cloud storage locations |
-| `augmentation` | Data augmentation settings |
-| `model` | Model architecture defaults |
-| `train` | Optimization and learning settings |
-| `eval` | Evaluation behavior and metrics |
-| `mlflow` | Experiment tracking integration |
+| --- | --- |
+| `active_variant` | Variant used by the loaded configuration. |
+| `env` | Seed, device, and dataloader workers. |
+| `mode` | `local` or `cloud` execution mode. |
+| `variants` | Per-dataset split, model, experiment, and MLflow settings. |
+| `data` | Image, label, split, normalization, transform, and sampler settings. |
+| `storage` | Local directories and Azure Blob paths for artifacts. |
+| `augmentation` | Reserved augmentation settings. |
+| `train` | Optimizer, scheduler, checkpoint, and MLflow logging settings. |
+| `eval` | Evaluation batch size and metrics. |
+| `mlflow` | Tracking backend and artifact-store metadata. |
 
-Each section controls a specific part of the machine learning pipeline.
+Inspect the resolved configuration before a run:
 
-## Usage
-The  `ml.yaml` file can be parsed using the `src.config` module. The configuration values can be accessed as a dictionary or as an object with attribute-style access. The configs are mapped to a class style structure, allowing for easy access to nested parameters.
-
-``` py
-from src.config import load_and_validate_config
-  
-config = load_and_validate_config("ml.yaml")
-
-print(config.env.name)  # Access environment name
-print(config.train.batch_size)  # Access training batch size
-
+```bash
+galax pipeline train --status
 ```
 
----
+The command displays the configuration and exits without training.
 
-
-
-## Environment Configuration
-
-Controls runtime settings used throughout the project.
+## Environment
 
 ```yaml
 env:
   name: galaxy_classification_env
-  python_version: 3.14.4
+  python_version: 3.12.10
   seed: 42
   device: cpu
   num_workers: 4
 ```
 
-| Parameter | Description |
-|---|---|
-| `name` | Name of the Python environment. |
-| `python_version` | Python version used for development and training. |
-| `seed` | Global random seed for reproducibility. |
-| `device` | Compute device (`cpu` or `cuda`). |
-| `num_workers` | Number of dataloader worker processes. |
-
----
-
-## Active Variant
-
-Selects which experiment variant is currently active.
-
-```yaml
-active_variant: Default
-```
-
-The training pipeline loads configuration values from the selected variant.
-
-!!! example
-    ```yaml
-    active_variant: Hubble
-    ```
-
----
-
-## Experiment Configuration
-
-Controls experiment naming and artifact organization.
-
-```yaml
-experiment:
-  root: galaxy-classification-experiments
-  auto_timestamp: true
-  use_variant_name: true
-```
-
-| Parameter | Description |
-|---|---|
-| `root` | Root directory for experiment artifacts. |
-| `auto_timestamp` | Appends a timestamp to experiment names. |
-| `use_variant_name` | Includes the variant name in the experiment directory. |
-
-### Generated Experiment Names
-
-When both `auto_timestamp` and `use_variant_name` are enabled:
-
-```
-Default_20260605_153000
-Hubble_20260605_160412
-Dirichlet_20260605_163014
-```
-
----
+`device` can be `cpu`, `cuda`, or a CUDA device such as `cuda:0`. Set it to
+`cuda` only when the selected PyTorch installation and host provide a usable
+GPU.
 
 ## Variants
 
-Variants define task-specific configurations.
+`active_variant` must match one of the keys under `variants`:
 
 ```yaml
+active_variant: Default
+
 variants:
   Default:
-    ...
+    preprocessing: Default
+    num_classes: 5
+    label_file: data/preprocessed/labels/labeled_data_1.csv
+    data:
+      split:
+        train_size: 0.70
+        val_size: 0.15
+        test_size: 0.15
+      stratify: true
+    model:
+      architecture: ResNet
+      pretrained: false
+      K: 2
+      N: 2
+      conv1_stride: 2
+      input_size: 128
+    experiment:
+      root: galaxy-classification-default-experiments
+      auto_timestamp: true
+      use_variant_name: true
+    mlflow:
+      model_name: galaxy-classification-default
 ```
 
-Each variant can override:
+The supported variant names are `Default`, `Hubble`, and `Dirichlet`.
+`dirichlet_branches` is used by variants that provide Dirichlet outputs.
+The `train` command currently executes the `Default` training implementation;
+the other variant entry points are reserved for future implementation.
 
-- Dataset configuration
-- Model architecture
-- Label source
-- MLflow model name
-- Task-specific settings
-
-### Default Variant
-
-Used for standard galaxy morphology classification.
-
-```yaml
-Default:
-  num_classes: 5
-
-  data:
-    split:
-      train_size: 0.70
-      val_size: 0.15
-      test_size: 0.15
-    stratify: true
-
-  model:
-    architecture: ResNet
-    pretrained: false
-    K: 2
-    N: 2
-    conv1_stride: 2
-    input_size: 128
-```
-
-**Model parameters:**
-
-| Parameter | Description |
-|---|---|
-| `K` | Width multiplier for custom ResNet. |
-| `N` | Number of residual blocks. |
-| `conv1_stride` | Initial convolution stride. |
-| `input_size` | Image resolution. |
-
-### Hubble Variant
-
-Used for Galaxy Zoo vote fraction prediction.
-
-```yaml
-Hubble:
-  num_classes: 10
-  dirichlet_branches: 11
-```
-
-The model creates multiple prediction heads for vote fraction estimation:
-
-```
-Input Features
-      │
- ┌────┼────┐
- │    │    │
-Head1 Head2 HeadN
-```
-
-### Dirichlet Variant
-
-Used for probabilistic regression tasks.
-
-```yaml
-Dirichlet:
-  num_classes: null
-```
-
-!!! note
-    Unlike classification variants, labels represent probability distributions rather than discrete classes.
-
----
-
-## Dataset Configuration
-
-Defines dataset locations and preprocessing settings.
+## Data
 
 ```yaml
 data:
-  raw_dir: data/raw/
+  img_dir: images/
+  raw_paths:
+    - labels: data/raw/labels.csv
+    - mappings: data/raw/mapping.csv
   preprocessed_dir: data/preprocessed/
   split_dir: data/preprocessed/split/
+  train_path: data/preprocessed/split/train.csv
+  val_path: data/preprocessed/split/val.csv
+  eval_path: data/preprocessed/split/test.csv
+  input_size: 128
+  normalize:
+    mean: [0.1376, 0.1276, 0.1187]
+    std: [0.1728, 0.1586, 0.1488]
+  sampler:
+    type: weighted
 ```
 
-### Directory Structure
+`train_path` and `val_path` are required for training. `eval_path` is used by
+evaluation. The `raw_paths` entries are consumed by preprocessing and splitting.
 
-```
-data/
-├── raw/
-├── preprocessed/
-│   ├── labels/
-│   └── split/
-```
-
-### Image Normalization
-
-Dataset normalization statistics applied via `transforms.Normalize(mean, std)`:
+## Training
 
 ```yaml
-normalize:
-  mean: [0.1376, 0.1276, 0.1187]
-  std:  [0.1728, 0.1586, 0.1488]
+train:
+  batch_size: 64
+  num_epochs: 70
+  learning_rate: 0.001
+  weight_decay: 0.01
+  optimizer: AdamW
+  grad_clip_max_norm: 1.0
+  label_smoothing: 0.1
+  criterion:
+    name: cross_entropy
+    weight: true
+  scheduler:
+    type: cosine_warmup
+    warmup_epochs: 10
+    min_lr: 0.000001
+  regularization:
+    dropout: 0.2
+    gradient_clipping: true
 ```
 
-### Sampling Strategy
+The scheduler type is `cosine_warmup` or `cosine_warmup_restarts`. Restart
+schedulers may also define `T_0` and `T_mult`.
+
+### Checkpoints and resume
 
 ```yaml
-sampler:
-  type: weighted
+train:
+  checkpoints:
+    resume_from_checkpoint: false
+    local_checkpoint_path: models/checkpoints
+    checkpoint_restore_path: checkpoints
+    resume_run_id: null
+    checkpoint_resume_hard: true
+  checkpoint:
+    save_freq_epoch: 10
+    save_cycle: true
+    save_latest: true
 ```
 
-| Type | Description |
-|---|---|
-| `weighted` | Handles class imbalance using weighted sampling. |
-| `random` | Uniform random sampling. |
+`checkpoints` controls restoring a previous run. `checkpoint` controls periodic
+saves. The CLI flags `--resume`, `--resume_run_id`, and
+`--resume_checkpoint_from Best|Latest` override the corresponding run-time
+choices. A hard resume fails when the requested checkpoint cannot be found;
+otherwise training starts a new run.
 
----
+## Storage and MLflow
 
-## Storage Configuration
-
-Defines local and cloud storage locations.
-
-### DVC Storage
-
-Used for dataset versioning.
-
-```yaml
-storage:
-  dvc:
-    container: dvc-storage
-```
-
-```
-dvc-storage/
-└── DVC-managed datasets
-```
-
-Recommended for raw datasets, processed datasets, and data splits.
-
-### Experiment Storage
-
-Used for training artifacts.
-
-```yaml
-storage:
-  experiments:
-    container: galaxy-experiments
-```
-
-```
-galaxy-experiments/
-├── checkpoints/
-├── logs/
-├── tensorboard/
-└── predictions/
-```
-
-### Local Storage
-
-Training writes artifacts locally before cloud upload.
+Local paths are configured under `storage.local`:
 
 ```yaml
 storage:
   local:
     logs:
       dir: logs/
+      tensorboard_dir: logs/tensorboard/
+      system_dir: logs/system/
+      reports_dir: logs/reports/
+    checkpoints:
+      dir: models/checkpoints/
+      model_cache_dir: models/cache/
+    predictions:
+      dir: models/predictions/
 ```
 
-```
-project/
-├── logs/
-├── checkpoints/
-└── predictions/
-```
+Cloud destinations are under `storage.cloud`, including the DVC, experiments,
+logs, tensorboard, checkpoints, and predictions containers. Azure authentication
+comes from `AZURE_STORAGE_CONNECTION_STRING`.
 
-### Cloud Upload Configuration
-
-```yaml
-cloud:
-  upload:
-    checkpoint_every_epoch: true
-    best_model_only: true
-    logs_every_n_epochs: 5
-```
-
-| Parameter | Description |
-|---|---|
-| `checkpoint_every_epoch` | Upload latest checkpoint after every epoch. |
-| `best_model_only` | Upload only the best validation model. |
-| `logs_every_n_epochs` | Upload logs periodically every N epochs. |
-
----
-
-## Model Configuration
-
-Defines default model settings.
-
-```yaml
-model:
-  architecture: Default
-  pretrained: false
-  num_classes: 5
-  input_size: 128
-```
-
-| Parameter | Description |
-|---|---|
-| `architecture` | Model architecture name. |
-| `pretrained` | Load pretrained weights. |
-| `num_classes` | Number of output classes. |
-| `input_size` | Input image size (pixels). |
-
----
-
-## Training Configuration
-
-Controls optimization and learning behavior.
+Training MLflow logging is controlled by `train.mlflow`:
 
 ```yaml
 train:
-  batch_size: 32
-  learning_rate: 0.001
-  optimizer: AdamW
-  grad_clip_max_norm: 1.0
-  label_smoothing: 0.1
-
-  criterion:
-    name: cross_entropy
-    weight: true
-
-  scheduler:
-    type: cosine_with_warmup
-    warmup_epochs: 5
-    min_lr: 0.00001
-
-  regularization:
-    dropout: 0.2
-    weight_decay: 0.0001
+  mlflow:
+    log_data: true
+    log_model: true
+    log_metrics: true
+    experiment_name: galaxy-classification-training
 ```
 
-### Parameters
-
-| Parameter | Description |
-|---|---|
-| `batch_size` | Number of samples processed per optimization step. |
-| `learning_rate` | Initial optimizer learning rate. |
-| `optimizer` | Optimizer type (`AdamW`, `Adam`, `SGD`). |
-| `grad_clip_max_norm` | Max gradient norm for clipping — prevents exploding gradients. |
-| `label_smoothing` | Softens target labels to reduce overconfidence. |
-
-### Loss Function
-
-| Parameter | Description |
-|---|---|
-| `name` | Loss function (e.g. `cross_entropy`). |
-| `weight` | Apply class weighting to the loss. |
-
-### Learning Rate Scheduler
-
-The `cosine_with_warmup` scheduler follows this workflow:
-
-```
-Warmup (warmup_epochs)
-        │
-        ▼
-    Peak LR
-        │
-        ▼
-  Cosine Decay → min_lr
-```
-
-### Regularization
-
-| Parameter | Description |
-|---|---|
-| `dropout` | Dropout probability applied during training. |
-| `weight_decay` | L2 regularization coefficient. |
-
----
-
-## Checkpointing
-
-Controls model persistence during training.
-
-```yaml
-checkpoint:
-  save_freq_epoch: 10
-  save_best: true
-  save_latest: true
-```
-
-### Example Output
-
-```
-checkpoints/
-├── latest.pt
-├── best.pt
-├── epoch_10.pt
-├── epoch_20.pt
-└── epoch_30.pt
-```
-
----
-
-## Evaluation Configuration
-
-Controls evaluation behavior and reported metrics.
-
-```yaml
-eval:
-  metrics:
-    - accuracy
-    - precision
-    - recall
-    - f1_score
-```
-
-| Metric | Description |
-|---|---|
-| `accuracy` | Overall classification correctness. |
-| `precision` | Positive prediction quality. |
-| `recall` | Sensitivity to positive samples. |
-| `f1_score` | Harmonic mean of precision and recall. |
-
----
-
-## MLflow Configuration
-
-Controls experiment tracking integration.
-
-```yaml
-mlflow:
-  tracking_uri: ${MLFLOW_TRACKING_URI}
-  log_data: true
-  log_model: true
-  log_metrics: true
-```
-
-| Parameter | Description |
-|---|---|
-| `tracking_uri` | MLflow server URI (resolved from environment variable). |
-| `backend` | Backend database type. |
-| `artifact_store` | Artifact storage backend. |
-| `experiment_name` | MLflow experiment name. |
-
-### Logged Artifacts
-
-When enabled, the training pipeline automatically logs:
-
-- Training and validation metrics
-- Hyperparameters
-- Model checkpoints
-- TensorBoard logs
-- Predictions
-
----
-
-## Recommended Storage Architecture
-
-```
-Storage Account
-├── galaxy-dvc
-│   └── datasets
-│
-└── galaxy-experiments
-    └── <run_id> 
-        ├── checkpoints/
-        ├── logs/
-        ├── tensorboard/
-        └── models
-       
-```
-
-!!! tip
-    This separation keeps datasets versioned through DVC while storing experiment artifacts independently, enabling efficient experiment management without polluting your data version history.
-
-
-# Parsing
-
-Parsing is done trough `src.config` module. 
+Set `MLFLOW_TRACKING_URI` in `.env` to select the tracking server. The CLI
+defaults to `http://localhost:5000` when it is not set.
