@@ -36,6 +36,8 @@ api = [
     "azure-identity==1.25.3",
     "azure-storage-blob==12.29.0",
     "pymysql==1.2.3",
+    "httpx==0.28.1",
+    "prometheus-client==0.26.0",
 ]
 
 bentoml = [

@@ -58,9 +58,9 @@ def _mark_response_failed(response_id: Optional[str], error_message: str) -> Non
 
 
 BENTOML_ROUTES = {#preset routes in bentoml/services.py
-    "default": "http://bentoml:3000/default",
-    "hubble": "http://bentoml:3000/hubble",
-    "dirichlet": "http://bentoml:3000/dirichlet",
+    "default": os.getenv("BENTOML_DEFAULT_URL", "http://bentoml:3000/default"),
+    "hubble": os.getenv("BENTOML_HUBBLE_URL", "http://bentoml:3000/hubble"),
+    "dirichlet": os.getenv("BENTOML_DIRICHLET_URL", "http://bentoml:3000/dirichlet"),
 }
 
 

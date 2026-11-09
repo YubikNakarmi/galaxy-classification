@@ -36,3 +36,6 @@ app.mount("/metrics", metrics)
 async def root():
     return {"message": "welcome!"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
