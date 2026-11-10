@@ -199,7 +199,7 @@ train:
     weight: true
 
   scheduler:
-    type: cosine_warmup_restarts #cosine_warmup, cosine_warmup_restarts
+    type: cosine_warmup #cosine_warmup, cosine_warmup_restarts
     warmup_epochs: 5
     min_lr: 0.000001
     T_0: 10
