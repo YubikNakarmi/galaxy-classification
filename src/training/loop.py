@@ -25,7 +25,7 @@ def get_scheduler(
     total_steps = cfg.train.num_epochs * steps_per_epoch
     warmup_steps = cfg.train.scheduler.warmup_epochs * steps_per_epoch
 
-    scheduler_type = cfg.train.scheduler.name
+    scheduler_type = cfg.train.scheduler.type
 
     #no restart with just warmup
     if scheduler_type == "cosine_warmup":
@@ -43,6 +43,10 @@ def get_scheduler(
 
     #linear + simple cosine annealing with restart
     elif scheduler_type == "cosine_warmup_restarts":
+        if cfg.train.scheduler.T_0 is None or cfg.train.scheduler.T_mult is None:
+            raise ValueError(
+                "T_0 and T_mult are required for cosine_warmup_restarts"
+            )
         warmup = LinearLR(optimizer, start_factor=0.01,
             end_factor=1.0, total_iters=warmup_steps,)
 
@@ -68,7 +72,7 @@ def train_epoch(
     model: nn.Module,
     dataloader: DataLoader,
     optimizer: torch.optim.Optimizer,
-    scheduler: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts,
+    scheduler: LRScheduler,
     criterion: nn.Module,
     writer: SummaryWriter,
     epoch: int,
@@ -105,7 +109,7 @@ def train_epoch(
 
         dash.update_batch(loss=loss.item(), acc=(outputs.argmax(dim=1) == labels).float().mean().item())
         optimizer.step()
-        scheduler.step(epoch + (i+1)/len(dataloader))  # type: ignore[arg-type]
+        scheduler.step()
         num_samples += batch_size
         global_step += 1
 

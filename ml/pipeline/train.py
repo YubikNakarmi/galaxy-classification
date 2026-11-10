@@ -8,10 +8,12 @@ import click
 from ml.pipeline import pipeline
 from src.cli.style import UI
 
-def cycle_ends(t0: int, t_mult: int, max_epoch: int) -> set[int]:
+def cycle_ends(
+    t0: int, t_mult: int, max_epoch: int, warmup_epochs: int = 0
+) -> set[int]:
     """Epoch counts (1-indexed) at which each cosine cycle finishes."""
     
-    ends, length, total = set(), t0, 0
+    ends, length, total = set(), t0, warmup_epochs
     while total + length <= max_epoch:
         total += length
         ends.add(total)
@@ -235,8 +237,8 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
             "num_classes":     cfg.variant.num_classes,
             "optimizer":       cfg.train.optimizer,
             "scheduler":       cfg.train.scheduler.type,
-            "T_0":             scheduler.T_0,
-            "T_mult":          scheduler.T_mult,
+            "T_0":             cfg.train.scheduler.T_0,
+            "T_mult":          cfg.train.scheduler.T_mult,
             "resumed":           str(bool(Resume)),
             "resume_run_id":     chkpt_state.resume_run_id,
             "start_epoch":         chkpt_state.start_epoch,
@@ -315,7 +317,8 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
                     ui.info(f"New best validation f1 macro {val_f1_macro:.4f} at epoch {ep + 1}")
 
                     chkpt.save(model, optimizer, scheduler, ep, val_loss, val_metrics["val_f1_macro"], 
-                            cfg_snapshot, filename="best.pt")
+                            cfg_snapshot, filename="best.pt",
+                            scheduler_type=cfg.train.scheduler.type)
                     try:
                         ckpt_url =chkpt.upload_checkpoint_to_azure(filename="best.pt")#upload immediately after improvement for better restore
                         mlflow.set_tag("checkpoint_url", ckpt_url)
@@ -329,19 +332,31 @@ def train_default(cfg, ui:UI, resume:Optional[bool]=None,
                 if cfg.train.checkpoint.save_latest:
 
                     chkpt.save(model, optimizer, scheduler, ep, val_loss, #save every epoch locally
-                        val_metrics["val_f1_macro"], cfg_snapshot, filename="latest.pt")
+                        val_metrics["val_f1_macro"], cfg_snapshot, filename="latest.pt", scheduler_type= cfg.train.scheduler.type)
                 
                 if (ep + 1) % LATEST_UPLOAD_EPOCHS == 0:
                     chkpt.upload_checkpoint_to_azure(filename="latest.pt")   
                 
-                if cfg.train.checkpoint.save_cycle:
-                    CYCLE_ENDS = cycle_ends(scheduler.T_0, scheduler.T_mult, cfg.train.num_epochs) 
-                    # cycle ends for lr have better metrics naturally
-                    if (ep + 1) in CYCLE_ENDS:
-                        chkpt.save(model, optimizer, scheduler, ep, val_loss,
-                                val_metrics["val_f1_macro"], cfg_snapshot, filename=f"cycle_end_ep{ep+1}.pt")
-                        chkpt.upload_checkpoint_to_azure(filename=f"cycle_end_ep{ep+1}.pt")
-                        ui.info(f"Cycle end checkpoint saved and uploaded: cycle_end_ep{ep+1}.pt")
+                if cfg.train.scheduler.type == "cosine_warmup_restarts":
+                    if cfg.train.checkpoint.save_cycle:
+                        if cfg.train.scheduler.T_0 is None or cfg.train.scheduler.T_mult is None:
+                            raise ValueError(
+                                "T_0 and T_mult are required for cosine_warmup_restarts"
+                            )
+                        CYCLE_ENDS = cycle_ends(
+                            cfg.train.scheduler.T_0,
+                            cfg.train.scheduler.T_mult,
+                            cfg.train.num_epochs,
+                            cfg.train.scheduler.warmup_epochs,
+                        )
+                        # cycle ends for lr have better metrics naturally
+                        if (ep + 1) in CYCLE_ENDS:
+                            chkpt.save(model, optimizer, scheduler, ep, val_loss,
+                                    val_metrics["val_f1_macro"], cfg_snapshot,
+                                    filename=f"cycle_end_ep{ep+1}.pt",
+                                    scheduler_type=cfg.train.scheduler.type)
+                            chkpt.upload_checkpoint_to_azure(filename=f"cycle_end_ep{ep+1}.pt")
+                            ui.info(f"Cycle end checkpoint saved and uploaded: cycle_end_ep{ep+1}.pt")
                         
                 dash.end_epoch(val_loss=val_loss, val_acc=val_metrics["val_acc"])
         # after training   

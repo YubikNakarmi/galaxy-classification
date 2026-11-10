@@ -145,9 +145,11 @@ def _parse_train(raw: dict, root: Path) -> TrainConfig:
         grad_clip_max_norm=float(t.get("grad_clip_max_norm", 1.0)),
         label_smoothing=float(t.get("label_smoothing", 0.1)),
         scheduler=SchedulerConfig(
-            type=sched.get("type", "cosine_with_warmup"),
+            type=sched.get("type", "cosine_warmup_restarts"),
             warmup_epochs=int(sched.get("warmup_epochs", 10)),
             min_lr=float(sched.get("min_lr", 1e-6)),
+            T_0=int(sched["T_0"]) if sched.get("T_0") is not None else None,
+            T_mult=int(sched["T_mult"]) if sched.get("T_mult") is not None else None,
         ),
     )
  
