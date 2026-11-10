@@ -199,9 +199,11 @@ train:
     weight: true
 
   scheduler:
-    type: cosine_with_warmup
+    type: cosine_warmup #cosine_warmup, cosine_warmup_restarts
     warmup_epochs: 5
     min_lr: 0.000001
+    T_0: 10
+    T_mult: 2
 
   regularization:
     dropout: 0.2

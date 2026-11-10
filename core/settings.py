@@ -10,7 +10,11 @@ from pydantic import BaseModel
 from src.utils.yaml_utils import load_yaml
 
 root = Path(__file__).resolve().parent.parent
-load_dotenv(root / ".env")
+
+try:
+    load_dotenv(root / ".env")
+except Exception as e:
+    print(f"Error loading .env file: {e}")
 
 class AzureStorageSettings(BaseModel):
     connection_string: str

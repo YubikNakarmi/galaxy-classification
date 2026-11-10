@@ -31,18 +31,30 @@ spec:
               echo "MLflow unreachable after 30 attempts, failing."
               exit 1
                         
-
         env:
         - name: MLFLOW_TRACKING_URI
           valueFrom:
             secretKeyRef:
               name: mlflow-secrets
               key: host
+
         - name: MLFLOW_USERNAME
           valueFrom:
             secretKeyRef:
               name: mlflow-secrets
               key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+  
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+
         - name: MLFLOW_PASSWORD
           valueFrom:
             secretKeyRef:

@@ -54,7 +54,7 @@ preprocess:
 The preprocessing configurations ar defined in `configs/ml.yaml`.
 
 ### Preprocessing type
-There are three types of preprocessing that can be performed on labels: `Classic`,`Hubble` and `Dirlichlet`. As defined in module `src.dataset.label_preprocessing`, each type of preprocessing applies different transformations to the labels. The type of preprocessing to be applied can be specified in the `ml.yaml` config file under the `preprocessing` section as shown below:
+There are three types of preprocessing that can be performed on labels: `Classic`, `Hubble`, and `Dirichlet`. As defined in module `src.dataset.label_preprocessing`, each type of preprocessing applies different transformations to the labels. The type of preprocessing to be applied can be specified in the `ml.yaml` config file under the `preprocessing` section as shown below:
 
 
 ```yaml title="Preprocessing type configuration in ml.yaml hl_lines="1 4" 

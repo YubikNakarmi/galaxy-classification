@@ -43,7 +43,7 @@ galax pipeline train [OPTIONS]
 
 | Option | Short form | Default | Description |
 | --- | --- | --- | --- |
-| `--variant [Default\|Hubble\|Dirlichlet]` | `-v` | `Default` | Training variant. |
+| `--variant [Default\|Hubble\|Dirichlet]` | `-v` | `Default` | Training variant. |
 | `--evaluate` | `-e` | off | Evaluate the model after training. |
 | `--resume` | `-r` | off | Resume from the available checkpoint. |
 | `--status` | `-c` | off | Show configuration and exit. |

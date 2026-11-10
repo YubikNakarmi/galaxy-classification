@@ -165,7 +165,7 @@ def evaluate(ctx,
         model_name: str
         
         # Set only when the model isnt in the registry yet
-        register_fn: Callable[[], str] | None = None
+        register_fn: Callable[[str], str] | None = None
         
         status.update(f"Loading model from {model_source}...")
         if model_source == "mlflow":
@@ -186,7 +186,7 @@ def evaluate(ctx,
                     model_name = registry_name
                     model_uri = f"runs:/{run_id}/{str(info).rstrip('/')}"
 
-                    def register_fn(uri: str = model_uri) -> str:  #define register instead of call
+                    def register_fn(eval_id: str, uri: str = model_uri) -> str:  #define register instead of call
                         return str(mlflow.register_model(uri, registry_name).version)
 
                 else:
@@ -279,7 +279,7 @@ def evaluate(ctx,
         
         if ok and register:
             assert register_fn is not None  #check if func is declared
-            model_version = register_fn()
+            model_version = register_fn(eval_run_id)
             client.set_model_version_tag(model_name, model_version, metric_name, str(candidate_metric))
             client.set_model_version_tag(model_name, model_version, "promoted_reason", reason)
             client.set_registered_model_alias(model_name, alias, model_version)

@@ -1,118 +1,110 @@
-##  Running Training
+# Training loop
 
-```sh
-galax pipeline train -s #shows status
-galax pipeline -h #help
+The training command is a Click command under `galax pipeline`. It validates
+the configured image and split paths, starts an MLflow run, trains the model,
+saves checkpoints, and optionally evaluates the completed run.
 
-galax pipeline train
+## Running training
+
+Inspect the resolved configuration first:
+
+```bash
+galax pipeline train --status
 ```
 
-## Training Factors
-| Component | Value | Notes |
-|---|---|---|
-| Loss | `CrossEntropyLoss` | `label_smoothing=0.1` |
-| Optimizer | `AdamW` | `lr=1e-3`, `weight_decay=1e-4`, `betas=(0.9, 0.999)` |
-| LR Warmup | Linear, 5–10 epochs | LR rises from ~0 to `1e-3` |
-| LR Scheduler | Cosine Annealing | Decays smoothly to ~0 after warmup |
-| Epochs | 50–100 | No pretrained weights,|
-| Batch Size | 32–64 | Balance gradient quality vs memory |
-| Grad Clipping | `clip_grad_norm_` | `max_norm=1.0`, before `optimizer.step()` |
+Start a run after preprocessing and splitting have produced the configured
+files:
 
-## Architecture
-![training architecture diagram](../assets/architecture/training_process.drawio.png)
+```bash
+galax pipeline train --variant Default --yes
+```
 
-/// caption
-Figure 1: Training architecture diagram
-///
+Omit `--yes` to receive an interactive confirmation. Use `-vv` for verbose
+CLI output.
 
-## Training options
+Resume a previous run:
 
-### Default
-Default model variant with standard training settings. With 5 classes and using default model
+```bash
+galax pipeline train \
+  --variant Default \
+  --resume \
+  --resume_run_id RUN_ID \
+  --resume_checkpoint_from Best \
+  --yes
+```
 
-### Hubble
-Model variant optimized for Hubble Space Telescope images., with 10 hubble classes and defautl model.
+`--resume_checkpoint_from` accepts `Best` or `Latest`. `--evaluate` runs the
+evaluation command after training completes.
 
-!!! warning "Hubble model is not yet fully trained"
-    The hubble model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+!!! note
+    The `Hubble` and `Dirichlet` names are accepted by the shared CLI and
+    configuration schema, but their training entry points are not implemented
+    yet. The current training implementation runs `Default`.
 
-### Dirilichet
-Model variant tailored for Dirilichet telescope images. With 10 dirilichet classes and dirilcihlet model.
-!!! warning "Dirilichet model is not yet fully trained"
-    The dirilichet model is still in the process of being trained and may not perform as well as the default model. Use with caution.
+## Training configuration
 
-## Customizations
-All the training customaizations can be done through the `configs/ml.yaml` file. The following are the main sections of the configuration file:
+All training values are read from [`configs/ml.yaml`](../../../configs/ml.yaml).
+The most commonly changed keys are:
 
+| Key | Purpose |
+| --- | --- |
+| `env.device` | CPU or CUDA device. |
+| `env.seed` | Random seed. |
+| `train.batch_size` | Samples per optimization step. |
+| `train.num_epochs` | Number of epochs. |
+| `train.learning_rate` | Initial learning rate. |
+| `train.weight_decay` | AdamW weight decay. |
+| `train.grad_clip_max_norm` | Maximum gradient norm. |
+| `train.label_smoothing` | Cross-entropy label smoothing. |
+| `train.scheduler.*` | Warmup, minimum LR, and cosine scheduler settings. |
+| `train.checkpoints.*` | Resume source and hard-resume behavior. |
+| `train.checkpoint.*` | Periodic and latest checkpoint saves. |
+| `train.mlflow.*` | Data, model, and metric logging. |
 
-### Environment Variables
+See [ML configuration](../development/configs.md) for the complete schema and
+storage settings.
 
-These variables control training behaviour. Set them in your `.env` file or inject via shell / Kaggle Secrets.
+## Checkpoints and artifacts
 
-| Variable | Config Key | Default | Description |
-|---|---|---|---|
-| `MLFLOW_TRACKING_URI` | — | `http://localhost:5000` | MLflow server URI for experiment tracking and model registry |
-| `AZURE_STORAGE_CONNECTION_STRING` | — | — | Azure Blob Storage connection string for checkpoint and log uploads |
-| `AZURE_STORAGE_ACCOUNT_NAME` | — | — | Storage account name (used if connection string not set) |
-| `AZURE_STORAGE_ACCOUNT_KEY` | — | — | Storage account key |
+Training writes local artifacts to the configured storage paths and records the
+run in MLflow. The checkpoint manager maintains:
 
-### Training Configuration (`configs/ml.yaml`)
+- `best.pt` for the best validation result;
+- `latest.pt` when `train.checkpoint.save_latest` is enabled;
+- periodic epoch or cycle checkpoints when configured;
+- reports, TensorBoard events, and MLflow metrics.
 
-| Key | Path in YAML | Default | Description |
-|---|---|---|---|
-| Active variant | `active_variant` | `default` | Which model variant to train (`default`, `hubble`, `dirichlet`) |
-| Device | `env.device` | `cpu` | Compute device (`cpu`, `cuda`, `cuda:0`) |
-| Seed | `env.seed` | — | Global random seed for reproducibility |
-| Epochs | `train.num_epochs` | — | Total training epochs |
-| Batch size | `train.batch_size` | — | Dataloader batch size |
-| Learning rate | `train.learning_rate` | — | Initial AdamW learning rate |
-| Min LR | `train.scheduler.min_lr` | — | `eta_min` for `CosineAnnealingWarmRestarts` |
-| Warmup epochs | `train.scheduler.warmup_epochs` | — | `T_0` for cosine restart period |
-| Grad clip | `train.grad_clip_max_norm` | `1.0` | Max norm for gradient clipping |
-| Resume checkpoint | `train.checkpoints.resume_from_checkpoint` | `false` | Attempt to resume from a saved checkpoint |
-| Hard resume | `train.checkpoints.checkpoint_resume_hard` | `false` | Exit if no checkpoint found (vs. start fresh) |
-| Checkpoint blob path | `train.checkpoints.checkpoint_restore_path` | — | Azure blob path to download resume checkpoint from |
-| Local checkpoint dir | `train.checkpoints.local_checkpoint_path` | — | Local path for checkpoint download before resume |
-| Image dir | `data.img_dir` | — | Root directory of galaxy images |
-| Train CSV | `data.train_path` | — | Path to train split label CSV |
-| Val CSV | `data.val_path` | — | Path to val split label CSV |
-| Checkpoint container | `storage.cloud.experiments.container` | — | Azure container name for experiment checkpoints |
-| Logs container | `logging.cloud.logs.container` | — | Azure container name for training logs and reports |
-| Tensorboard dir | `storage.local.logs.tensorboard_dir` | — | Local directory for TensorBoard event files |
-| Reports dir | `storage.local.logs.reports_dir` | — | Local directory for markdown training reports |
-| Num classes | `variants.<active>.num_classes` | `6` | Number of output classes for the active variant |
-| MLflow model name | `variants.<active>.mlflow.model_name` | — | Registered model name in MLflow |
-| Experiment root | `variants.<active>.experiment.root` | — | Top-level MLflow experiment name |
+The local checkpoint directory is `storage.local.checkpoints.dir`. Resume
+downloads use `train.checkpoints.local_checkpoint_path` and the configured
+cloud restore path when cloud storage is enabled.
 
-## Training Flow
+## Evaluation
 
-### Modular Approach
-`train.py ` is a wrapper that wraps main training files in `src.training`
+Evaluate an MLflow run separately:
 
+```bash
+galax pipeline evaluate \
+  --run_id RUN_ID \
+  --variant Default \
+  --model_source mlflow
+```
 
+For a local checkpoint:
 
-### checkpoints
+```bash
+galax pipeline evaluate \
+  --run_id local-check \
+  --model_source local \
+  --model_path models/checkpoints/best.pt
+```
 
-By default Checkpoints are updated using [src.training.checkpoints](https://github.com/YubikNakarmi/galaxy-classification/blob/dev/src/training/checkpoint.py). As the architecutral diagrams shws the checkpoints are updated both locally in and Azure storage blob. 
-- eval checkpoints
-- training epoch based checkpoints
+Evaluation uses `eval.batch_size` and the metric names in `eval.metrics`.
+Promotion settings such as `--metric_name`, `--min-improvement`, and
+`--alias` are documented in the [pipeline command reference](../cli/pipeline.md).
 
-### mlflow
-Training requires mlflow which is a central repository for models and also metrics. The system meterics are also enabled with final model version upload to the registry. During local training mlflow can be hosted in a local machine but I specifically hosted it in VM for my training. 
+## Training factors
 
-!!! Note
-    Checkout more infra about my training strategy in [training infra](../infra/train.md)
-
-### Artifacts Upload
-The artifacts for training are uploaded to Azure blob storage. The artifacts include the following:
-- Checkpoints
-- Logs
-- Reports
-The checkpoints are uploaded every epoch if it improves on the best model. The logs and reports are uploaded at the end of training.
-
-### visualizations
-Mlflow and tensorboard, and reports functions
-
-
-
-
+The default profile uses AdamW with cross-entropy loss, optional class
+weighting, label smoothing, gradient clipping, and cosine warmup. Adjust these
+values in the YAML profile for a specific dataset or hardware target; do not
+rely on the older illustrative values from this page.

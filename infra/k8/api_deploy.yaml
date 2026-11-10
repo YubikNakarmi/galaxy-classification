@@ -40,7 +40,13 @@ spec:
         imagePullPolicy: Never
         ports:
         - containerPort: 8000
-
+        readinessProbe: #check if pod is ready to serve 
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
         resources:
           requests:
             cpu: 100m
@@ -48,5 +54,17 @@ spec:
           limits:
             cpu: 200m
             memory: 400Mi
+        #secrets set from CLI, need to use vault for real deployment as it is non encrypted    
+        env:
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: api-secret
+                key: DATABASE_URL
+          - name: AZURE_STORAGE_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: azure-secret
+                key: AZURE_STORAGE_CONNECTION_STRING
 
       

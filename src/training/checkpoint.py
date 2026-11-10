@@ -48,7 +48,7 @@ class CheckpointManager:
         self.resume_run_id = resume_run_id or cfg.train.checkpoints.resume_run_id
 
     def save(self, model, optimizer, scheduler, epoch: int, val_loss: float,
-             val_f1_macro: float, cfg_snapshot: dict,filename:str|Path="best.pt") -> None:
+             val_f1_macro: float, cfg_snapshot: dict,filename:str|Path="best.pt",scheduler_type:str="cosine_warmup") -> None:
         
         """Save checkpoint locally. Upload to Azure if run_id is set.
             Args:
@@ -77,6 +77,7 @@ class CheckpointManager:
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "scheduler_state_dict": scheduler.state_dict(),
+            "scheduler_type": scheduler_type,
             "val_loss": val_loss,
             "val_f1_macro": val_f1_macro,
             "run_id": self.run_id,
