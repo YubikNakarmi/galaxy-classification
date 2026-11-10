@@ -89,7 +89,7 @@ google-auth==2.56.2
 grad-cam==1.5.5
 grandalf==0.8
 graphene==3.4.3
-graphql-core==3.2.11
+graphql-core==3.2.12
 graphql-relay==3.2.0
 greenlet==3.5.4
 griffelib==2.0.2
