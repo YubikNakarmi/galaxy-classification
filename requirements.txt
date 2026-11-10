@@ -236,7 +236,7 @@ scipy==1.18.0
 scmrepo==3.6.2
 seaborn==0.13.2
 semver==3.0.4
-setuptools==81.0.0
+setuptools==84.1.0
 shellingham==1.5.4
 shortuuid==1.0.13
 shtab==1.8.0
