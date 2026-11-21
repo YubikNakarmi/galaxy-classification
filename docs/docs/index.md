@@ -10,6 +10,11 @@ The reason for me working of project is due to multitude of factors. Firstly, I 
 - Grafana
    and more
 
+!!!Note
+   All the architecture diagrams were made by me using [draw.io](https://app.diagrams.net/) with no help of AI whatsoever. I have also used [Hugging Face](https://huggingface.co/) for model repository and [Aiven](https://aiven.io/) for hosting MySQL database.
+
+   > The raw diagram draw.io link can be found in [draw.io drive](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=drive_link)
+
 
 ## Introduction
 This project was focused on building a custom ResNet model for classifying galaxy images using Galaxy Zoo 2 dataset[@Willett_2013]. This projct not only focus on buidling and training the model, but also on the entire pipeline, including data preprocessing, model architecture design, training strategies, and evaluation metrics. Furthermore those processes are done with MLOps practices in mind, ensuring reproducibility and scalability. 

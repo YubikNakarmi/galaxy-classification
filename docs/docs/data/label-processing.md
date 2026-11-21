@@ -43,7 +43,7 @@ $$
 \end{cases}
 $$
 
-![Figure 1: Class distribution for Method 1](../assets/class_distribution_1.png){align="center" width="60%"}
+![Figure 1: Class distribution for Method 1](../assets/data/class_distribution_1.png){ align="center" width="60%" }
 /// caption
  Class distribution for Method 1 without sampling
  ///
