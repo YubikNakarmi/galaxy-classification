@@ -18,7 +18,7 @@ on:
       only-bentoml:
         description: 'Build and push only the BentoML image'
         required: false
-        default: False
+        default: True
         type: boolean
       
 
@@ -82,8 +82,8 @@ jobs:
           cache-to: type=gha,mode=max
         
   build-and-push-bentoml:
-    
-    if: ${{ inputs.only_bentoml == true }}
+
+    if: ${{ inputs.only-bentoml == true }}
     runs-on: ubuntu-latest
 
     permissions:
