@@ -1,7 +1,7 @@
 
 [project]
 name = "galaxy-classification"
-version = "v0.8.0"
+version = "v1.0.0"
 description = "A package which everything to run galaxy classification"
 authors = [{name = "Yubik Nakarmi"}]
 license = "MIT"
@@ -101,7 +101,9 @@ extra_cli=[
 include = ["src", 
             "src.*",
             "ml",
-            "ml.*",]
+            "ml.*",
+            "core",
+            "core.*",]
 
 [project.scripts]
 galax = "ml.cli:cli"

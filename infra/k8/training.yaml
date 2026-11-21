@@ -49,18 +49,7 @@ spec:
               name: mlflow-secrets
               key: password
   
-        - name: MLFLOW_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mlflow-secrets
-              key: username
-
-        - name: MLFLOW_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mlflow-secrets
-              key: password
-      
+       
       containers:
       - name: 
         image: Train:v1.0.0

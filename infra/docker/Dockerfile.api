@@ -13,9 +13,10 @@ COPY alembic.ini .
 
 COPY pyproject.toml uv.lock ./
 
-ENV PATH="/app/.venv/bin:$PATH" \
+ENV PATH="/app/.venv/bin:$PATH" \ 
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    #set PYTHONPATH to make files importable
+    PYTHONPATH=/app  
 
 RUN uv sync --extra api --frozen
 

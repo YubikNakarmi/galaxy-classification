@@ -61,10 +61,30 @@ spec:
               secretKeyRef:
                 name: api-secret
                 key: DATABASE_URL
+                
           - name: AZURE_STORAGE_CONNECTION_STRING
             valueFrom:
               secretKeyRef:
                 name: azure-secret
                 key: AZURE_STORAGE_CONNECTION_STRING
+
+          - name: BACKEND_YAML_PATH #explicitly set path to config to get form config map
+            value: /app/configs/backend.yaml
+        
+
+        volumeMounts:
+        - name: backend-config-volume
+          mountPath: /app/configs/backend.yaml
+          subPath: backend.yaml #donot hide existing
+
+      volumes: 
+        - name: backend-configs #mount volume from configmap for auto set config (need to restart the api)
+          configMap:
+            name: backend-config
+            items: 
+              - key: backend.yaml 
+                path: backend.yaml #save to same path in config/app/backend.yaml
+        
+        
 
       

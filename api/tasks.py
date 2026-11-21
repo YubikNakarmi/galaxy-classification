@@ -30,6 +30,7 @@ PIPELINE_EXCEPTIONS = Counter(
 
 
 
+
 celery_app = Celery(
     "api",
     broker=settings.celery.broker_url,
@@ -58,9 +59,9 @@ def _mark_response_failed(response_id: Optional[str], error_message: str) -> Non
 
 
 BENTOML_ROUTES = {#preset routes in bentoml/services.py
-    "default": os.getenv("BENTOML_DEFAULT_URL", "http://bentoml:3000/default"),
-    "hubble": os.getenv("BENTOML_HUBBLE_URL", "http://bentoml:3000/hubble"),
-    "dirichlet": os.getenv("BENTOML_DIRICHLET_URL", "http://bentoml:3000/dirichlet"),
+    "default": os.getenv("BENTOML_DEFAULT_URL",settings.bentoml_routes.default or "http://bentoml:3000/classify"),
+    "hubble": os.getenv("BENTOML_HUBBLE_URL", settings.bentoml_routes.hubble or "http://bentoml:3000/classify/hubble"),
+    "dirichlet": os.getenv("BENTOML_DIRICHLET_URL", settings.bentoml_routes.dirichlet or "http://bentoml:3000/classify/dirichlet")
 }
 
 

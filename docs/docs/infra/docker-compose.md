@@ -142,12 +142,12 @@ Experiment tracking server and model registry, backed by a remote MySQL store an
 - **Port mapping:** `5000:5000`
 - **Env file:** `.env`
 - **Environment:**
-  - `MYSQLURL_REMOTE=${MYSQLURL_REMOTE}` — backend store URI (MySQL)
+  - `MLFLOW_BACKEND_STORE_URI=${MLFLOW_BACKEND_STORE_URI}` — backend store URI (MySQL)
   - `MLFLOW_ARTIFACT_ROOT=${MLFLOW_ARTIFACT_ROOT}` — artifact storage location (e.g. Azure Blob / Azurite)
 - **Command:**
   ```
   mlflow server
-    --backend-store-uri ${MYSQLURL_REMOTE}
+    --backend-store-uri ${MLFLOW_BACKEND_STORE_URI}
     --default-artifact-root ${MLFLOW_ARTIFACT_ROOT}
     --host 0.0.0.0
     --port 5000
@@ -204,7 +204,7 @@ Visualizes training runs/logs.
 
 | Variable | Used by | Description |
 |---|---|---|
-| `MYSQLURL_REMOTE` | `mlflow` | MySQL connection string for the MLflow backend store |
+| `MLFLOW_BACKEND_STORE_URI` | `mlflow` | SQL connection string for the MLflow backend store |
 | `MLFLOW_ARTIFACT_ROOT` | `mlflow` | Root URI for MLflow artifact storage |
 | `AZURE_STORAGE_CONNECTION_STRING` | `bentoml` | Connection string for Azure Blob Storage (or Azurite) |
 | `LOG_JSON` | `bentoml` | Toggles JSON-formatted logging |
