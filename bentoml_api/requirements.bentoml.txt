@@ -6,7 +6,7 @@ adlfs==2026.5.0
     # via dvc-azure
 aiohappyeyeballs==2.7.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.4
     # via
     #   aiohttp-asgi-connector
     #   aiohttp-retry
