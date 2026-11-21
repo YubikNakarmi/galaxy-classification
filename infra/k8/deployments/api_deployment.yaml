@@ -73,12 +73,12 @@ spec:
         
 
         volumeMounts:
-        - name: backend-config-volume
+        - name: backend-config
           mountPath: /app/configs/backend.yaml
           subPath: backend.yaml #donot hide existing
 
       volumes: 
-        - name: backend-configs #mount volume from configmap for auto set config (need to restart the api)
+        - name: backend-config #mount volume from configmap for auto set config (need to restart the api)
           configMap:
             name: backend-config
             items: 
