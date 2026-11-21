@@ -9,11 +9,19 @@ spec:
   rules:
     - http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
-                name: Api-service
+                name: api-service
                 port:
                   number: 8000
+                  
+          - path: /classification
+            pathType: Prefix
+            backend:
+              service:
+                name: bentoml-service
+                port:
+                  number: 3000
  

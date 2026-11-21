@@ -1,7 +1,7 @@
 #core.yaml
 system:
   name: galaxy-classifier
-  version: v0.8.0
+  version: v1.0.0
 
 runtime:
   mode: local   # local or cloud
@@ -25,7 +25,6 @@ cloud:
 ml:
   config_file: configs/ml.yaml
   
-
 
 dirs:
   logs: 

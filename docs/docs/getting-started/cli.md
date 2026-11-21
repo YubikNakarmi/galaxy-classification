@@ -17,7 +17,7 @@ galax --help
 ```
 You should see something like this:
 
-![Root of CLI](../assets/cli/main.png){ width="400" height="400" align="center" }
+![Root of CLI](../assets/cli/main.png){ align="center" width="55%" }
 
 > More detailed architecute of cli on [CLI](/docs/docs/development/cli.md#overview) documentation.
 
@@ -30,7 +30,7 @@ and BentoML commands, see the [CLI documentation](../cli/index.md).
 galax status
 ```
 
-![Status](../assets/cli/status.png)
+![Status](../assets/cli/status.png){ align="center" width="75%" }
 
 ### Importing a model
 ```sh
@@ -41,7 +41,7 @@ $ galax -vv cache import \
 --metric_name="test" --metric=0.1
 ```
 
-![Import](../assets/cli/save_model.png)
+![Import](../assets/cli/save_model.png){ align="center" width="100%" }
 
 ### running a training script. 
 
@@ -49,7 +49,7 @@ Verifying the configs
 ```sh
 galax pipeline train -c
 ```
-![Status](../assets/cli/training_status.png)
+![Status](../assets/cli/training_status.png){ align="center" width="75%" }
 
 
 Running Training
@@ -61,7 +61,7 @@ galax -vv pipeline train --variant "Default"
 # level 2
 ```
 
-![Training](../assets/cli/training.png)
+![Training](../assets/cli/training.png){ align="center" width="100%" }
 
 ### View logs
 
@@ -69,4 +69,4 @@ galax -vv pipeline train --variant "Default"
 galax log show -n 50 -s "ml"
 ```
 
-![result](../assets/cli/logs.png)
+![result](../assets/cli/logs.png){ align="center" width="100%" }

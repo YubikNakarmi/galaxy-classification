@@ -12,7 +12,7 @@
 | 4 | Spiral | 85658 |
 
 
-![Figure 1: Class distribution for Method 1](../assets/class_distribution_1.png){align="center" width="60%"}
+![Figure 1: Class distribution for Method 1](../assets/data/class_distribution_1.png){ align="center" width="60%" }
 /// caption
  Class distribution for Method 1 without sampling
  ///
@@ -22,7 +22,7 @@ The class distribution is highly imbalanced, with Class 4 (Spiral) being the mos
 ## Balancing Using Class Weights
 Class balacing using pytorch's WeightedRandomSampler. The weights are computed as the inverse of the class frequencies, giving more importance to minority classes during training.
 
-![Figure 2: Class weights for Method 1 for 1k samples](../assets/class_distribution_sampled.png){align="center" width="80%"}
+![Figure 2: Class weights for Method 1 for 1k samples](../assets/data/class_distribution_sampled.png){ align="center" width="80%" }
 
 /// caption
 Figure 2: Class weights for Method 1 for 1k samples

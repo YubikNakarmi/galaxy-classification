@@ -162,3 +162,4 @@ class GalaxyClassifier_ResNet(nn.Module):
             n_classes (int): Number of classes for the classification task.
         """
         self.heads = nn.ModuleList([nn.Linear(2048, n_classes) for _ in range(n_classes)])
+        
