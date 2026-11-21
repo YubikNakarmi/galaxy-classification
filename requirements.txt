@@ -279,7 +279,7 @@ voluptuous==0.16.0
 waitress==3.0.2
 watchdog==6.0.0
 watchfiles==1.2.0
-wcmatch==10.1
+wcmatch==11.2
 wcwidth==0.8.2
 webencodings==0.5.1
 Werkzeug==3.1.8
