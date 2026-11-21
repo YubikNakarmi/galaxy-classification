@@ -4,7 +4,7 @@ description: "Galaxy Classification Service"
 
 labels:
   owner: "Yubik Nakarmi"
-  version: "v0.1.0"
+  version: "v1.1.0"
 
 include:
   - src/
@@ -14,8 +14,9 @@ include:
   - bentoml_api/setup_package.sh
 
 python:
-  requirements_txt: bentoml_api/requirements.bentoml.txt
-  lock_packages: false
+  uv: 
+    lockfile: uv.lock
+    no_install_project: false
 
 docker:
   distro: debian
