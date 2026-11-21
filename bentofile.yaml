@@ -14,9 +14,8 @@ include:
   - bentoml_api/setup_package.sh
 
 python:
-  uv: 
-    requirements_txt: bentoml_api/requirements.bentoml.txt
-    lock_packages: false
+  requirements_txt: bentoml_api/requirements.bentoml.txt
+  lock_packages: false
 
 docker:
   distro: debian
