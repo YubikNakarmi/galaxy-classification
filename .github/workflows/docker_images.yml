@@ -15,18 +15,17 @@ on:
         default: 'latest'
         type: string
 
-      only-bentoml:
+      only_bentoml:
         description: 'Build and push only the BentoML image'
         required: false
-        default: True
+        default: true
         type: boolean
-      
+        
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}   # results in ghcr.io/<owner>/<repo>
 
-  ONLY_BENTOML: ${{ github.event.inputs.only-bentoml }}
 
 jobs:
 
@@ -83,7 +82,7 @@ jobs:
         
   build-and-push-bentoml:
 
-    if: ${{ inputs.only-bentoml == true }}
+    if: ${{ inputs.only_bentoml == true }}
     runs-on: ubuntu-latest
 
     permissions:
