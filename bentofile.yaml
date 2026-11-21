@@ -15,8 +15,8 @@ include:
 
 python:
   uv: 
-    lockfile: uv.lock
     no_install_project: false
+    requirements_txt: bentoml_api/requirements.bentoml.txt
 
 docker:
   distro: debian

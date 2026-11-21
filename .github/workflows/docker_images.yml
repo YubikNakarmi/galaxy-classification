@@ -30,6 +30,7 @@ env:
 jobs:
 
   build-and-push:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only_bentoml != true }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -75,14 +76,14 @@ jobs:
           context: .
           file: infra/docker/Dockerfile.api
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ghcr.io/yubiknakarmi/galax-api:${{env.VERSION}}
           cache-from: type=gha
           cache-to: type=gha,mode=max
         
   build-and-push-bentoml:
 
-    if: ${{ inputs.only_bentoml == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.only_bentoml == true }}
     runs-on: ubuntu-latest
 
     permissions:
