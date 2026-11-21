@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-config
+  namespace: default
+data:
+  ml.yaml: |-
+  {{- .Files.Get "configs/ml.yaml" | nindent 4 }}

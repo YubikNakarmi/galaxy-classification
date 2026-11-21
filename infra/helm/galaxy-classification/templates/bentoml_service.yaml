@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bentoml-service
+  namespace: default
+spec:
+  selector:
+    app: bentoml
+    
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: bentoml-service
+    protocol: TCP
+    port: {{.Values.bentoml.service.port}}
+    targetPort: 3000
