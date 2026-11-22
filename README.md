@@ -1,6 +1,7 @@
 # Galaxy Classification
 
 [![Deploy Documentation](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml/badge.svg?branch=master)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docs.yml)
+[![Build and Push Docker Image](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docker_images.yml/badge.svg)](https://github.com/YubikNakarmi/galaxy-classification/actions/workflows/docker_images.yml)
 [![Python](https://img.shields.io/badge/Python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
 An end-to-end MLOps pipeline for classifying galaxy morphologies from images, built with PyTorch, FastAPI, and BentoML. The project includes experiment tracking, asynchronous inference, and production observability.
