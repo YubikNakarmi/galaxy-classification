@@ -28,3 +28,6 @@ docker:
 
   env:
     PYTHONPATH: /home/bentoml/bento #make /bentoml_api the working directory for the container
+    ENV_PATH: /home/bentoml/bento/.env
+    ML_YAML_PATH: /home/bentoml/bento/src/configs/ml.yaml
+    CORE_YAML_PATH: /home/bentoml/bento/src/configs/core.yaml

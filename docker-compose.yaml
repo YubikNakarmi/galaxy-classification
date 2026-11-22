@@ -110,6 +110,9 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
       AZURE_STORAGE_CONNECTION_STRING: ${AZURE_STORAGE_CONNECTION_STRING}
       LOG_JSON: ${LOG_JSON}
+      ENV_PATH: /home/bentoml/bento/.env
+      ML_YAML_PATH: /home/bentoml/bento/src/configs/ml.yaml
+      CORE_YAML_PATH: /home/bentoml/bento/src/configs/core.yaml
 
     ports:
       - "3000:3000"

@@ -44,9 +44,21 @@ def load_context( *,
     from src.utils.logging_config import setup_ml_logging, setup_app_logging
     from src.config import load_and_validate_config
 
-    env_path = Path(env_path or os.getenv("ENV_PATH")) or ROOT / ".env"
-    ml_yaml_path = Path(ml_yaml_path  or os.getenv("ML_YAML_PATH")) or ROOT / "configs" / "ml.yaml"
-    core_yaml_path = Path(core_yaml_path or os.getenv("CORE_YAML_PATH")) or ROOT / "configs" / "core.yaml"
+    def resolve_path(explicit: Path | None, env_name: str, fallback: Path) -> Path:
+        configured = explicit or os.getenv(env_name)
+        if configured:
+            candidate = Path(configured)
+            if candidate.exists():
+                return candidate
+        if fallback.exists():
+            return fallback
+        if configured:
+            return Path(configured)
+        return fallback
+
+    env_path = resolve_path(env_path, "ENV_PATH", ROOT / ".env")
+    ml_yaml_path = resolve_path(ml_yaml_path, "ML_YAML_PATH", ROOT / "configs" / "ml.yaml")
+    core_yaml_path = resolve_path(core_yaml_path, "CORE_YAML_PATH", ROOT / "configs" / "core.yaml")
 
     try:
         load_dotenv(env_path)
