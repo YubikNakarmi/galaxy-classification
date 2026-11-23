@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: redis-deployment
+  namespace: {{ .Release.Namespace }}
+
+{{- if .Values.redis.enabled }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-deployment
+  template:
+    metadata:
+      labels:
+        app: redis-deployment
+
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        imagePullPolicy: IfNotPresent
+
+        command: ["redis-server", "--appendonly", "yes"]
+        ports:
+        - containerPort: 6379
+
+        #healthchecks
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        #helm if statment
+        {{- if .Values.redis.persistence.enabled }}
+        volumeMounts:
+        - name: redis-storage #mount to redis pvc
+          mountPath: /data
+        {{- end }}
+
+    {{- if .Values.redis.persistence.enabled }}
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim: #persist redis data
+          claimName: redis-pvc
+    {{- end }}
+
+{{- end}}

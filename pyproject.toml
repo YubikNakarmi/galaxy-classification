@@ -1,7 +1,7 @@
 
 [project]
 name = "galaxy-classification"
-version = "v0.8.0"
+version = "v1.0.0"
 description = "A package which everything to run galaxy classification"
 authors = [{name = "Yubik Nakarmi"}]
 license = "MIT"
@@ -24,6 +24,25 @@ dependencies = [
 
 requires-python = ">=3.12,<3.14"
 
+[dependency-groups]
+bentoml = [
+    "bentoml==1.4.39",
+    "torch==2.13.0",
+    "torchvision==0.28.0",
+    "torchmetrics==1.9.0",
+    "grad-cam==1.5.5",
+    "mlflow==3.13.0",
+    "numpy==2.4.6",
+    "pandas==2.3.3",
+    "azure-core==1.41.0",
+    "azure-identity==1.25.3",
+    "azure-storage-blob==12.29.0",
+    "pydantic>=2.13,<3",
+    "pydantic-settings>=2.14,<3",
+    "loguru>=0.7,<1",
+    "PyYAML>=6.0,<7",
+    "python-dotenv>=1.2,<2",
+]
 
 [project.optional-dependencies]
 api = [
@@ -40,19 +59,7 @@ api = [
     "prometheus-client==0.26.0",
 ]
 
-bentoml = [
-    "bentoml==1.4.39",
-    "torch==2.13.0",
-    "torchvision==0.28.0",
-    "torchmetrics==1.9.0",
-    "grad-cam==1.5.5",
-    "mlflow==3.13.0",
-    "numpy==2.4.6",
-    "pandas==2.3.3",
-    "azure-core==1.41.0",
-    "azure-identity==1.25.3",
-    "azure-storage-blob==12.29.0",
-]
+
 
 ml = [
     "torch==2.13.0",
@@ -101,7 +108,9 @@ extra_cli=[
 include = ["src", 
             "src.*",
             "ml",
-            "ml.*",]
+            "ml.*",
+            "core",
+            "core.*",]
 
 [project.scripts]
 galax = "ml.cli:cli"

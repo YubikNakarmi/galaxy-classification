@@ -1,0 +1,839 @@
+---
+# Source: Galaxy-Classification/templates/backend-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: default
+
+data:
+  backend.yaml: |-
+    database:
+      pool_size: 5
+      max_overflow: 10
+      echo: false
+    
+    azure_storage:
+      container_name: image-uploads
+    
+    celery:
+      broker_url: redis://redis:6379/0
+      result_backend: redis://redis:6379/1
+    
+    auth: 
+      
+    
+    environment: development
+    debug: true
+    
+    bentoml_routes:
+      default: http://bentoml:3000/default
+      dirichlet: http://bentoml:3000/dirichlet
+      hubble: http://bentoml:3000/hubble
+---
+# Source: Galaxy-Classification/templates/core-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core-config
+data:
+  core.yaml: |-
+    #core.yaml
+    system:
+      name: galaxy-classifier
+      version: v1.0.0
+    
+    runtime:
+      mode: local   # local or cloud
+    
+    cli:
+        style:
+          info: "bright_blue"
+          success: "bold spring_green2"
+          warning: "bold gold3"
+          error: "bold deep_pink3"
+          debug: "grey50"
+          trace: "dim grey37"
+          banner: "bold magenta"
+    
+    cloud:
+      azure:
+        storage:
+          connection_string: ${AZURE_STORAGE_CONNECTION_STRING}
+          default_container: galaxy-experiments
+            
+    ml:
+      config_file: configs/ml.yaml
+      
+    
+    dirs:
+      logs: 
+        bentoml:
+          service: logs/bentoml/service.log
+          api: logs/bentoml/api.log
+          ml: logs/bentoml/ml.log
+    
+      data: 
+        raw: data/raw
+        processed: data/processed
+        images: images
+        
+      models: models
+      artifacts: artifacts
+    
+    
+    
+    
+      
+    
+    # Only system logs like script execution, errors, etc. ML-specific logs (like training metrics) 
+    # will be handled separately under mlflow and in differnt files though ml.yaml configs.
+    
+    logging: 
+      app:
+        level: INFO
+        file: logs/system/app.log
+        rotation: "10 MB"
+        retention: "7 days"
+        compression: zip
+      
+      ml:
+        level: INFO
+        file: logs/system/ml.log
+        rotation: "10 MB"
+        retention: "7 days"
+        compression: zip
+    
+      cloud: #blob log upload from vm to blob periodocally
+        type: azure-blob
+    
+        logs:
+          frequency: daily
+          container: galaxy-classification-logs
+          app:
+            
+            dir: logs/system/app.log
+            blob_dir: app/ #inside blob
+    
+          ml:
+            dir: logs/system/ml.log
+            blob_dir: ml/ 
+    
+---
+# Source: Galaxy-Classification/templates/ml-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ml-config
+  namespace: default
+data:
+  ml.yaml: |-
+    active_variant: Default
+    
+    
+    env:
+      name: galaxy_classification_env
+      python_version: 3.12.10
+      seed: 42
+      device: cpu # Change to cuda on VM[cpu,cuda]
+      num_workers: 4
+    
+    mode: cloud # options: local, cloud
+    
+    
+    variants:
+      Default:
+        preprocessing: Default
+        num_classes: 5
+        label_file: data/preprocessed/labels/labeled_data_1.csv
+    
+        data:
+          split:
+            train_size: 0.70
+            val_size: 0.15
+            test_size: 0.15
+          stratify: true
+        experiment:
+          root: galaxy-classification-default-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+          auto_timestamp: true
+          use_variant_name: true
+    
+        model:
+          architecture: ResNet
+          pretrained: false
+          K: 2
+          N: 2
+          conv1_stride: 2
+          input_size: 128
+    
+        mlflow:
+          model_name: galaxy-classification-default
+    
+      Hubble:
+        preprocessing: Hubble
+        num_classes: 10
+        label_file: data/preprocessed/labels/labeled_data_2.csv
+        dirichlet_branches: 11
+    
+        experiment:
+          root: galaxy-classification-hubble-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+          auto_timestamp: true
+          use_variant_name: true
+        data:
+          split:
+            train_size: 0.70
+            val_size: 0.15
+            test_size: 0.15
+          stratify: true
+    
+        mlflow:
+          model_name: galaxy-classification-hubble
+    
+      Dirichlet:
+        preprocessing: Dirichlet
+        num_classes: null
+        label_file: data/preprocessed/labels/labeled_data_3.csv
+    
+        experiment:
+          root: galaxy-classification-dirilchlet-experiments #only root use differnt names in scripts like roo/resnet1/..[logs,etc]
+          auto_timestamp: true
+          use_variant_name: true
+    
+    
+        data:
+          split:
+            train_size: 0.80
+            val_size: 0.10
+            test_size: 0.10
+          stratify: false
+    
+        mlflow:
+          model_name: galaxy-classification-dirichlet
+    
+    data:
+      img_dir: images/
+      raw_paths: 
+        - labels: data/raw/labels.csv
+        - mappings: data/raw/mapping.csv
+        
+      preprocessed_dir: data/preprocessed/
+      split_dir: data/preprocessed/split/
+      train_path: data/preprocessed/sample/train_sample.csv #realpath: data/preprocessed/split/train.csv
+      val_path: data/preprocessed/sample/val_sample.csv
+      eval_path: data/preprocessed/sample/val_sample.csv
+    
+      input_size: 128
+    
+      normalize:
+        mean: [0.1376, 0.1276, 0.1187]
+        std: [0.1728, 0.1586, 0.1488]
+    
+      transforms:
+        raw_transforms:
+          - CenterCrop: 
+              size_range: [170, 240]
+          - Resize: 
+              size: 160
+          - RandomCrop: 
+              size: 128
+          - RandomRotation:
+              degrees: [90, 180]
+          - RandomRotation:
+              degrees: [0, 270]
+          - RandomHorizontalFlip: {}
+          - ColorJitter:
+              brightness: 0.4
+              contrast: 0.4
+              saturation: 0.4
+              hue: 0.1
+          - ToTensor: {}
+          - Normalize:
+              mean: [0.1376, 0.1276, 0.1187]
+              std: [0.1728, 0.1586, 0.1488]
+    
+      sampler:
+        type: weighted
+    
+    storage:
+    
+    
+      #in azure blob container, config for local (will add in future auto local config)
+    
+      local: #locals dirs
+    
+        logs:
+          dir: logs/
+          tensorboard_dir: logs/tensorboard/
+          system_dir: logs/system/
+          reports_dir: logs/reports/
+    
+        checkpoints:
+          dir: models/checkpoints/
+          model_cache_dir: models/cache/
+    
+        predictions:
+          dir: models/predictions/
+        
+       
+    
+      cloud: #blob dirs
+        dvc:
+          container: dvc-storage #stores training data like raw,preprocessed,split
+    
+        experiments: 
+          container: galaxy-experiments #for models/logs
+          
+        # inside galaxy-classification-experiments/<experiment_name>/..
+        logs:
+          container: galaxy-experiments
+          dir: logs/
+    
+        tensorboard:
+          dir: tensorboard/
+    
+        checkpoints:
+          container: galaxy-experiments
+          dir: models/ #{run_id}/models/best.pt in cloud continer
+    
+        predictions:
+          container: galaxy-experiments
+          dir: predictions/
+    
+    augmentation: {
+    
+    
+    }
+    
+    
+    train:
+      checkpoints:
+        resume_from_checkpoint: False
+        #used if resume_from_checkpoint is true and saves to this destination path in local
+        local_checkpoint_path: "models/checkpoints" 
+        checkpoint_restore_path: checkpoints #set run-id to resume cloud path {run_id}/checkpoints/best.pt
+        resume_run_id: "e3b866df7f01417fb0db72e0da051f23" #set run-id to resume
+        checkpoint_resume_hard: True #if true, means that users exits if there is no checkpoint to resume from. If false, it will just start fresh training.
+        
+      batch_size: 64
+      num_epochs: 1
+    
+      learning_rate: 0.001
+      weight_decay: 0.01
+      optimizer: AdamW
+    
+      grad_clip_max_norm: 1.0
+      label_smoothing: 0.1
+    
+      criterion:
+        name: cross_entropy
+        weight: true
+    
+      scheduler:
+        type: cosine_warmup #cosine_warmup, cosine_warmup_restarts
+        warmup_epochs: 5
+        min_lr: 0.000001
+        T_0: 10
+        T_mult: 2
+    
+      regularization:
+        dropout: 0.2
+        gradient_clipping: true
+        
+      mlflow:
+        log_data: true
+        log_model: true
+        log_metrics: true
+        experiment_name: galaxy-classification-training
+    
+      checkpoint:
+        save_freq_epoch: 5
+        save_cycle: true
+        save_latest: true
+    
+    eval:
+    
+      batch_size: 32
+    
+      metrics:
+        - accuracy
+        - precision
+        - recall
+        - f1_score
+    
+    
+      checkpoints:
+    
+    
+    mlflow:
+      tracking_uri: ${MLFLOW_TRACKING_URI}
+      backend: mysql
+      artifact_store: azure
+      experiment_name: galaxy-classification
+---
+# Source: Galaxy-Classification/templates/redis-pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+spec:
+  resources:
+    requests:
+      storage: 5Gi
+      
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+
+---
+# Source: Galaxy-Classification/templates/api-service.yaml
+apiVersion: v1 
+kind: Service
+metadata:
+  name: api-service
+  namespace: default
+spec:
+  selector:
+    app: fast-api
+    
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: api-service
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
+
+---
+# Source: Galaxy-Classification/templates/bentoml_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: bentoml-service
+  namespace: default
+spec:
+  selector:
+    app: bentoml
+    
+  type: ClusterIP
+  sessionAffinity: None
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+  ports:
+  - name: bentoml-service
+    protocol: TCP
+    port: 3000
+    targetPort: 3000
+
+---
+# Source: Galaxy-Classification/templates/redis-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  selector:
+    app: redis
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+# Source: Galaxy-Classification/templates/api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: default
+  labels:
+    app: fast-api
+    version: v1
+    tier: backend
+
+spec:
+
+  replicas: 3
+  revisionHistoryLimit: 10 #10 hsitory after update
+
+  selector:
+    matchLabels:
+      app: fast-api
+      tier: backend
+  
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+
+  #pods definition
+  template:
+    metadata:
+      labels:
+        app: fast-api
+        tier: backend
+
+    spec:
+
+      containers:
+      - name: api
+        image: ghcr.io/yubiknakarmi/galax-api:v1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+
+        readinessProbe: #check if pod is ready to serve 
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+        command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 400Mi
+
+        #secrets set from CLI, need to use vault for real deployment as it is non encrypted    
+        env:
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: api-secret
+                key: DATABASE_URL
+                
+          - name: AZURE_STORAGE_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: azure-secret
+                key: AZURE_STORAGE_CONNECTION_STRING
+
+          - name: BACKEND_YAML_PATH #explicitly set path to config to get form config map
+            value: /app/configs/backend.yaml
+        
+
+        volumeMounts:
+        - name: backend-config
+          mountPath: /app/configs/backend.yaml
+          subPath: backend.yaml #donot hide existing
+
+      volumes: 
+        - name: backend-config #mount volume from configmap for auto set config (need to restart the api)
+          configMap:
+            name: backend-config
+            items: 
+              - key: backend.yaml 
+                path: backend.yaml #save to same path in config/app/backend.yaml
+        
+        
+
+      
+---
+# Source: Galaxy-Classification/templates/bentoml-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  bentoml-deployment
+  namespace: default
+  labels:
+    app:  bentoml-deployment
+    
+spec:
+  selector:
+    matchLabels:
+      app: bentoml-deployment
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+
+  template:
+    metadata:
+      labels:
+        app:  bentoml-deployment
+    spec:
+  
+      containers:
+      - name:  Bentoml
+        image: ghcr.io/yubiknakarmi/galax-bentoml:v1.0.0  #no restart policy set set if needed
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 400Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+      
+        readinessProbe:
+          httpGet:
+            path: /_status/healthz
+            port: 3000
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+          periodSeconds: 10
+
+
+        env:
+          #set secrets from secretmaps
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: Azure-secrets  #needed for uploading of models during training
+              key: connection-string
+
+        #explictly set config paths so it resolves in container
+    
+        - name: BACKEND_YAML_PATH
+          value: /app/configs/backend.yaml
+
+        - name: ML_YAML_PATH
+          value: /app/configs/ml.yaml
+
+        - name: CORE_YAML_PATH
+          value: /app/configs/core.yaml
+
+        ports:
+        - containerPort:  3000
+          name:  bentoml-port
+
+        #mount configs
+        volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+
+        - name: backend-config
+          mountPath: /app/configs/backend.yaml
+          subPath: backend.yaml
+
+        - name: core-config
+          mountPath: /app/configs/core.yaml
+          subPath: core.yaml
+
+        - name: ml-config
+          mountPath: /app/configs/ml.yaml
+          subPath: ml.yaml
+
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Kathmandu
+
+      #configs
+        - name: backend-config
+          configMap:
+            name: backend-config
+            items:
+              - key: backend.yaml
+                path: backend.yaml
+
+        - name: core-config
+          configMap:
+            name: core-config
+            items:
+              - key: core.yaml
+                path: core.yaml
+
+        - name: ml-config
+          configMap:
+            name: ml-config
+            items:
+              - key: ml.yaml
+                path: ml.yaml
+
+      restartPolicy: Always
+---
+# Source: Galaxy-Classification/templates/redis-deployment.yaml
+apiversion: v1
+kind: Deployment
+
+metadata:
+  name: redis-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-deployment
+  template:
+    metadata:
+      labels:
+        app: redis-deployment
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        imagePullPolicy: IfNotPresent
+
+        command: ["redis-server", "--appendonly", "yes"]
+        ports:
+        - containerPort: 6379
+
+        #healthchecks
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        #helm if statment
+        volumeMounts:
+        - name: redis-storage #mount to redis pvc
+          mountPath: /data
+    volumes:
+    - name: redis-storage
+      persisteneceVolumeClaim: #persist redis data
+        claimName: redis-pvc
+---
+# Source: Galaxy-Classification/templates/training.yaml
+apiVersion: v1
+kind: Job
+metadata:
+  name: MYAPP
+  namespace: default
+  labels:
+    app: MYAPP
+spec:
+  template:
+    metadata:
+      name: Train
+      labels:
+        app: Train
+    spec:
+      initContainers:
+      
+      - name: check-mlflow  #checking mlflow conn beore training
+        image: alpine:3.18.4
+        command: 
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 30); do
+                if wget -q --spider --timeout=5 "$MLFLOW_TRACKING_URI/health"; then
+                  echo "MLflow is up."
+                  exit 0
+                fi
+                echo "Attempt $i/30: MLflow not ready, retrying in 5s..."
+                sleep 5
+              done
+              echo "MLflow unreachable after 30 attempts, failing."
+              exit 1
+                        
+        env:
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+  
+       
+      containers:
+      - name: 
+        image: Train:v1.0.0
+        command: ["galax","pipeline","train","-y"]
+        env:
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+              
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: Azure-secrets  #needed for uploading of models during training
+              key: connection-string
+        volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /usr/share/zoneinfo/Asia/Kathmandu
+      restartPolicy: Never
+      backoffLimit: 3    
+      dnsPolicy: ClusterFirst
+---
+# Source: Galaxy-Classification/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: galaxy-classification-api
+  namespace: default
+spec:
+  ingressClassName: traefik
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api-service
+                port:
+                  number: 8000
+                  
+          - path: /classification
+            pathType: Prefix
+            backend:
+              service:
+                name: bentoml-service
+                port:
+                  number: 3000

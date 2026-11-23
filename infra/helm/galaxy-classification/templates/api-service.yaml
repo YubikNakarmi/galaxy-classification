@@ -1,11 +1,11 @@
-apiVersion: v1
+apiVersion: v1 
 kind: Service
 metadata:
-  name: bentoml-service
-  namespace: default
+  name: api-service
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
-    app: bentoml
+    app: fast-api
     
   type: ClusterIP
   sessionAffinity: None
@@ -13,7 +13,7 @@ spec:
     clientIP:
       timeoutSeconds: 10800
   ports:
-  - name: bentoml-service
+  - name: api-service
     protocol: TCP
-    port: 8000
+    port: {{.Values.api.service.port}}
     targetPort: 8000

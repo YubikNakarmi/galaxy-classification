@@ -49,18 +49,7 @@ spec:
               name: mlflow-secrets
               key: password
   
-        - name: MLFLOW_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mlflow-secrets
-              key: username
-
-        - name: MLFLOW_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mlflow-secrets
-              key: password
-      
+       
       containers:
       - name: 
         image: Train:v1.0.0
@@ -84,7 +73,7 @@ spec:
         - name: AZURE_STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: Azure-secrets  #needed for uploading of models during training
+              name: azure-secrets  #needed for uploading of models during training
               key: connection-string
         volumeMounts:
         - name: localtime

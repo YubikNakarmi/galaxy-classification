@@ -38,7 +38,7 @@ An end-to-end MLOps pipeline for classifying galaxy morphologies from images, bu
     - [Azure Blob Setup (Optional)](#azure-blob-setup-optional)
   - [Database Migrations](#database-migrations)
   - [CLI](#cli)
-  - [Training & evaluation](#training--evaluation)
+  - [Training \& evaluation](#training--evaluation)
     - [Training on a VM](#training-on-a-vm)
     - [Evaluation](#evaluation)
   - [Testing](#testing)
@@ -230,6 +230,6 @@ blob.print_info()
 - **Multi-format cache loading** — support formats such as `.onnx`, `.tflite`, and TorchScript in addition to `.pt`.
 
 ## Sources / References
-- [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams
+- [Draw.io](https://drive.google.com/file/d/1SV51fyxewgoo_lKwKIzrzTUg28_-nhWQ/view?usp=sharing) for building architecture diagrams. Made by me with no AI assistance.
 - [Galaxy Zoo dataset](https://data.galaxyzoo.org)
 - [Galaxy Morphology Classification with Deep Convolutional Neural Networks](https://arxiv.org/abs/1807.10406)
