@@ -1,8 +1,9 @@
-apiversion: v1
+apiVersion: apps/v1
 kind: Deployment
 
 metadata:
   name: redis-deployment
+  namespace: {{ .Release.Namespace }}
 
 {{- if .Values.redis.enabled }}
 spec:
@@ -14,6 +15,7 @@ spec:
     metadata:
       labels:
         app: redis-deployment
+
     spec:
       containers:
       - name: redis
@@ -48,10 +50,10 @@ spec:
         {{- end }}
 
     {{- if .Values.redis.persistence.enabled }}
-    volumes:
-    - name: redis-storage
-      persisteneceVolumeClaim: #persist redis data
-        claimName: redis-pvc
+      volumes:
+      - name: redis-storage
+        persistentVolumeClaim: #persist redis data
+          claimName: redis-pvc
     {{- end }}
 
 {{- end}}

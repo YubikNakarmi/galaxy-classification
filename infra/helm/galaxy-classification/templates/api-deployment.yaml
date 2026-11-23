@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: api-deployment
-  namespace: default
+  namespace: {{ .Release.Namespace }}
   labels:
     app: fast-api
     version: v1

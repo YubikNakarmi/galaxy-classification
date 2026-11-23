@@ -2,10 +2,8 @@
 services:
 
   api:
-    build: 
-      context: .
-      dockerfile: infra/docker/Dockerfile.api
-      
+    
+    image: ghcr.io/yubiknakarmi/galax-api:v1.0.0  
     container_name: api
     volumes: 
       - ./api:/api #for live reload of api code
@@ -92,16 +90,15 @@ services:
       restart: always
   
   bentoml:
-    image: galaxy_classification:v0.6.0 #built bento container using bentoml build
+    image: ghcr.io/yubiknakarmi/galax-bentoml:v1.1.0    #built bento container using bentoml build
 
     env_file:
       - .env
     volumes:
-      - ./bentoml_api:/bentoml
       - ./bentoml_api:/home/bentoml/bento/src/bentoml_api
       - ./src:/home/bentoml/bento/src/src #mount for editable files without building
       - ./logs/bentoml:/home/bentoml/bento/src/logs/system/
-      - ./models/cache:/home/bentoml/bento/src/models/cache/ #mount cache for persistence
+      - ./models/cache:/home/bentoml/bento/src/models/cache:ro
       - ./configs:/home/bentoml/bento/src/configs
 
     container_name: bentoml
@@ -116,10 +113,7 @@ services:
 
     ports:
       - "3000:3000"
-    depends_on:
-      mlflow:
-        condition: service_healthy
-
+   
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]

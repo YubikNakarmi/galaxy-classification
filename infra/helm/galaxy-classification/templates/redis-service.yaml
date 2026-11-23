@@ -2,9 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
+  namespace: {{ .Release.Namespace }}
 spec:
   selector:
-    app: redis
+    app: redis-deployment
   ports:
   - port: 6379
     targetPort: 6379

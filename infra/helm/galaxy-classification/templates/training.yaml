@@ -1,17 +1,21 @@
-apiVersion: v1
+{{- if .Values.jobs.training.enabled }}
+apiVersion: batch/v1
 kind: Job
 metadata:
-  name: MYAPP
-  namespace: default
+  name: galaxy-training
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: MYAPP
+    app: training
 spec:
+  backoffLimit: 3
   template:
     metadata:
       name: Train
       labels:
         app: Train
     spec:
+      restartPolicy: Never  
+      
       initContainers:
       
       - name: check-mlflow  #checking mlflow conn beore training
@@ -51,7 +55,7 @@ spec:
   
        
       containers:
-      - name: 
+      - name: training
         image: Train:v1.0.0
         command: ["galax","pipeline","train","-y"]
         env:
@@ -74,7 +78,7 @@ spec:
         - name: AZURE_STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: Azure-secrets  #needed for uploading of models during training
+              name: azure-secrets  #needed for uploading of models during training
               key: connection-string
         volumeMounts:
         - name: localtime
@@ -83,6 +87,6 @@ spec:
       - name: localtime
         hostPath:
           path: /usr/share/zoneinfo/Asia/Kathmandu
-      restartPolicy: Never
-      backoffLimit: 3    
+          
       dnsPolicy: ClusterFirst
+{{- end }}

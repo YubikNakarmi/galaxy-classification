@@ -1,3 +1,9 @@
+
+globalVolumes:
+  host:
+    models: ./models/cache
+    
+
 api: 
   replicaCount: 3
   image:
@@ -27,7 +33,7 @@ bentoml:
 
   image:
     repository: ghcr.io/yubiknakarmi/galax-bentoml
-    tag: v1.0.0
+    tag: v1.1.0
   service:
     port: 3000
 
@@ -39,11 +45,11 @@ bentoml:
       cpu: 1000m
       memory: 1000Mi
 
-  env:
-    BACKEND_YAML_PATH: /app/configs/backend.yaml
-    ML_YAML_PATH: /app/configs/ml.yaml
-    CORE_YAML_PATH: /app/configs/core.yaml
-  
+  configs: #used both in env and also volume mount for some soure of truth
+    BACKEND_YAML_PATH: /home/bentoml/bento/src/configs/backend.yaml
+    ML_YAML_PATH: /home/bentoml/bento/src/configs/ml.yaml
+    CORE_YAML_PATH: /home/bentoml/bento/src/configs/core.yaml
+
 
 redis: 
   enabled: true
@@ -54,3 +60,6 @@ redis:
 ingress: 
   enabled: true
   
+jobs:
+  training:
+    enabled: false

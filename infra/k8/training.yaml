@@ -73,7 +73,7 @@ spec:
         - name: AZURE_STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: Azure-secrets  #needed for uploading of models during training
+              name: azure-secrets  #needed for uploading of models during training
               key: connection-string
         volumeMounts:
         - name: localtime

@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name:  bentoml-deployment
-  namespace: default
+  namespace: {{ .Release.Namespace }}
   labels:
     app:  bentoml-deployment
     
@@ -24,7 +24,7 @@ spec:
     spec:
   
       containers:
-      - name:  Bentoml
+      - name:  bentoml
         image: {{.Values.bentoml.image.repository}}:{{.Values.bentoml.image.tag}}  #no restart policy set set if needed
 
         resources:
@@ -68,19 +68,19 @@ spec:
         - name: AZURE_STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
-              name: Azure-secrets  #needed for uploading of models during training
+              name: azure-secrets  #needed for uploading of models during training
               key: connection-string
 
         #explictly set config paths so it resolves in container
     
         - name: BACKEND_YAML_PATH
-          value: {{.Values.bentoml.env.BACKEND_YAML_PATH}}
+          value: {{.Values.bentoml.configs.BACKEND_YAML_PATH}}
 
         - name: ML_YAML_PATH
-          value: {{.Values.bentoml.env.ML_YAML_PATH}}
+          value: {{.Values.bentoml.configs.ML_YAML_PATH}}
 
         - name: CORE_YAML_PATH
-          value: {{.Values.bentoml.env.CORE_YAML_PATH}}
+          value: {{.Values.bentoml.configs.CORE_YAML_PATH}}
 
         ports:
         - containerPort:  3000
@@ -92,21 +92,30 @@ spec:
           mountPath: /etc/localtime
 
         - name: backend-config
-          mountPath: /app/configs/backend.yaml
+          mountPath: {{ .Values.bentoml.configs.BACKEND_YAML_PATH }}
           subPath: backend.yaml
 
         - name: core-config
-          mountPath: /app/configs/core.yaml
+          mountPath: {{ .Values.bentoml.configs.CORE_YAML_PATH }}
           subPath: core.yaml
 
         - name: ml-config
-          mountPath: /app/configs/ml.yaml
+          mountPath: {{ .Values.bentoml.configs.ML_YAML_PATH }}
           subPath: ml.yaml
+        
+        - name: models
+          mountPath: /home/bentoml/bento/src/models/cache
+          readOnly: false
 
       volumes:
         - name: localtime
           hostPath:
             path: /usr/share/zoneinfo/Asia/Kathmandu
+        
+        - name: models
+          hostPath: 
+            path: {{ .Values.globalVolumes.host.models }}
+            type: DirectoryOrCreate
 
       #configs
         - name: backend-config

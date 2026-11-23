@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 
 name: galaxy-classification
 version: 0.1.0
@@ -14,3 +14,6 @@ keywords:
   - ml
   - mlops
   - astronomy
+
+annotations:
+  org.opencontainers.image.source: https://github.com/yubiknakarmi/galaxy-classification

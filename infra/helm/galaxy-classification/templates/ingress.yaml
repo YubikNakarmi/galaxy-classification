@@ -3,7 +3,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: galaxy-classification-api
-  namespace: default
+  namespace: {{ .Release.Namespace }}
 {{- if .Values.ingress.enabled }}
 spec:
   ingressClassName: traefik
