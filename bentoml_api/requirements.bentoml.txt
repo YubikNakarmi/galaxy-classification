@@ -697,7 +697,7 @@ torchvision==0.28.0
     # via
     #   galaxy-classification
     #   grad-cam
-tornado==6.5.7
+tornado==6.6.1
     # via kantoku
 tqdm==4.67.3
     # via
