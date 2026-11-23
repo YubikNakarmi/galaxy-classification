@@ -79,7 +79,7 @@ flatten-dict==0.5.0
 flufl.lock==9.1.0
 fonttools==4.63.0
 frozenlist==1.8.0
-fsspec==2026.4.0
+fsspec==2026.6.0
 funcy==2.0
 -e git+https://github.com/YubikNakarmi/galaxy-classification.git@e38e54df81567e4ec8c338b5bb16efc6958a0f21#egg=galaxy_classification&subdirectory=..\..\..\galaxy_classification-dev
 ghp-import==2.1.0
