@@ -423,7 +423,7 @@ omegaconf==2.3.1
     #   hydra-core
 opencv-python==4.14.0.94
     # via grad-cam
-opentelemetry-api==1.44.0
+opentelemetry-api==1.45.2
     # via
     #   bentoml
     #   mlflow-skinny
