@@ -37,7 +37,7 @@ env:
 jobs:
 
   build-and-push:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.only_bentoml != true }}
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'workflow_dispatch' || inputs.only_bentoml != true) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -90,7 +90,7 @@ jobs:
         
   build-and-push-bentoml:
 
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.only_bentoml == true }}
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'workflow_dispatch' || inputs.only_bentoml == true) }}
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -117,7 +117,7 @@ jobs:
       - name: Set version and image name
         run: |
           echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/galax-bentoml" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/yubiknakarmi/galax-bentoml" >> "$GITHUB_ENV"
 
       - name: Login to GHCR
         uses: docker/login-action@v3

@@ -5,7 +5,6 @@ on:
       - 'v*.*.*'
     branches:
       - master
-    
     paths:
         - "infra/helm/**"
   pull_request:
@@ -46,7 +45,7 @@ jobs:
             - name: Upload Helm Chart artifact
               run: |
                 VERSION=${GITHUB_REF_NAME#v}
-                helm package inra/helm/galaxy-classification --version $VERSION
+                helm package infra/helm/galaxy-classification --version $VERSION
                 helm push galaxy-classification-$VERSION.tgz oci://ghcr.io/${{ github.repository_owner }}/galaxy-classification
 
             
