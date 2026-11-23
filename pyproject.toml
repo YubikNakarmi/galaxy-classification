@@ -20,7 +20,7 @@ dependencies = [
     "azure-storage-blob==12.29.0",
     "click>=8.1",
     "rich>=13.0",
-    "mlflow==3.13.0"]
+    "mlflow==3.17.2"]
 
 requires-python = ">=3.12,<3.14"
 
@@ -46,7 +46,7 @@ bentoml = [
     "torchvision==0.28.0",
     "torchmetrics==1.9.0",
     "grad-cam==1.5.5",
-    "mlflow==3.13.0",
+    "mlflow==3.17.2",
     "numpy==2.4.6",
     "pandas==2.3.3",
     "azure-core==1.41.0",
@@ -64,7 +64,7 @@ ml = [
     "matplotlib==3.11.1",
     "seaborn==0.13.2",
     "grad-cam==1.5.5",
-    "mlflow==3.13.0",
+    "mlflow==3.17.2",
     "dvc==3.67.1",
     "dvc-azure==3.1.0",
     "azure-core==1.41.0",
