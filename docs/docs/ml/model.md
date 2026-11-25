@@ -43,7 +43,7 @@
 ## Hubble variant
 Just training the head of the default model on Hubble images (with the same 5 classes) yields a model that performs poorly on Galaxy Zoo images. The `hubble` variant is a modified architecture that is more suitable for Hubble images, with a smaller width multiplier and fewer units per group.
 
-## Dirlichlet variant
+## Dirichlet variant
 
 ### Dirichlet Loss
 
@@ -268,6 +268,3 @@ Thus, the model provides both:
 A larger \(S\) corresponds to a more concentrated Dirichlet distribution, while a smaller \(S\) corresponds to a more diffuse distribution.
 
 
-
-## References
-\bibliography

@@ -353,12 +353,13 @@ def test_load_champion_model_uses_alias(loader):
 
 def test_load_champion_model_falls_back_to_local_metadata_on_alias_failure(loader):
     loader.metadata.update_metadata(_candidate("run_prev", f1=0.5, loader=loader), variant="Default")
-    loader.client.get_model_version_by_alias.side_effect = Exception("no champion alias set")
-    loader.client.get_run.return_value = make_mock_run("run_prev", f1=0.5)
 
-    with patch("mlflow.pytorch.load_model", return_value=TinyModel()):
+    with patch.object(cache_module, "validate_mlflow_connection", return_value=False), \
+         patch("mlflow.pytorch.load_model", return_value=TinyModel()):
         model = loader.load_champion_model()
 
+    loader.client.get_model_version_by_alias.assert_not_called()
+    loader.client.get_run.assert_not_called()
     assert isinstance(model, TinyModel)
 
 

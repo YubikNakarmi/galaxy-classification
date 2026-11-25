@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -156,7 +156,7 @@ class CheckpointTrainConfig(ConfigModel):
     resume_from_checkpoint: bool
     local_checkpoint_path: Path | None
     checkpoint_restore_path: str | None
-    run_id: str | None
+    resume_run_id: str | None
     checkpoint_resume_hard: bool
 
 
@@ -166,9 +166,11 @@ class CriterionConfig(ConfigModel):
 
 
 class SchedulerConfig(ConfigModel):
-    type: str
+    type: Literal["cosine_warmup", "cosine_warmup_restarts"] = "cosine_warmup_restarts"
     warmup_epochs: int
     min_lr: float
+    T_0: int | None = None
+    T_mult: int | None = None
 
 
 class RegularizationConfig(ConfigModel):
@@ -184,9 +186,9 @@ class TrainMLflowConfig(ConfigModel):
 
 
 class TrainCheckpointConfig(ConfigModel):
-    save_freq_epoch: int
-    save_best: bool
-    save_latest: bool
+    save_freq_epoch: int = 10
+    save_cycle: bool = True
+    save_latest: bool = True
 
 
 class TrainConfig(ConfigModel):
@@ -219,7 +221,7 @@ class MLflowConfig(ConfigModel):
 
 
 class RootConfig(ConfigModel):
-    active_variant: str
+    active_variant: Literal["Default", "Hubble", "Dirichlet"]
     env: EnvConfig
     mode: str
     variants: dict[str, VariantConfig]

@@ -1,18 +1,25 @@
 FROM python:3.12-slim
 
 WORKDIR /app
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 COPY api/ ./api/
 COPY src/ ./src/
 COPY configs/ ./configs/
-COPY setup.py .
-
+COPY core/ ./core/
 COPY alembic_migrations/ ./alembic_migrations/
 COPY alembic.ini .
 
 COPY pyproject.toml uv.lock ./
 
+ENV PATH="/app/.venv/bin:$PATH" \ 
+    PYTHONUNBUFFERED=1 \
+    #set PYTHONPATH to make files importable
+    PYTHONPATH=/app  
+
 RUN uv sync --extra api --frozen
 
 EXPOSE 8000
 
-CMD ["uv", "run", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

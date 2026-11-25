@@ -9,7 +9,7 @@ from src.cli.utils import LazyPipelineGroup
 class LazySetupGroup(LazyPipelineGroup):
 
     command_modules = {
-        "setup": ("ml.setup.setup", "main"),
+        "mkdirs": ("ml.setup.setup", "mkdirs"),
         }
 
     

@@ -26,34 +26,40 @@ class GalaxyDataset(Dataset):
     mean:float
     std:float
 
-    def __init__(self, img_dir:str|Path,labels_df:pd.DataFrame, transform=None,class_names=CLASS_NAMES):
-
+    def __init__(self, img_dir, labels_df, transform=None, class_names=CLASS_NAMES):
         if isinstance(img_dir, pd.DataFrame) and isinstance(labels_df, (str, os.PathLike)):
-            img_dir, labels_df = labels_df, img_dir #switchable (label,image) |(image,label) in constructor
+            img_dir, labels_df = labels_df, img_dir
         self.img_dir = img_dir
 
-        valid_mask = labels_df["asset_id"].astype(str).map(
-            lambda asset_id: os.path.exists(os.path.join(self.img_dir, f"{asset_id}.jpg"))
-        ) #check if images exists
-        
-        missing_count = int((~valid_mask).sum()) #sum missing counts
+        # one directory listing faster
+        existing = {p.stem for p in Path(self.img_dir).glob("*.jpg")}
+        # or faster still: existing = {f[:-4] for f in os.listdir(self.img_dir) if f.endswith(".jpg")}
+
+        valid_mask = labels_df["asset_id"].astype(str).isin(existing)
+
+        missing_count = int((~valid_mask).sum())
         if missing_count:
             logger.warning(f"Dropped {missing_count} rows with missing image files from the dataset.")
 
         self.labels = labels_df.loc[valid_mask].reset_index(drop=True)
         self.transform = transform
         self.CLASS_NAMES = class_names
+        
+        self.ids = self.labels["asset_id"].astype(str).to_numpy()
+        self.y = self.labels["label"].to_numpy(dtype="int64")
 
     def __len__(self):        
         return len(self.labels)
 
     def __getitem__(self, idx):
 
+        
+        img_path = os.path.join(self.img_dir, f"{self.ids[idx]}.jpg")
+        image = Image.open(img_path).convert("RGB")
+        label = int(self.y[idx])
+        
         row = self.labels.iloc[idx]
-        img_path = os.path.join(self.img_dir, f"{str(row['asset_id'])}.jpg")# load img based on img name
 
-        image = Image.open(img_path).convert('RGB')
-        label = int(row['label'])  
 
         if self.transform:
             image = self.transform(image)

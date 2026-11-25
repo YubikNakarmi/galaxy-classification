@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  namespace: default
+  labels:
+    app: fast-api
+    version: v1
+    tier: backend
+
+spec:
+
+  replicas: 3
+  revisionHistoryLimit: 10 #10 hsitory after update
+
+  selector:
+    matchLabels:
+      app: fast-api
+      tier: backend
+  
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+
+
+  #pods definition
+  template:
+    metadata:
+      labels:
+        app: fast-api
+        tier: backend
+
+    spec:
+
+      containers:
+      - name: api
+        image: galax-api:v1.0.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        readinessProbe: #check if pod is ready to serve 
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+          limits:
+            cpu: 200m
+            memory: 400Mi
+        #secrets set from CLI, need to use vault for real deployment as it is non encrypted    
+        env:
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: api-secret
+                key: DATABASE_URL
+                
+          - name: AZURE_STORAGE_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: azure-secret
+                key: AZURE_STORAGE_CONNECTION_STRING
+
+          - name: BACKEND_YAML_PATH #explicitly set path to config to get form config map
+            value: /app/configs/backend.yaml
+        
+
+        volumeMounts:
+        - name: backend-config
+          mountPath: /app/configs/backend.yaml
+          subPath: backend.yaml #donot hide existing
+
+      volumes: 
+        - name: backend-config #mount volume from configmap for auto set config (need to restart the api)
+          configMap:
+            name: backend-config
+            items: 
+              - key: backend.yaml 
+                path: backend.yaml #save to same path in config/app/backend.yaml
+        
+        
+
+      

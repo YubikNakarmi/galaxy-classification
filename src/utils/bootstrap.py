@@ -25,8 +25,9 @@ class Context:
     cfg: RootConfig
     mlflow_tracking_uri: str
     image_dir: Path
-    model_metadata_path:Path
     core_cfg: dict | None = None  # Optional core configuration dictionary
+    log_path: Path | None = None  # Optional log path for logging purposes
+    service: str | None = None  # Optional service name for logging purposes
 
 def load_context( *,
     service: str = "ml",
@@ -43,19 +44,38 @@ def load_context( *,
     from src.utils.logging_config import setup_ml_logging, setup_app_logging
     from src.config import load_and_validate_config
 
-    env_path = env_path or ROOT / ".env"
-    ml_yaml_path = ml_yaml_path or ROOT / "configs" / "ml.yaml"
-    core_yaml_path = core_yaml_path or ROOT / "configs" / "core.yaml"
+    def resolve_path(explicit: Path | None, env_name: str, fallback: Path) -> Path:
+        configured = explicit or os.getenv(env_name)
+        if configured:
+            candidate = Path(configured)
+            if candidate.exists():
+                return candidate
+        if fallback.exists():
+            return fallback
+        if configured:
+            return Path(configured)
+        return fallback
 
-    load_dotenv(env_path)
+    env_path = resolve_path(env_path, "ENV_PATH", ROOT / ".env")
+    ml_yaml_path = resolve_path(ml_yaml_path, "ML_YAML_PATH", ROOT / "configs" / "ml.yaml")
+    core_yaml_path = resolve_path(core_yaml_path, "CORE_YAML_PATH", ROOT / "configs" / "core.yaml")
+
+    try:
+        load_dotenv(env_path)
+        
+    except Exception as e:
+        logger.warning(f"Could not load .env file: {e}")
 
     core_cfg = load_yaml(core_yaml_path)
     image_dir = Path(core_cfg["dirs"]["data"]["images"])
     if service == "ml":
-        setup_ml_logging(core_cfg,verbose=verbose,std_out=std_out)
+        log_config = setup_ml_logging(core_cfg,verbose=verbose,std_out=std_out)
     else:
         json_logs = os.getenv("LOG_JSON", "false").lower() in ("true", "1", "yes")
-        setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose,std_out=std_out)
+        log_config = setup_app_logging(core_cfg, service=service, json_logs=json_logs, verbose=verbose,std_out=std_out)
+
+    configured_log_file = log_config.get("file")
+    log_path = ROOT / configured_log_file if configured_log_file else None
 
     cfg = load_and_validate_config(ml_yaml_path, root=ROOT, env_path=env_path)
 
@@ -63,10 +83,11 @@ def load_context( *,
 
     logger.bind(component="bootstrap")
 
-    metadata = core_cfg["ml"]["metadata"]["path"]
     
 
     return Context(root=ROOT, cfg=cfg, 
                    mlflow_tracking_uri=mlflow_uri, 
                    image_dir=image_dir,
-                   model_metadata_path=metadata,core_cfg=core_cfg)
+                   core_cfg=core_cfg,
+                   log_path=log_path,
+                   service=service)

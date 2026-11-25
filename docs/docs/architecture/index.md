@@ -1,7 +1,7 @@
-j## Codebase architecture
+## Codebase architecture
 For this project structure I clearly seperated custom modules with top level wrappers. For example on training script on [train.py](/ml/pipeline/train.py), the source code logic is on `/src/training/` dir The diagram belows shows a tree view for this.
 
-![exampler](../assets/architecture/training_example_codebase.png)
+![exampler](../assets/architecture/training_example_codebase.png){ align="center" width="85%" }
 
 `train.py`utilizes all the downstream dependancies used for training. However, the above diagram doesn't show the full methods and classes used by other files other than loop.py.
 

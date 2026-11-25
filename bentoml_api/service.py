@@ -49,16 +49,27 @@ class GalaxyClassification:
         
         mlflow.set_tracking_uri(ctx.mlflow_tracking_uri)
 
+        cache_paths = [
+            ctx.root / "models" / "cache",
+            Path("/models/cache"),
+            ctx.root.parent / "models" / "cache",
+        ]
+        local_cache_dir = next(
+            (path for path in cache_paths if (path / "model.json").is_file()),
+            ctx.cfg.storage.local.checkpoints.model_cache_dir,
+        )
+        metadata_path = local_cache_dir / "model.json"
+
         modelloader_default = ModelLoader(registered_model_name=default_model_name,
-                                          local_cache=True, local_cache_dir=root / "models/cached",
+                                          local_cache=True,
+                                          local_cache_dir=local_cache_dir,
+                                          metadata_save_file_path=metadata_path,
                                           ctx = ctx,
                                           model_top_n = 3,metric = "f1_macro")
 
         try:
-            def_model= modelloader_default.load_champion_model() 
-
-            self.default_model = def_model if def_model else \
-            modelloader_default.load_with_fallback().eval().to(DEVICE)#change to "eval_f1_macro" on production
+            def_model = modelloader_default._load_from_local_metadata()
+            self.default_model = def_model.eval().to(DEVICE)
         except:
             logger.critical("Failed to load default model. Exiting.")
             logger.info("Please add model using the 'galax cache import' command or check the model registry.")

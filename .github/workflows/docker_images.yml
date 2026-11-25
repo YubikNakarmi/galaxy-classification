@@ -2,17 +2,42 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master"]
     tags: ["v*.*.*"]
+
+    paths:
+      - infra/docker/**
+      - bentoml_api/**
   pull_request:
-    branches: ["main"]
+    branches: ["master"]
+    paths:
+      - infra/docker/**
+      - bentoml_api/**
+
+  workflow_dispatch: 
+    inputs: 
+      version:
+        description: 'Version to build and push'
+        required: true
+        default: 'latest'
+        type: string
+
+      only_bentoml:
+        description: 'Build and push only the BentoML image'
+        required: false
+        default: true
+        type: boolean
+    
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}   # results in ghcr.io/<owner>/<repo>
 
+
 jobs:
+
   build-and-push:
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'workflow_dispatch' || inputs.only_bentoml != true) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,54 +70,67 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
             type=raw,value=latest,enable={{is_default_branch}}
+      - name: Set version Dispatch
+        if: github.event_name == 'workflow_dispatch' 
+        run: echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_ENV
+      - name: Set version Tag
+        if: github.event_name != 'workflow_dispatch'
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./infra/docker
+          file: infra/docker/Dockerfile.api
+          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ghcr.io/yubiknakarmi/galax-api:${{env.VERSION}}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  
+        
   build-and-push-bentoml:
 
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'workflow_dispatch' || inputs.only_bentoml == true) }}
     runs-on: ubuntu-latest
-    permissions: 
+    permissions:
       packages: write
       contents: read
-    
+
     steps:
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up UV
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.12"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
 
       - name: Install dependencies
+        run: uv sync --frozen --only-group bentoml
+
+      - name: Export requirements for Bento
+        run: uv export --frozen --no-hashes --no-default-groups --only-group bentoml -o bentoml_api/requirements.bentoml.txt
+
+      - name: Set version and image name
         run: |
-          python -m pip install --upgrade pip
-          pip install bentoml
-          pip install -r bentoml_api/requirements.bentoml.txt
+          echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/yubiknakarmi/galax-bentoml" >> "$GITHUB_ENV"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Bento
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          bentoml build --version "$VERSION"
-         
-       
-      - name: Build Image
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          bentoml containerize galaxy_classification:$VERSION \
-          --image-tag ghcr.io/${{ github.repository }}-bento:$VERSION
-          --image-tag ghcr.io/${{ github.repository }}-bento:latest
-          
-      - name: Push Bento container
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          docker push ghcr.io/${{ github.repository }}-bento:$VERSION
-          docker push ghcr.io/${{ github.repository }}-bento:latest
+        run: uv run bentoml build --version "$VERSION"
 
-      
+      - name: Build Bento Image
+        run: uv run bentoml containerize galax-bentoml:"$VERSION" --image-tag "$IMAGE:$VERSION"
+
+      - name: Push Bento Image
+        run: docker push "$IMAGE:$VERSION"

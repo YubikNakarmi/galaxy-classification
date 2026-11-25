@@ -7,7 +7,7 @@ class ResidualUnit(nn.Module):
     def __init__(self, in_channels:int,
                  mid_channel:int ,
                  out_channels:int, 
-                 stride:int=1,dropout_rate:float=0.8):
+                 stride:int=1,dropout_rate:float=0.0):
 
         '''
         Args:
@@ -114,6 +114,8 @@ class GalaxyClassifier_ResNet(nn.Module):
         self.group4  = ConvGroup(512*k,    256*k,  1024*k, N=N, downsample=True)
         self.group5  = ConvGroup(1024*k,   512*k,  2048*k, N=N, downsample=False)
         
+        self.bn_final   = nn.BatchNorm2d(2048*k) #smoother
+        self.relu_final = nn.ReLU(inplace=True)
         #resnet head
         self.avgpool = nn.AdaptiveAvgPool2d(1) # global average pooling to get 1x1 feature map
         self.dropout = nn.Dropout(0.2)
@@ -135,21 +137,29 @@ class GalaxyClassifier_ResNet(nn.Module):
         out = self.group2(out)         
         out = self.group3(out)         
         out = self.group4(out)          
-        out = self.group5(out)        
+        out = self.group5(out) 
+        out = self.relu_final(self.bn_final(out))   
+        out = self.avgpool(out)       
         out = self.avgpool(out)         
         out = out.flatten(1)            
         out = self.dropout(out)
         out = self.fc(out)              
         return out
 
-def default_head(self,x):
-    ''' Default head for the model.'''
-    out = self.avgpool(x)         
-    out = out.flatten(1)            
-    out = self.dropout(out)
-    out = self.fc(out)              
-    return out
+    def default_head(self,x):
+        ''' Default head for the model.'''
+        out = self.avgpool(x)          
+        out = out.flatten(1)            
+        out = self.dropout(out)
+        out = self.fc(out)              
+        return out
 
-def dirichlet_head(self,x,n_classes):
-    """Dirlchlet head output dirichlet alphas for uncertainty estimation. Trained for voting classification"""
-    pass
+    def dirichlet_head(self,x,n_classes):
+        """Dirlchlet head output dirichlet alphas for uncertainty estimation. Trained for voting classification
+        
+        Args:
+            x (torch.Tensor): Input tensor to the head.
+            n_classes (int): Number of classes for the classification task.
+        """
+        self.heads = nn.ModuleList([nn.Linear(2048, n_classes) for _ in range(n_classes)])
+        

@@ -19,7 +19,7 @@ class EnvVarSts:
     status:bool
     
 
-def validate_mlflow_connection(ctx: Optional[Context],uri: Optional[str]) -> bool:
+def validate_mlflow_connection(ctx: Optional[Context]=None,uri: Optional[str]=None) -> bool:
     from urllib.request import Request, urlopen
     
     if ctx is None and uri is None:
@@ -64,6 +64,7 @@ def validate_path_exists(root: str|Path,
         if validate_root:#only validate if the candidate path is within the root if validate_root is True
             try:
                 candidate.relative_to(root)
+                
             except ValueError:
                 raise UnsafeCacheDirError(
                     f"dir '{path}' resolves to '{candidate}', "

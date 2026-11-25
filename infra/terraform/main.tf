@@ -139,3 +139,4 @@ resource "azurerm_linux_virtual_machine" "vm" {
       ignore_changes = [custom_data]
     }
 }
+

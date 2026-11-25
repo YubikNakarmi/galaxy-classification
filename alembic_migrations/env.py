@@ -11,8 +11,6 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.database import Base
-from core.settings import settings
-import api.classify.models
 root = Path(__file__).parent.parent
 load_dotenv(root / ".env")
 
@@ -40,7 +38,7 @@ if config.config_file_name is not None:
 
 config.set_main_option(
     "sqlalchemy.url",
-    os.getenv("DATABASE_URL")
+    os.getenv("DATABASE_URL","sqlite:///app.db")
 )
 
 def run_migrations_offline() -> None:

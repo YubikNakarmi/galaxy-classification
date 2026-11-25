@@ -3,6 +3,12 @@ variable "resource_group_name" {
   type        = string
 }
 
+
+variable "mlflow_password"{
+  description = "Password for mlflow"
+  type        = string
+  default     = "CHANGE_ME"
+}
 variable "storage_account_name" {
   description = "storage acc name"
   type = string

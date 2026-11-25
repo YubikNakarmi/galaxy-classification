@@ -1,10 +1,10 @@
 service: "bentoml_api.service:GalaxyClassification"
-
+name: "galax-bentoml"
 description: "Galaxy Classification Service"
 
 labels:
   owner: "Yubik Nakarmi"
-  version: "v0.8.0"
+  version: "v1.1.0"
 
 include:
   - src/
@@ -27,5 +27,7 @@ docker:
     - libgl1
 
   env:
-    MLFLOW_TRACKING_URI: http://mlflow:5000
     PYTHONPATH: /home/bentoml/bento #make /bentoml_api the working directory for the container
+    ENV_PATH: /home/bentoml/bento/.env
+    ML_YAML_PATH: /home/bentoml/bento/src/configs/ml.yaml
+    CORE_YAML_PATH: /home/bentoml/bento/src/configs/core.yaml

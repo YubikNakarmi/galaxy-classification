@@ -1,5 +1,10 @@
 name: Tests
-on: [pull_request]
+on: 
+  pull_request:
+    branches: ["master"]
+    paths:
+      - tests/**
+      
 
 jobs:
 
@@ -10,11 +15,17 @@ jobs:
         image: mcr.microsoft.com/azure-storage/azurite #simulation using local azurite on ci run
         ports: ["10000:10000"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: uv pip install -r requirements.txt --break-system-packages
-      - run: pytest -m test/
-        env:
-          AZURE_STORAGE_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with: 
+          enable-cache: true
+      - name: Setup Python
+        run: uv python install 3.12 
+     
+
+      - run: uv sync --frozen --all-extras
+      - run: pytest -v tests
+        

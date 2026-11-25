@@ -23,10 +23,10 @@ def show_all(ctx,metadata_path,maximum_rows):
         contxt= ctx.obj or load_context(service="ml",std_out=False)  # Load ML context for pipeline commands and type hint
         ui= ctx.find_object(UI) or UI(verbose=0)
         cfg = contxt.cfg
+        if not metadata_path:
+            metadata_path = Path(cfg.storage.local.checkpoints.model_cache_dir) / "model.json"
 
-        met_path = contxt.model_metadata_path if metadata_path is None else metadata_path
-
-        met = Metadata(save_file_path= root / met_path)
+        met = Metadata(save_file_path= root / metadata_path)
         data = (met._load())
 
 

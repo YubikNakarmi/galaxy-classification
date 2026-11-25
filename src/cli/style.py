@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 from typing import Optional, Sequence
 
 from typing import TYPE_CHECKING
@@ -20,6 +21,7 @@ from contextlib import contextmanager
 from src.config import RootConfig
 from pydantic import BaseModel
 from pathlib import Path
+import os
 
 
 class UI:
@@ -124,7 +126,7 @@ class UI:
         self.eval = EvalDashboard(self)
         self.tree = TreeUI(self)
         self.log = log #if you want to disable logging for some reason, you can set this to False
-
+        
        
     @property
     def console(self): #lazy import with property decorator to avoid circular imports
@@ -157,7 +159,7 @@ class UI:
         if self.log:
             logger.opt(depth=1).error(message)
 
-        if show_execption:
+        if show_execption and sys.exc_info()[0] is not None:
             self.console.print_exception(show_locals=self.verbose >= 3,max_frames=5)
             
             if self.log:
@@ -234,6 +236,87 @@ class UI:
         if self.verbose >= level:
             with self.console.status(message, spinner=spinner) as status:
                 yield status
+        else:
+            yield _SilentStatus()
+
+
+
+def _live_allowed(console) -> bool:
+    
+    """
+    Example:
+    ```python
+    !NO_LIVE=1 python train.py
+    ``` 
+        
+    """
+    if os.environ.get("NO_LIVE") == "1":
+        return False
+    if "KAGGLE_KERNEL_RUN_TYPE" in os.environ or os.path.exists("/kaggle"):
+        return False                      
+    return console.is_terminal           
+
+class _NullSession:
+    """Used when Live is disabled: prints a heartbeat every N batches instead."""
+    def __init__(self, console, epochs, steps_per_epoch, history, every=100):
+        self.console, self.epochs, self.steps = console, epochs, steps_per_epoch
+        self.history, self.every = history, every
+        self._ep, self._batch, self._last = 0, 0, {}
+
+    def __enter__(self): return self
+    def __exit__(self, *exc): return False
+
+    def start_epoch(self, epoch):
+        self._ep, self._batch, self._last = epoch, 0, {}
+        self.console.print(f"Epoch {epoch+1}/{self.epochs} started")
+
+    def update_batch(self, **stats):
+        """Update the progress of the current batch."""
+        self._batch += 1
+        self._last = stats
+        if self._batch % self.every == 0 or self._batch == self.steps:
+            s = "  ".join(f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+                          for k, v in stats.items())
+            self.console.print(f"  batch {self._batch}/{self.steps}  {s}")
+
+    def end_epoch(self, **final):
+        self.history.append({"epoch": self._ep, **self._last, **final})
+
+    def start_validation(self, val_steps): self._vsteps, self._vb = val_steps, 0
+    def update_val_batch(self, **stats):
+        self._vb += 1
+        if self._vb % self.every == 0 or self._vb == self._vsteps:
+            self.console.print(f"  val batch {self._vb}/{self._vsteps}")
+
+class _NullEvalSession:
+    def __init__(self, console, steps, history, every=100):
+        self.console, self.steps, self.history, self.every = console, steps, history, every
+        self._n = 0
+ 
+    def __enter__(self):
+        return self
+ 
+    def __exit__(self, *exc):
+        return False
+ 
+    def update_batch(self, **stats):
+        self._n += 1
+        self.history.append({"step": self._n, **stats})
+        if self._n % self.every == 0 or self._n == self.steps:
+            self.console.print(f"  eval batch {self._n}/{self.steps}")
+ 
+    def __getattr__(self, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return lambda *a, **k: None
+ 
+
+            
+class _SilentStatus:
+    def update(self, message):
+        pass
+
+
 class TableUI:
     def __init__(self,ui:UI,table:Optional[Table|None]=None):
         self.ui = ui
@@ -293,8 +376,9 @@ class EvalDashboard:
         self.metrics_history: list[dict] = []
 
     def session(self, steps: int) -> "_EvalSession":
-        return _EvalSession(self._ui.console, steps, self.metrics_history)
-
+        if not _live_allowed(self._ui.console):
+                    return _NullEvalSession(self._ui.console, steps, self.metrics_history)
+        return _EvalSession(self._ui, steps, self.metrics_history)
 
 class _EvalSession:
     def __init__(self, console: Console, steps: int, history: list[dict]):
@@ -374,8 +458,12 @@ class TrainDashboard:
         self.metrics_history: list[dict] = []
 
     def session(self, epochs: int, steps_per_epoch: int):
+        
+        if not _live_allowed(self._ui.console):
+                return _NullSession(self._ui.console, epochs, steps_per_epoch, self.metrics_history)
+            
         return _TrainSession(self._ui.console, epochs, steps_per_epoch, self.metrics_history)
-
+    
 class _TrainSession:
     def __init__(self, console, epochs, steps_per_epoch, history):
         self.console = console
@@ -393,12 +481,14 @@ class _TrainSession:
         )
         self.batch_progress = Progress(
             SpinnerColumn(),
-            TextColumn("[bright_blue]Batch"),
+            TextColumn("{task.description}"),
             BarColumn(),
             MofNCompleteColumn(),
             TextColumn("[dim]{task.fields[stats]}"),
             console=console,
         )
+        self.val_task = None
+        self._last_train = {}
 
         self.epoch_task = None
         self.batch_task = None
@@ -438,9 +528,30 @@ class _TrainSession:
 
     def start_epoch(self, epoch: int):
         self._current_epoch = epoch
-        self.batch_task = self.batch_progress.add_task("batches", total=self.steps_per_epoch, stats="")
+        self._last_train = {}
+        self.batch_task = self.batch_progress.add_task(
+            "[bright_blue]Batch", total=self.steps_per_epoch, stats=""
+        )
         self.live.update(self._render())
 
+    def update_batch(self, **stats):
+        self._last_train = stats  # remember latest train metrics
+        stat_str = "  ".join(
+            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
+            for k, v in stats.items()
+        )
+        self.batch_progress.update(self.batch_task, advance=1, stats=stat_str)
+        self.live.update(self._render())
+
+    def end_epoch(self, **final_stats):
+        self.epoch_progress.update(self.epoch_task, advance=1)
+        self.batch_progress.remove_task(self.batch_task)
+        if self.val_task is not None:
+            self.batch_progress.remove_task(self.val_task)
+            self.val_task = None
+        self.history.append({"epoch": self._current_epoch, **self._last_train, **final_stats})
+        self.live.update(self._render())
+        
     def start_validation(self, val_steps: int):
         self.val_task = self.batch_progress.add_task(
             "[magenta]Val batch", total=val_steps, stats=""
@@ -454,19 +565,7 @@ class _TrainSession:
         self.batch_progress.update(self.val_task, advance=1, stats=stat_str)
         self.live.update(self._render())
         
-    def update_batch(self, **stats):
-        stat_str = "  ".join(
-            f"{k}={v:.4f}" if isinstance(v, float) else f"{k}={v}"
-            for k, v in stats.items()
-        )
-        self.batch_progress.update(self.batch_task, advance=1, stats=stat_str)
-        self.live.update(self._render())
-
-    def end_epoch(self, **final_stats):
-        self.epoch_progress.update(self.epoch_task, advance=1)
-        self.batch_progress.remove_task(self.batch_task)
-        self.history.append({"epoch": self._current_epoch, **final_stats})
-        self.live.update(self._render())
+   
 
 class TreeUI:
     def __init__(self, ui: UI):

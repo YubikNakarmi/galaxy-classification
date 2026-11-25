@@ -1,5 +1,9 @@
 ## Environment Variables
 
+For a complete, categorized reference, see
+[Environment variables](../deployment/env-vars.md). The sections below cover
+the most common local and MLflow settings.
+
 ```dotenv title=".env.template"
 AZURE_STORAGE_CONNECTION_STRING="" # In quotes because Linux environment variables may contain special characters
 DVC_AZURE_CONTAINER_NAME=galaxy-classification-data

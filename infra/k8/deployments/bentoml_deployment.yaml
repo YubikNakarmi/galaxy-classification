@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name:  bentoml-deployment
+  namespace: default
+  labels:
+    app:  bentoml-deployment
+    
+spec:
+  selector:
+    matchLabels:
+      app: bentoml-deployment
+  replicas: 3
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+
+  template:
+    metadata:
+      labels:
+        app:  bentoml-deployment
+    spec:
+  
+      containers:
+      - name:  Bentoml
+        image:  galaxy_classification:v1.0.0 #no restart policy set set if needed
+
+        resources:
+          requests:
+            cpu: 250m
+            memory: 400Mi
+          limits:
+            cpu: 1000m
+            memory: 1000Mi
+      
+        readinessProbe:
+          httpGet:
+            path: /_status/healthz
+            port: 3000
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+          successThreshold: 1
+          failureThreshold: 3
+          periodSeconds: 10
+
+
+        env:
+          #set secrets from secretmaps
+        - name: MLFLOW_TRACKING_URI
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: host
+
+        - name: MLFLOW_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: username
+        - name: MLFLOW_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mlflow-secrets
+              key: password
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: azure-secrets  #needed for uploading of models during training
+              key: connection-string
+
+        #explictly set config paths so it resolves in container
+        - name: MLFOW_TRACKING_URI
+          value: ${MLFLOW_TRACKING_URI}  
+        - name: BACKEND_YAML_PATH
+          value: /app/configs/backend.yaml
+
+        - name: ML_YAML_PATH
+          value: /app/configs/ml.yaml
+
+        - name: CORE_YAML_PATH
+          value: /app/configs/core.yaml
+
+        ports:
+        - containerPort:  3000
+          name:  bentoml-port
+
+        #mount configs
+        volumeMounts:
+        - name: localtime
+          mountPath: /etc/localtime
+
+        - name: backend-config
+          mountPath: /app/configs/backend.yaml
+          subPath: backend.yaml
+
+        - name: core-config
+          mountPath: /app/configs/core.yaml
+          subPath: core.yaml
+
+        - name: ml-config
+          mountPath: /app/configs/ml.yaml
+          subPath: ml.yaml
+
+      volumes:
+        - name: localtime
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Kathmandu
+
+      #configs
+        - name: backend-config
+          configMap:
+            name: backend-config
+            items:
+              - key: backend.yaml
+                path: backend.yaml
+
+        - name: core-config
+          configMap:
+            name: core-config
+            items:
+              - key: core.yaml
+                path: core.yaml
+
+        - name: ml-config
+          configMap:
+            name: ml-config
+            items:
+              - key: ml.yaml
+                path: ml.yaml
+
+      restartPolicy: Always
